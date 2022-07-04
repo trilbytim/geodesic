@@ -18,6 +18,8 @@ def stlreader(fname, trans=None):
     nfacets = 0
     ndegenerate = 0
     
+    
+    #NOTE: Need to fix ASCII reader to include normals
     if bascii:
         trpts = []
         for l in fin:
@@ -38,11 +40,12 @@ def stlreader(fname, trans=None):
     hnfacets = struct.unpack("<i", fin.read(4))[0]
     nfacets = 0
     while True:
-        fin.read(12) # override normal
+        buf = fin.read(12)
         try:
+            n = struct.unpack("<3f", buf) # read normal
             trpts = struct.unpack("<9f", fin.read(36)) # little endian
             assert len(trpts) == 9, len(trpts)
-            trpts = trans(trpts[0:3])+trans(trpts[3:6])+trans(trpts[6:9])
+            trpts = trans(trpts[0:3])+trans(trpts[3:6])+trans(trpts[6:9])+n
         except struct.error as e:
             break
         yield trpts
