@@ -100,11 +100,19 @@ class TriangleBarMesh:
         for face in self.faces:
             F.append(face.nodes)
         return np.array(F)
+    
     def GetNormals(self): #return a numpy array of all faces suitable for plotting in Polyscope
         N = []
         for face in self.faces:
             N.append(face.normal)
         return np.array(N)
+    
+    def GetEdgeBars(self):#return a list of bars that are on an edge
+        EB =[]
+        for bar in self.bars:
+            if bar.barforeright == None or bar.barbackleft == None:
+                EB.append(bar.i)
+        return EB
         
     def NewNode(self, p):
         if self.nodes:
@@ -130,7 +138,7 @@ class TriangleBarMesh:
             ipts.append((tr[0:3], i*3+0))
             ipts.append((tr[3:6], i*3+1))
             ipts.append((tr[6:9], i*3+2))
-            nvecs.append((tr[9:12]))
+            nvecs.append(P3(tr[9],tr[10],tr[11]))
             jtrs.append([-1, -1, -1])
             self.ntriangles += 1
         
