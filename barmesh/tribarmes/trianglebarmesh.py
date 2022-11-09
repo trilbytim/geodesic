@@ -3,10 +3,10 @@ from ..basicgeo import P3, AlongAcc, I1
 from . import stlgenerator
 
 class TriangleNode:   # replace with just P3
-    def __init__(self, p, i):
+    def __init__(self, p, i, thick = 0):
         self.p = p
         self.i = i  # index
-        
+        self.thick = thick #thickness at that node
 
 class TriangleBar:
     def __init__(self, nodeback, nodefore):
@@ -56,7 +56,7 @@ class Face:
     def __init__(self, nodes, normal, i):
         assert len(nodes)==3, 'Must supply indexes of 3 adjoining nodes'
         self.nodes = nodes #list of indexes of nodes
-        self.bars = [] #list of index of bars
+        self.bars = [] #list of bars
         self.normal = normal #Vector of normal to face
         self.i = i  # index
         
@@ -111,7 +111,7 @@ class TriangleBarMesh:
         EB =[]
         for bar in self.bars:
             if bar.barforeright == None or bar.barbackleft == None:
-                EB.append(bar.i)
+                EB.append(bar)
         return EB
         
     def NewNode(self, p):
@@ -195,9 +195,9 @@ class TriangleBarMesh:
         
         for bar in self.bars:
             if bar.faceleft or bar.faceleft == 0:
-                self.faces[bar.faceleft].bars.append(bar.i)
+                self.faces[bar.faceleft].bars.append(bar)
             if bar.faceright or bar.faceright == 0:
-                self.faces[bar.faceright].bars.append(bar.i)
+                self.faces[bar.faceright].bars.append(bar)
 
         if __debug__:
             Dntriangles = 0
