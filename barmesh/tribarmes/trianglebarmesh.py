@@ -16,6 +16,7 @@ class TriangleBar:
         self.barbackleft = None
         self.faceleft = None
         self.faceright = None
+        self.badedge = False
         self.i = -1 # index
         assert nodefore.i > nodeback.i
         
