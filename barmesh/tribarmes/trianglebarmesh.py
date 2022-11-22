@@ -56,7 +56,7 @@ class TriangleBar:
 class Face:
     def __init__(self, nodes, normal, i):
         assert len(nodes)==3, 'Must supply indexes of 3 adjoining nodes'
-        self.nodes = nodes #list of indexes of nodes
+        self.nodes = nodes #list of nodes
         self.bars = [] #list of bars
         self.normal = normal #Vector of normal to face
         self.i = i  # index
@@ -99,7 +99,7 @@ class TriangleBarMesh:
     def GetFaces(self): #return a numpy array of all faces suitable for plotting in Polyscope
         F = []
         for face in self.faces:
-            F.append(face.nodes)
+            F.append((face.nodes[0].i,face.nodes[1].i,face.nodes[2].i))
         return np.array(F)
     
     def GetNormals(self): #return a numpy array of all faces suitable for plotting in Polyscope
@@ -157,7 +157,7 @@ class TriangleBarMesh:
         tbars = [ ]
         for jt0, jt1, jt2 in jtrs:
             if jt0 != jt1 and jt0 != jt2 and jt1 != jt2:  # are all the points distinct?
-                self.faces.append(Face(nodes = (jt0,jt1,jt2),normal = nvecs[len(self.faces)], i = len(self.faces)))
+                self.faces.append(Face(nodes = (self.nodes[jt0],self.nodes[jt1],self.nodes[jt2]),normal = nvecs[len(self.faces)], i = len(self.faces)))
                 tbars.append(jt0 < jt1 and TriangleBar(self.nodes[jt0], self.nodes[jt1]) or TriangleBar(self.nodes[jt1], self.nodes[jt0]))
                 tbars.append(jt1 < jt2 and TriangleBar(self.nodes[jt1], self.nodes[jt2]) or TriangleBar(self.nodes[jt2], self.nodes[jt1]))
                 tbars.append(jt2 < jt0 and TriangleBar(self.nodes[jt2], self.nodes[jt0]) or TriangleBar(self.nodes[jt0], self.nodes[jt2]))

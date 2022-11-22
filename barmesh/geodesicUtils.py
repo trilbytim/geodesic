@@ -314,6 +314,103 @@ def createDoubleGeoLine(tbm, startPt, startFace, theta, ref90, calc_thick = True
         geoline['fail'] = [geoline['fail'],geolineB['fail']]
     return geoline
 
+def createGeoLineIntr(tbm, startPt, startFace, theta, ref90, calc_thick = False, tw = 6.35, forward = True, maxPathLength = 1000, lim = (np.Inf,np.Inf, np.Inf)):
+    valid = True
+    fail = 0
+    ref0 = P3.Cross(ref90,tbm.faces[startFace].normal)
+    startVec = rotAxisAngle(ref0,tbm.faces[startFace].normal,theta)
+    
+    #find which bar intersects with the start vector
+    barsint = []
+    for b in tbm.faces[startFace].bars:
+        p1 = b.GetNodeFore(True).p
+        vec1 = b.GetNodeFore(False).p-b.GetNodeFore(True).p
+        try:
+            Pint, lam = find_intersection(p1,vec1,startPt,startVec,tol=1e-4)
+        except:
+            lam = -1
+            print('Error finding instersection between starting lines and edge of face, try specifying ref90 in different plane')
+        if 0 < lam < 1:
+            barsint.append((b,1-lam))
+    bar = barsint[int(forward)][0]
+    bGoRight = bar.faceleft == startFace
+    lam = barsint[int(forward)][1]
+    
+    pts = [startPt]
+    faces = [startFace]
+    curvs = [0]
+    finished = False
+    bar_last = tbm.bars[0]
+    nodes = [] # list of nodes that fall within half a tow's width of the geoline
+    A = startPt
+    if type(calc_thick) == list:
+        nodes = [False] * len(thickPts)
+    while not finished:
+        if bar != None:
+            if bGoRight:
+                faces.append(bar.faceright)
+            else:
+                faces.append(bar.faceleft)
+            bar_last_last = bar_last
+            bar_last = bar
+            lam_last = lam
+            bGoRight_last = bGoRight
+            pt, bar, lam, bGoRight = GeoCrossBar(pts[-1], bar, lam, bGoRight)
+            pts.append(pt)
+            
+            #Thickness calc
+            if calc_thick and type(calc_thick) != list:
+                B = pt
+                check_bars = [bar_last]
+                i=0
+                while i < len(check_bars):
+                    nei = []
+                    df,c = distPointLine(A,B,check_bars[i].GetNodeFore(True).p)
+                    if df < tw/2 and check_bars[i].GetNodeFore(True) not in nodes:
+                        nodes.append(check_bars[i].GetNodeFore(True))
+                    db,c = distPointLine(A,B,check_bars[i].GetNodeFore(False).p)
+                    if db < tw/2 and check_bars[i].GetNodeFore(False) not in nodes:
+                        nodes.append(check_bars[i].GetNodeFore(False))
+
+                    if check_bars[i].GetForeRightBL(True) and df < tw/2:
+                        nei.append(check_bars[i].GetForeRightBL(True))
+                    if check_bars[i].GetForeRightBL(False) and db < tw/2:
+                        nei.append(check_bars[i].GetForeRightBL(False))
+                    for b in nei:
+                        if b not in check_bars:
+                            check_bars.append(b)
+                    i += 1
+                A = B
+                
+            if faces[-1] != None:
+                CClast = pts[-1]-pts[-2]
+                curvature = P3.Dot(tbm.faces[faces[-1]].normal,CClast)/P3.Len(tbm.faces[faces[-1]].normal)
+                curvs.append(curvs[-1]*0.75 + curvature*0.25)
+            elif faces[-1] == None:
+                curvs.append(curvs[-1])
+        
+        if bar==None:
+            finished =True
+            print('edge reached on path', theta, 'deg')
+            if bar_last.badedge:
+                print('PATH FAIL: bad edge reached')
+                valid = False
+                fail = 1
+        elif len(pts)>maxPathLength:
+            finished =True
+            print('PATH FAIL: max path length reached on path', theta)
+            valid = False
+            fail = 2
+        #elif ## SOME FUNCTION TO DETERMINE IF CURVATURE HAS BEEN EXCEEDED AND SET FAIL TO 3
+        elif pt.x > lim[0] or pt.y > lim[1] or pt.z > lim[2]:
+            #finished = True
+            pt, bar, lam, bGoRight = pts[-1], bar_last_last, 0.5, True
+            print('interupt',pts[-1], bar_last_last, 0.5, True)
+        else:
+            finished =False
+    return {'pts':pts,'curvs':curvs,'faces':faces, 'nodes':nodes, 'valid':valid, 'fail':fail}
+
+
 def createPly(tbm, seeds,thet = None, CPT = 0.125, calc_thick = True, tw = 6.35, maxPathLength = 1000):
     geolines=[]
     thicks = np.zeros(len(tbm.nodes))

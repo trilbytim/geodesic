@@ -126,6 +126,15 @@ class P3(namedtuple('P3', ['x', 'y', 'z'])):
     @staticmethod
     def ConvertCZ(p, z):  
         return P3(p.x, p.y, z)
+    
+    @staticmethod
+    def midpoint(pts):
+        x, y, z = 0, 0, 0
+        for pt in pts:
+            x += pt.x
+            y += pt.y
+            z += pt.z
+        return P3(x/len(pts), y/len(pts), z/len(pts))
 
 class I1(namedtuple('I1', ['lo', 'hi'])):
     __slots__ = ()
