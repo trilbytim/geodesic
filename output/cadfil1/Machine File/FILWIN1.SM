@@ -1,0 +1,362 @@
+; CADFIL Post-Processor Configuration file
+; Customer: Covess, BE
+; Machine:  Kuka 6ax robot, POE on robot, external mandrel axis, external eye roll rotation 
+; tool tcp is Z down POE in Y direction, exteranl roll about Y 
+; Author:   A.P.Priestley; Date:   09/02/2015
+; 
+; ****warning** Offsets etc not verified
+;
+; Any lines NOT starting with '$' are ingored.
+; Add comment lines starting with ';' to explain any changes you make!
+
+; In Notepad set  WORDWAP=OFF to make reading easier.
+; Max line length is 256 characters
+
+
+;Name of configuration (whatever you want!)
+$CONFIG=AMRC1
+
+
+;Note throughout the Standard axis references are
+;AX-1 = MANDREL ROTATION
+;AX-2 = PAYOUT EYE ROLL
+;AX-3 = PAYOUT YAW
+;AX-4 = CARRIAGE
+;AX-5 = CROSS FEED
+;AX-6 = VERTICAL (Orthogonal to X and Y)
+
+
+; UNIT OF LENGTH TO ME USED FOR MANDRELS CHOICES ARE MM OR INCH
+$LEN_UNIT_NAME=MM
+
+; NC line numbering (if used)
+; Line number format 
+$FORMAT-LINE-NO=(I5.5)
+$LINE-NO-START-MPF=10
+$LINE-NO-INCREMENT-MPF=1
+$LINE-NO-START-SPF=10
+$LINE-NO-INCREMENT-SPF=1
+$LINE-NO-MAX=9999
+
+
+;set to zero for machines that us a MPF and SPF number
+;set to 1 to name mpf and spf the same as cadfil .pay file names used
+$SPF-NAMED-AS-PAYFILE=1
+
+
+; If we are on a controller that uses numbers rather than names for mpf/spf
+; set to 1 to ask for MPF number. If you don't MPF is set to number 0
+; note that sub program numbers are sequential after the MPF number entered
+; i.e if the MPF is 1234 the sub-program numbers will be 1235, 1236 etc
+$ASK-MPF-NUMBER=0
+
+
+
+;Maximum number of times a sub program can be called
+;If more than 9999 we use multiple sub-program calls
+$MAX-SUB-LOOPS=9999
+
+; KILL WHITE SPACE=1 Eliminates multiple blank spaces to make nc smaller
+; KILL WHITE SPACE=0 Normal mode NC easier to read but bigger file size
+$KILL-WHITE-SPACE=0
+
+
+; MPF-FIRST-IN-NC=1 has the main program at the top of the file rather than the bottom (=2)
+; on some machines (such as Fanuc11/15/18) the last routine in the NC is loaded
+; automatically after transfer to the CNC so you want this to be the MPF.
+; $MPF-FIRST-IN-NC=3 creates 2 files 1 with mpf and one with the spf(s)
+;$MPF-FIRST-IN-NC=4 create and spf and multiple spf files, you will need this on siemens 
+; if using the excall function for spfs
+$MPF-FIRST-IN-NC=1
+
+
+; program file extension
+$MPF-FILE-EXT=src
+
+
+;TENSION VALUE IS A TEXT FIELD @@TENSION-VALUE-N@@ CAN BE EMBEDDED ANYWHERE IN THE NC TEMPLATE
+$TENSION-VALUE-1=150
+$TENSION-VALUE-2=2000
+$TENSION-VALUE-3=1000
+$FORMAT-TENSION=(F5.0)         
+
+
+;Feed rate output format and precision
+$FORMAT-FEED=(F8.1)
+
+;Program name format either an integer number e.g. 1234 (I4), 0010 (I4.4),  
+;or a name e.g.'PROG1' (An) - where n is maximum number of characters that controller will allow
+$FORMAT-SPF=(a16)
+$FORMAT-MPF=(a16)
+$FORMAT-PASSES=(I4)
+
+;Axis motion output formats, F11.2 is a field width of 11 with 2 decimal places e.g.'-1234567.12'IS F11.2
+; set all 6 axes even if machine does not have them, formats take the fortran convention and any valid fortran formt for the
+; data type can be used.SP forces out of +sign with positve numbers
+$FORMAT-AXIS-1=(SPF12.3)         
+$FORMAT-AXIS-2=(SPF12.3)
+$FORMAT-AXIS-3=(SPF12.3)
+$FORMAT-AXIS-4=(SPF12.3)
+$FORMAT-AXIS-5=(SPF12.3)
+$FORMAT-AXIS-6=(SPF12.3)
+
+;text label for axis on controller (if used)
+;set all 6 axes even if machine does not have them
+; ROTOT HAS A,B,C X,Y,Z BUT B=0 AND USE E1 ON FIXED EYE
+$LAB-AX-1=E1
+$LAB-AX-2=E2
+$LAB-AX-3=A
+$LAB-AX-4=Y
+$LAB-AX-5=X
+$LAB-AX-6=Z
+
+; Axis status -1,0,1
+;  0=axis not present on machine
+;  1=axis present and positive direction matches CADFIL standard
+; -1=axis present and positive direction does not match CADFIL standard
+; set all 6 axes even if machine does not have them
+
+$AX-STATUS-1=1
+$AX-STATUS-2=-1
+$AX-STATUS-3=1
+$AX-STATUS-4=1
+$AX-STATUS-5=-1
+$AX-STATUS-6=1
+
+; Offsets are in winding machine units and winding machine co-ordinate  system
+; set all 6 axes even if machine does not have them
+;****need to verify****
+$OFFSET-AX-1=0.0
+$OFFSET-AX-2=90.0
+$OFFSET-AX-3=0.0
+$OFFSET-AX-4=0.0
+$OFFSET-AX-5=0.0
+$OFFSET-AX-6=0.0
+
+
+; NULL INCREMENTAL MOTIONS ARE OUTPUT FOR AXIS IF NUL-INCREMENT-OK=1
+; ELSE SET TO ZERO
+$NUL-INCREMENTS-OK-1=1
+$NUL-INCREMENTS-OK-2=1
+$NUL-INCREMENTS-OK-3=1
+$NUL-INCREMENTS-OK-4=1
+$NUL-INCREMENTS-OK-5=1
+$NUL-INCREMENTS-OK-6=1
+
+
+; Set threshhold for small incremental motions 
+; These are eliminated from NC ouput if it is safe to do so
+; Note that this does not cause rounding/precision errors
+; These are in WINDING MACHINE UNITS.
+; set all 6 axes even if machine does not have them
+$SMALL-MOVE-AX-1=0.005
+$SMALL-MOVE-AX-2=0.005
+$SMALL-MOVE-AX-3=0.005
+$SMALL-MOVE-AX-4=0.005
+$SMALL-MOVE-AX-5=0.005
+$SMALL-MOVE-AX-6=0.005
+
+
+; deg/min and in/min 
+; set all 6 axes even if machine does not have them
+$MAX-SPEED-AX-1=43000.
+$MAX-SPEED-AX-2=21000.
+$MAX-SPEED-AX-3=10000.
+$MAX-SPEED-AX-4=1000.
+$MAX-SPEED-AX-5=1000.
+$MAX-SPEED-AX-6=1000.
+
+
+;feed rate scaling to allow for non-stabndrad feed rate metghod on cnc
+;one value for each axis. Axis distance is multiplied by scale in distance
+;calculation, set to default of 1.0
+$FEED-SCALE-AX-1=1.0
+$FEED-SCALE-AX-2=1.0
+$FEED-SCALE-AX-3=1.0
+$FEED-SCALE-AX-4=1.0
+$FEED-SCALE-AX-5=1.0
+$FEED-SCALE-AX-6=1.0
+
+; THESE ARE ABSOLUTE MAX AND MIN VALUES THAT OVERIDE OTHER FEEDS
+; IF YOU DONT NEED SET MAX TO VERY LARGE AND MIN TO ZERO!
+$FEED-MAX=6000.0
+$FEED-MIN=10.0
+
+;DEFAULT VALES ARE USED IN FEED RATE DIALOG FOR THE INITIAL VALUES
+$FEED-DEFAULT-START=100.0
+$FEED-DEFAULT-WIND=1000.0
+
+; Axis limit checking on or off for each axis
+; Limits (min/max) not used if check-limix-ax-?=0
+; set all 6 axes even if machine does not have them
+
+$CHECK-LIMITS-AX-1=0
+$MIN-POS-AX-1=0.0
+$MAX-POS-AX-1=0.0
+
+$CHECK-LIMITS-AX-2=0
+$MIN-POS-AX-2=0.0
+$MAX-POS-AX-2=0.0
+
+$CHECK-LIMITS-AX-3=0
+$MIN-POS-AX-3=-45.0
+$MAX-POS-AX-3=45.0
+
+$CHECK-LIMITS-AX-4=0
+$MIN-POS-AX-4=-10.0
+$MAX-POS-AX-4=1000.0
+
+$CHECK-LIMITS-AX-5=0
+$MIN-POS-AX-5=-2.0
+$MAX-POS-AX-5=30.0
+
+$CHECK-LIMITS-AX-6=0
+$MIN-POS-AX-6=0.0
+$MAX-POS-AX-6=0.0
+
+
+; Rotation=Degrees, Linear=Mandrel Units used
+; if machine units are different use gearing.
+; e.g  machine unit=gearing*degrees
+; e.g  machine unit=gearing*mandrel units
+; set all 6 axes even if machine does not have them
+$GEARING-AX-1=2.7777777777777777
+$GEARING-AX-2=1.0
+$GEARING-AX-3=1.0
+$GEARING-AX-4=1.0
+$GEARING-AX-5=1.0
+$GEARING-AX-6=1.0
+
+; Max Yaw axis incremental move to prevent circular interpolation errors, degrees
+; set even if machine does not have axis
+$MAX-AX-3-INCR=90.0
+
+
+:yaw axis rotation offest (in addition to any payout eye length)
+$AX-3-ROTN-OFFSET=0.0
+
+
+;RECORD FOR ANR01. THE ANCILLARY RECORDS ANR 01 ARE WRITTEN
+;IN THE PAY FILE WITH SOME CADFIL OPTIONS TO ALLOW CAFILE GENErATED COMMENTS TO BE EMBEDDED
+;INTO THE SPF FILE AS COMMENT LINES. THE TEXT 'ANR-TXT' IS AUTOMATICALLY GENEARTED. THE $BLOCK-ANR01
+;JUST DETERMINES THE FORMAT OF THE NC LINE. LEAVE IT BLANK IF THE CONTROLLER DOES NOT
+;SUPPORT EMBBEDED COMMENTS
+;$BLOCK-ANR01=
+$BLOCK-ANR01=;@@ANR-TXT@@
+
+
+;RECORD FOR ANR02. THE ANCILLARY RECORDS ANR 02 ARE WRITTEN
+;IN THE PAY FILE WITH SOME CADFIL OPTIONS TO ALLOW CAFILE GENEATED COMMETS TO BE EMBEDDED
+;INTO THE SPF FILE AS OPPERATOR MESSAGES. THE TEXT 'ANR-TXT' IS AUTOMATICALLY GENEARTED. THE $BLOCK-ANR01
+;JUST DETERMINES THE FORMAT OF THE NC LINE. LEAVE IT BLANK IF THE CONTROLLER DOES NOT
+;SUPPORT OPPERATOR MESSAGES OR SET AS A COMMENT FORMAT.
+;$BLOCK-ANR02=
+$BLOCK-ANR02=;@@ANR-TXT@@
+
+
+; Define main program layout
+
+
+
+$BLOCK-MAIN-PROGRAM=&ACCESS RVEO
+$BLOCK-MAIN-PROGRAM=&REL 11
+$BLOCK-MAIN-PROGRAM=&PARAM TEMPLATE = C:\KRC\Roboter\Template\vorgabe
+$BLOCK-MAIN-PROGRAM=&PARAM EDITMASK = *
+$BLOCK-MAIN-PROGRAM=DEF variable_helical2( )
+$BLOCK-MAIN-PROGRAM=;FOLD INI
+$BLOCK-MAIN-PROGRAM=  ;FOLD BASISTECH INI
+$BLOCK-MAIN-PROGRAM=    GLOBAL INTERRUPT DECL 3 WHEN $STOPMESS==TRUE DO IR_STOPM ( )
+$BLOCK-MAIN-PROGRAM=    INTERRUPT ON 3 
+$BLOCK-MAIN-PROGRAM=    BAS (#INITMOV,0 )
+$BLOCK-MAIN-PROGRAM=  ;ENDFOLD (BASISTECH INI)
+$BLOCK-MAIN-PROGRAM= ;FOLD USER INI
+$BLOCK-MAIN-PROGRAM=@@BLANK-LINE@@
+$BLOCK-MAIN-PROGRAM=@@BLANK-LINE@@
+$BLOCK-MAIN-PROGRAM=    ;Make your modifications here
+$BLOCK-MAIN-PROGRAM=  ;ENDFOLD (USER INI)
+$BLOCK-MAIN-PROGRAM=;ENDFOLD (INI)
+$BLOCK-MAIN-PROGRAM=FCT_RESET_AXE7 ( )
+$BLOCK-MAIN-PROGRAM=;FOLD PTP HOME  Vel= 100 % DEFAULT;%{PE}%MKUKATPBASIS,%CMOVE,%VPTP,%P 1:PTP, 2:HOME, 3:, 5:100, 7:DEFAULT
+$BLOCK-MAIN-PROGRAM=$BWDSTART = FALSE
+$BLOCK-MAIN-PROGRAM=PDAT_ACT=PDEFAULT
+$BLOCK-MAIN-PROGRAM=FDAT_ACT=FHOME
+$BLOCK-MAIN-PROGRAM=BAS (#PTP_PARAMS,100 )
+$BLOCK-MAIN-PROGRAM=$H_POS=XHOME
+$BLOCK-MAIN-PROGRAM=PTP  XHOME
+$BLOCK-MAIN-PROGRAM=;ENDFOLD
+
+$BLOCK-MAIN-PROGRAM=$TOOL=TOOL_DATA[1]
+$BLOCK-MAIN-PROGRAM=$BASE=BASE_DATA[1]
+
+$BLOCK-MAIN-PROGRAM=$VEL_AXIS[1]=100
+$BLOCK-MAIN-PROGRAM=$VEL_AXIS[2]=100
+$BLOCK-MAIN-PROGRAM=$VEL_AXIS[3]=100
+$BLOCK-MAIN-PROGRAM=$VEL_AXIS[4]=100
+$BLOCK-MAIN-PROGRAM=$VEL_AXIS[5]=100
+$BLOCK-MAIN-PROGRAM=$VEL_AXIS[6]=100
+$BLOCK-MAIN-PROGRAM=$VEL_EXTAX[1]=100
+$BLOCK-MAIN-PROGRAM=$VEL_EXTAX[2]=100
+$BLOCK-MAIN-PROGRAM=@@BLANK-LINE@@
+$BLOCK-MAIN-PROGRAM=$ACC_AXIS[1]=100
+$BLOCK-MAIN-PROGRAM=$ACC_AXIS[2]=100
+$BLOCK-MAIN-PROGRAM=$ACC_AXIS[3]=100
+$BLOCK-MAIN-PROGRAM=$ACC_AXIS[4]=100
+$BLOCK-MAIN-PROGRAM=$ACC_AXIS[5]=100
+$BLOCK-MAIN-PROGRAM=$ACC_AXIS[6]=100
+$BLOCK-MAIN-PROGRAM=$ACC_EXTAX[1]=100
+$BLOCK-MAIN-PROGRAM=$ACC_EXTAX[2]=100
+$BLOCK-MAIN-PROGRAM=@@BLANK-LINE@@
+$BLOCK-MAIN-PROGRAM=@@BLANK-LINE@@
+
+$BLOCK-MAIN-PROGRAM=@@BLOCK-START-POSN@@
+$BLOCK-MAIN-PROGRAM=@@BLANK-LINE@@
+
+
+;Define sub-program call sequence (part of MPF), move to start, and call sub-program
+;in this example we:
+; 1] Do X motion first POS-n is absolute position for axis n, AX-INC-n is incremental move for axis n
+; 2] Do rest of axes but not mandrel rotation
+; 3] Issue a STOP command
+; 4] Add a comment line and set fibre tension
+; 5] Call a sub-program
+
+
+; user-def only in devt version can't use
+;$USER-DEF-1=  LIN_REL {@@LAB-AX-4@@ @@AX-INC-4@@, @@LAB-AX-5@@ @@AX-INC-5@@, @@LAB-AX-6@@ @@AX-INC-6@@, , A 0.000, @@LAB-AX-1@@ @@AX-INC-1@@, @@LAB-AX-2@@ @@AX-INC-2@@} C_DIS
+;$USER-DEF-1=  LIN_PTP {@@LAB-AX-4@@ @@AX-INC-4@@, @@LAB-AX-5@@ @@AX-INC-5@@, @@LAB-AX-6@@ @@AX-INC-6@@, , A 0.000, @@LAB-AX-1@@ @@AX-INC-1@@, @@LAB-AX-2@@ @@AX-INC-2@@} C_PTP
+
+; null because proc init included in $BLOCK-SPF-START
+$BLOCK-START-POSN=
+
+
+$BLOCK-SPF-START=;@@PAY-FILE-NAME@@ IN PROGRESS
+$BLOCK-SPF-START=;The band pattern is @@BAND-PAT-NO@@
+$BLOCK-SPF-START=;The winding angle is @@VECAP-WIND-ANGLE@@
+$BLOCK-SPF-START=LIN {@@LAB-AX-4@@ @@SPOS-4@@, @@LAB-AX-5@@ @@SPOS-5@@, @@LAB-AX-6@@ @@SPOS-6@@, @@LAB-AX-3@@ @@SPOS-3@@, @@LAB-AX-1@@ @@SPOS-1@@, @@LAB-AX-2@@ @@SPOS-2@@}
+$BLOCK-SPF-START=@@BLANK-LINE@@
+$BLOCK-SPF-START=HALT
+$BLOCK-SPF-START=@@BLANK-LINE@@
+$BLOCK-SPF-START=$APO.CDIS=85
+$BLOCK-SPF-START=FOR N_CYC=1 to @@NO-PASSES@@
+$BLOCK-SPF-START=  LIN_REL {@@LAB-AX-4@@ @@AX-INC-4@@, @@LAB-AX-5@@ @@AX-INC-5@@, @@LAB-AX-6@@ @@AX-INC-6@@, @@LAB-AX-3@@ @@AX-INC-3@@, @@LAB-AX-1@@ @@AX-INC-1@@, @@LAB-AX-2@@ @@AX-INC-2@@} C_DIS
+
+;This block has up to 99 lines, but usualy has only one line
+;This defines line(s) of motion output in the sub program but is NOT used for the first or last lines of motion in the sub-program
+$BLOCK-SPF-MIDDLE=  LIN_REL {@@LAB-AX-4@@ @@AX-INC-4@@, @@LAB-AX-5@@ @@AX-INC-5@@, @@LAB-AX-6@@ @@AX-INC-6@@, @@LAB-AX-3@@ @@AX-INC-3@@, @@LAB-AX-1@@ @@AX-INC-1@@, @@LAB-AX-2@@ @@AX-INC-2@@} C_DIS
+, @@LAB-AX-1@@ @@AX-INC-1@@, @@LAB-AX-2@@ @@AX-INC-2@@} C_DIS
+
+
+; Up to 99 lines, last line of motion including any special codes etc required to end the sub-program
+$BLOCK-SPF-END=  LIN_REL {@@LAB-AX-4@@ @@AX-INC-4@@, @@LAB-AX-5@@ @@AX-INC-5@@, @@LAB-AX-6@@ @@AX-INC-6@@, @@LAB-AX-3@@ @@AX-INC-3@@, @@LAB-AX-1@@ @@AX-INC-1@@, @@LAB-AX-2@@ @@AX-INC-2@@} C_DIS
+, @@LAB-AX-1@@ @@AX-INC-1@@, @@LAB-AX-2@@ @@AX-INC-2@@} C_DIS
+$BLOCK-SPF-END=ENDFOR
+$BLOCK-SPF-END=HALT
+$BLOCK-SPF-END=@@BLANK-LINE@@
+$BLOCK-SPF-END=@@BLANK-LINE@@
+
+
+$BLOCK-NC-BOT=HALT
+$BLOCK-NC-BOT=END
+
+
+

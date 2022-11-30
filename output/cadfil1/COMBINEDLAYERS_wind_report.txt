@@ -1,0 +1,24 @@
+ WINDING SUMMARY REPORT >>>> COMBINEDLAYERS_wind_report.txt
+ DATE:                  >>>> 30-NOV-22   13:29:48
+ USER:                  >>>> me1lbz
+--------------------------------------------------
+Ref Number: 1
+Pay File Vesselv2.pay
+Wind Time: 241.32
+Fibre Length:       190.6668E+03
+Mass Fibre: 152.5
+Mass Resin: 39.9
+--------------------------------------------------
+Ref Number: 2
+Pay File Vesselv2layer2.pay
+Wind Time: 349.37
+Fibre Length:       256.1818E+03
+Mass Fibre: 204.9
+Mass Resin: 53.7
+--------------------------------------------------
+--------------------------------------------------
+Number of Programs: 2
+Total Fibre Length:       446.8486E+03
+Total Wind Time: 590.69
+Total Mass Fibre: 357.5
+Total Mass Resin: 93.6

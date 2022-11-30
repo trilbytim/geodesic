@@ -1,0 +1,125 @@
+&ACCESS RVEO
+&REL 11
+&PARAM TEMPLATE = C:\KRC\Roboter\Template\vorgabe
+&PARAM EDITMASK = *
+DEF variable_helical2( )
+;FOLD INI
+  ;FOLD BASISTECH INI
+    GLOBAL INTERRUPT DECL 3 WHEN $STOPMESS==TRUE DO IR_STOPM ( )
+    INTERRUPT ON 3
+    BAS (#INITMOV,0 )
+  ;ENDFOLD (BASISTECH INI)
+ ;FOLD USER INI
+
+
+    ;Make your modifications here
+  ;ENDFOLD (USER INI)
+;ENDFOLD (INI)
+FCT_RESET_AXE7 ( )
+;FOLD PTP HOME  Vel= 100 % DEFAULT;%{PE}%MKUKATPBASIS,%CMOVE,%VPTP,%P 1:PTP, 2:HOME, 3:, 5:100, 7:DEFAULT
+$BWDSTART = FALSE
+PDAT_ACT=PDEFAULT
+FDAT_ACT=FHOME
+BAS (#PTP_PARAMS,100 )
+$H_POS=XHOME
+PTP  XHOME
+;ENDFOLD
+$TOOL=TOOL_DATA[1]
+$BASE=BASE_DATA[1]
+$VEL_AXIS[1]=100
+$VEL_AXIS[2]=100
+$VEL_AXIS[3]=100
+$VEL_AXIS[4]=100
+$VEL_AXIS[5]=100
+$VEL_AXIS[6]=100
+$VEL_EXTAX[1]=100
+$VEL_EXTAX[2]=100
+
+$ACC_AXIS[1]=100
+$ACC_AXIS[2]=100
+$ACC_AXIS[3]=100
+$ACC_AXIS[4]=100
+$ACC_AXIS[5]=100
+$ACC_AXIS[6]=100
+$ACC_EXTAX[1]=100
+$ACC_EXTAX[2]=100
+
+
+
+;Vesselv2.pay IN PROGRESS
+;The band pattern is 7
+;The winding angle is 80.0000000000
+LIN {Y     -367.360, X     -109.599, Z     +109.599, A      +45.000, E1       +0.000, E2      +79.510}
+
+HALT
+
+$APO.CDIS=85
+FOR N_CYC=1 to   22
+  LIN_REL {Y       +5.630, X       +0.000, Z       +0.000, A       +0.000, E1      +39.842, E2       +0.500} C_DIS
+  LIN_REL {Y       +8.680, X       +0.000, Z       +0.000, A       +0.000, E1      +46.715, E2       +0.055} C_DIS
+  LIN_REL {Y       +6.260, X       -0.005, Z       +0.005, A      -26.022, E1      +34.524, E2       -7.400} C_DIS
+  LIN_REL {Y       +7.700, X       +0.005, Z       -0.005, A       -0.487, E1      +48.964, E2       -0.109} C_DIS
+  LIN_REL {Y       +5.880, X       +0.000, Z       +0.000, A      -18.491, E1      +34.594, E2      -22.862} C_DIS
+  LIN_REL {Y     +699.010, X       +0.000, Z       +0.000, A      -20.265, E1    +5025.703, E2      -99.219} C_DIS
+  LIN_REL {Y       +4.430, X       -0.006, Z       +0.006, A       -0.337, E1      +50.455, E2       -4.882} C_DIS
+  LIN_REL {Y       +3.520, X       +0.006, Z       -0.006, A       -9.046, E1      +50.341, E2      -14.899} C_DIS
+  LIN_REL {Y       -1.360, X       +0.000, Z       +0.000, A      -15.352, E1      +35.754, E2       -8.772} C_DIS
+  LIN_REL {Y       -4.100, X       +0.000, Z       +0.000, A       +0.000, E1      +48.457, E2       -1.135} C_DIS
+  LIN_REL {Y       -4.130, X       +0.000, Z       +0.000, A       +0.000, E1      +32.683, E2       -0.456} C_DIS
+  LIN_REL {Y       -7.900, X       -0.005, Z       +0.005, A       +0.000, E1      +47.022, E2       -0.271} C_DIS
+  LIN_REL {Y       -7.000, X       +0.000, Z       +0.000, A      +25.872, E1      +33.619, E2       +7.464} C_DIS
+  LIN_REL {Y       -7.530, X       +0.000, Z       +0.000, A       +0.473, E1      +49.006, E2       -0.019} C_DIS
+  LIN_REL {Y       -8.390, X       +0.000, Z       +0.000, A      +18.655, E1      +48.901, E2      +22.950} C_DIS
+  LIN_REL {Y     -699.110, X       +0.000, Z       +0.000, A      +22.071, E1    +5025.835, E2     +103.602} C_DIS
+  LIN_REL {Y       -3.460, X       +0.000, Z       +0.000, A       -1.544, E1      +35.572, E2       -1.277} C_DIS
+  LIN_REL {Y       -4.170, X       +0.000, Z       +0.000, A       +0.312, E1      +50.401, E2       +4.011} C_DIS
+  LIN_REL {Y       -0.870, X       +0.000, Z       +0.000, A      +24.161, E1      +36.478, E2      +20.783} C_DIS
+  LIN_REL {Y       +2.850, X       +0.000, Z       +0.000, A       +0.000, E1      +48.902, E2       +1.370} C_DIS
+  LIN_REL {Y       +4.060, X       +0.005, Z       -0.005, A       +0.000, E1      +39.868, E2       +0.566} C_DIS
+ENDFOR
+HALT
+
+
+;Vesselv2layer2.pay IN PROGRESS
+;The band pattern is 43
+;The winding angle is 20.0000000000
+LIN {Y     -444.120, X     -109.747, Z     +109.747, A      +45.000, E1       +0.000, E2     +128.164}
+
+HALT
+
+$APO.CDIS=85
+FOR N_CYC=1 to  117
+  LIN_REL {Y      +33.240, X       +0.000, Z       +0.000, A       +0.000, E1      +11.107, E2       -7.278} C_DIS
+  LIN_REL {Y      +31.970, X       +0.000, Z       +0.000, A       +0.000, E1      +10.442, E2       -7.556} C_DIS
+  LIN_REL {Y      +24.790, X       +0.000, Z       +0.000, A       +0.000, E1       +8.149, E2       -6.211} C_DIS
+  LIN_REL {Y      +34.050, X       +0.000, Z       +0.000, A       -2.205, E1      +11.963, E2       -7.716} C_DIS
+  LIN_REL {Y     +747.080, X       +0.000, Z       +0.000, A      -42.795, E1     +328.929, E2      -12.523} C_DIS
+  LIN_REL {Y      +25.480, X       +6.673, Z       -6.673, A       +0.000, E1      +18.377, E2       -1.903} C_DIS
+  LIN_REL {Y       +2.780, X       +7.929, Z       -7.929, A       +0.000, E1       +7.650, E2       -3.125} C_DIS
+  LIN_REL {Y       +5.980, X      +17.059, Z      -17.059, A      -25.144, E1      +15.060, E2      -15.214} C_DIS
+  LIN_REL {Y       +6.980, X      +19.952, Z      -19.952, A      -19.856, E1      +29.884, E2      -26.520} C_DIS
+  LIN_REL {Y       +5.710, X      +16.296, Z      -16.296, A       +0.000, E1      +64.246, E2      -22.295} C_DIS
+  LIN_REL {Y       +1.460, X       +4.162, Z       -4.162, A       +0.000, E1     +110.606, E2      -48.170} C_DIS
+  LIN_REL {Y       -5.170, X      -14.763, Z      +14.763, A       +0.000, E1      +99.161, E2      -75.516} C_DIS
+  LIN_REL {Y      -14.460, X      -41.273, Z      +41.273, A       +0.000, E1      +62.121, E2      -21.698} C_DIS
+  LIN_REL {Y      -28.750, X      -16.032, Z      +16.032, A       +0.000, E1      +18.518, E2       +3.118} C_DIS
+  LIN_REL {Y      -33.500, X       +0.000, Z       +0.000, A       +0.000, E1      +10.055, E2       +7.575} C_DIS
+  LIN_REL {Y      -26.250, X       -0.005, Z       +0.005, A       +0.000, E1       +8.528, E2       +6.457} C_DIS
+  LIN_REL {Y      -28.110, X       +0.000, Z       +0.000, A       +0.000, E1       +9.416, E2       +6.856} C_DIS
+  LIN_REL {Y      -47.890, X       +0.000, Z       +0.000, A      +23.824, E1      +16.759, E2       +8.790} C_DIS
+  LIN_REL {Y     -735.310, X       +0.000, Z       +0.000, A      +21.176, E1     +326.829, E2       +7.885} C_DIS
+  LIN_REL {Y       -9.180, X       +8.756, Z       -8.756, A       +0.000, E1      +12.733, E2       +2.606} C_DIS
+  LIN_REL {Y       -2.570, X       +7.327, Z       -7.327, A       +8.440, E1       +6.626, E2       +3.741} C_DIS
+  LIN_REL {Y       -5.920, X      +16.914, Z      -16.914, A      +30.118, E1      +14.523, E2      +20.142} C_DIS
+  LIN_REL {Y       -6.000, X      +17.114, Z      -17.114, A       +6.442, E1      +27.228, E2      +19.532} C_DIS
+  LIN_REL {Y       -5.850, X      +16.723, Z      -16.723, A       +0.000, E1      +60.411, E2      +21.281} C_DIS
+  LIN_REL {Y       -1.950, X       +5.577, Z       -5.577, A       +0.000, E1     +107.802, E2      +44.381} C_DIS
+  LIN_REL {Y       +5.780, X      -16.511, Z      +16.511, A       +0.000, E1     +112.520, E2      +83.413} C_DIS
+  LIN_REL {Y      +15.160, X      -43.297, Z      +43.297, A       +0.000, E1      +61.302, E2      +19.909} C_DIS
+  LIN_REL {Y      +10.450, X      -12.601, Z      +12.601, A       +0.000, E1      +10.252, E2       +0.039} C_DIS
+ENDFOR
+HALT
+
+
+HALT
+END
