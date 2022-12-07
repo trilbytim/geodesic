@@ -33,19 +33,6 @@ def find_rot(vec1, vec2):
     rotation_matrix = np.eye(3) + kmat + kmat.dot(kmat) * ((1 - c) / (s ** 2))
     return rotation_matrix
 
-def find_intersection(p1,vec1,p2,vec2, tol= 1e-6):
-    flip = vec2.y ==0
-    if flip:
-        p1,vec1,p2,vec2 = p2,vec2,p1,vec1
-    a = (p2.x+(vec2.x*p1.y-vec2.x*p2.y)/vec2.y-p1.x) / (vec1.x - vec2.x*vec1.y/vec2.y)
-    b = (p1.y+ a*vec1.y-p2.y)/vec2.y
-    p_int1 = P3(p1.x+ a*vec1.x,p1.y+ a*vec1.y,p1.z+ a*vec1.z)
-    #print('tol ',abs((p1.z+ a*vec1.z)-(p2.z+ b*vec2.z)))
-    assert abs((p1.z+ a*vec1.z)-(p2.z+ b*vec2.z)) < tol, "Lines do not intersect in 3D space"    
-    if flip:
-        a = b
-    return p_int1,a
-
 #function to rotate a P3 vector about an axis (of any length) and an angle in degrees
 def rotAxisAngle(v,ax,a):
     ax = P3.ZNorm(ax)
@@ -211,28 +198,25 @@ def distPointLine(A,B,P):
     dist = (A + v*x - P).Len()
     return dist,clamped
 
-#Draw a single geodesic line from a specified point at a specified angle and ref90 A reference direction approximately perpendicular to the axis of the part    
-def createGeoLine(tbm, startPt, startFace, theta, ref90, calc_thick = False, tw = 6.35, forward = True, maxPathLength = 1000):
+#Draw a single geodesic line from a specified point at a specified angle and ref0 A reference direction approximately along the axis of the part    
+def createGeoLine(tbm, startPt, startFace, theta, ref0, calc_thick = False, tw = 6.35, maxPathLength = 1000, lim = (np.Inf,np.Inf, np.Inf), tol=1e-4):
     valid = True
     fail = 0
-    ref0 = P3.Cross(ref90,tbm.faces[startFace].normal)
     startVec = rotAxisAngle(ref0,tbm.faces[startFace].normal,theta)
+    startVN = P3.Cross(startVec,tbm.faces[startFace].normal)
     
     #find which bar intersects with the start vector
-    barsint = []
     for b in tbm.faces[startFace].bars:
-        p1 = b.GetNodeFore(True).p
-        vec1 = b.GetNodeFore(False).p-b.GetNodeFore(True).p
-        try:
-            Pint, lam = find_intersection(p1,vec1,startPt,startVec,tol=1e-4)
-        except:
-            lam = -1
-            print('Error finding instersection between starting lines and edge of face, try specifying ref90 in different plane')
-        if 0 < lam < 1:
-            barsint.append((b,1-lam))
-    bar = barsint[int(forward)][0]
-    bGoRight = bar.faceleft == startFace
-    lam = barsint[int(forward)][1]
+        p1 = b.GetNodeFore(False).p
+        p2 = b.GetNodeFore(True).p
+        v = p2-p1
+        if (P3.Dot((p1-startPt),startVN) > 0) is not (P3.Dot((p2-startPt),startVN) > 0):
+            lam = (P3.Dot(startPt,startVN)-P3.Dot(p1,startVN))/(P3.Dot(p2,startVN)-P3.Dot(p1,startVN))
+            nextpt = p1 + v*lam
+            if P3.Dot((nextpt-startPt),startVec) > 0:
+                bar = b
+                bGoRight = bar.faceleft == startFace
+                break
     
     pts = [startPt]
     faces = [startFace]
@@ -297,13 +281,24 @@ def createGeoLine(tbm, startPt, startFace, theta, ref90, calc_thick = False, tw 
             valid = False
             fail = 2
         #elif ## SOME FUNCTION TO DETERMINE IF CURVATURE HAS BEEN EXCEEDED AND SET FAIL TO 3
+        elif pt.x > lim[0]:
+            finished = True
+        
+        elif pt.y > lim[1] and len(pts)>1:
+            l = (lim[1]-pts[-2].y) / (pt.y-pts[-2].y)
+            pts[-1] = pts[-2] + (pt-pts[-2])*l
+            faces[-1] = faces[-2]
+            finished = True
+        elif pt.z > lim[2]:
+            finished = True
         else:
             finished =False
     return {'pts':pts,'curvs':curvs,'faces':faces, 'nodes':nodes, 'valid':valid, 'fail':fail}
 
-def createDoubleGeoLine(tbm, startPt, startFace, theta, ref90, calc_thick = True, tw = 6.35, maxPathLength = 1000):
-    geoline = createGeoLine(tbm, startPt, startFace, theta, ref90, calc_thick = calc_thick, tw = tw, forward = True, maxPathLength = maxPathLength)
-    geolineB = createGeoLine(tbm, startPt, startFace, theta, ref90, calc_thick = calc_thick, tw = tw, forward =False, maxPathLength = maxPathLength)
+
+def createDoubleGeoLine(tbm, startPt, startFace, theta, ref0, calc_thick = True, tw = 6.35, maxPathLength = 1000):
+    geoline = createGeoLine(tbm, startPt, startFace, theta, ref0, calc_thick = calc_thick, tw = tw, maxPathLength = maxPathLength)
+    geolineB = createGeoLine(tbm, startPt, startFace, theta+180, ref0, calc_thick = calc_thick, tw = tw, maxPathLength = maxPathLength)
     for i in range(1,len(geolineB['pts'])):
         geoline['pts'].insert(0,geolineB['pts'][i])
         geoline['faces'].insert(0,geolineB['faces'][i])
@@ -313,102 +308,6 @@ def createDoubleGeoLine(tbm, startPt, startFace, theta, ref90, calc_thick = True
         geoline['valid'] = geoline['valid'] and geolineB['valid']
         geoline['fail'] = [geoline['fail'],geolineB['fail']]
     return geoline
-
-def createGeoLineIntr(tbm, startPt, startFace, theta, ref90, calc_thick = False, tw = 6.35, forward = True, maxPathLength = 1000, lim = (np.Inf,np.Inf, np.Inf)):
-    valid = True
-    fail = 0
-    ref0 = P3.Cross(ref90,tbm.faces[startFace].normal)
-    startVec = rotAxisAngle(ref0,tbm.faces[startFace].normal,theta)
-    
-    #find which bar intersects with the start vector
-    barsint = []
-    for b in tbm.faces[startFace].bars:
-        p1 = b.GetNodeFore(True).p
-        vec1 = b.GetNodeFore(False).p-b.GetNodeFore(True).p
-        try:
-            Pint, lam = find_intersection(p1,vec1,startPt,startVec,tol=1e-4)
-        except:
-            lam = -1
-            print('Error finding instersection between starting lines and edge of face, try specifying ref90 in different plane')
-        if 0 < lam < 1:
-            barsint.append((b,1-lam))
-    bar = barsint[int(forward)][0]
-    bGoRight = bar.faceleft == startFace
-    lam = barsint[int(forward)][1]
-    
-    pts = [startPt]
-    faces = [startFace]
-    curvs = [0]
-    finished = False
-    bar_last = tbm.bars[0]
-    nodes = [] # list of nodes that fall within half a tow's width of the geoline
-    A = startPt
-    if type(calc_thick) == list:
-        nodes = [False] * len(thickPts)
-    while not finished:
-        if bar != None:
-            if bGoRight:
-                faces.append(bar.faceright)
-            else:
-                faces.append(bar.faceleft)
-            bar_last_last = bar_last
-            bar_last = bar
-            lam_last = lam
-            bGoRight_last = bGoRight
-            pt, bar, lam, bGoRight = GeoCrossBar(pts[-1], bar, lam, bGoRight)
-            pts.append(pt)
-            
-            #Thickness calc
-            if calc_thick and type(calc_thick) != list:
-                B = pt
-                check_bars = [bar_last]
-                i=0
-                while i < len(check_bars):
-                    nei = []
-                    df,c = distPointLine(A,B,check_bars[i].GetNodeFore(True).p)
-                    if df < tw/2 and check_bars[i].GetNodeFore(True) not in nodes:
-                        nodes.append(check_bars[i].GetNodeFore(True))
-                    db,c = distPointLine(A,B,check_bars[i].GetNodeFore(False).p)
-                    if db < tw/2 and check_bars[i].GetNodeFore(False) not in nodes:
-                        nodes.append(check_bars[i].GetNodeFore(False))
-
-                    if check_bars[i].GetForeRightBL(True) and df < tw/2:
-                        nei.append(check_bars[i].GetForeRightBL(True))
-                    if check_bars[i].GetForeRightBL(False) and db < tw/2:
-                        nei.append(check_bars[i].GetForeRightBL(False))
-                    for b in nei:
-                        if b not in check_bars:
-                            check_bars.append(b)
-                    i += 1
-                A = B
-                
-            if faces[-1] != None:
-                CClast = pts[-1]-pts[-2]
-                curvature = P3.Dot(tbm.faces[faces[-1]].normal,CClast)/P3.Len(tbm.faces[faces[-1]].normal)
-                curvs.append(curvs[-1]*0.75 + curvature*0.25)
-            elif faces[-1] == None:
-                curvs.append(curvs[-1])
-        
-        if bar==None:
-            finished =True
-            print('edge reached on path', theta, 'deg')
-            if bar_last.badedge:
-                print('PATH FAIL: bad edge reached')
-                valid = False
-                fail = 1
-        elif len(pts)>maxPathLength:
-            finished =True
-            print('PATH FAIL: max path length reached on path', theta)
-            valid = False
-            fail = 2
-        #elif ## SOME FUNCTION TO DETERMINE IF CURVATURE HAS BEEN EXCEEDED AND SET FAIL TO 3
-        elif pt.x > lim[0] or pt.y > lim[1] or pt.z > lim[2]:
-            #finished = True
-            pt, bar, lam, bGoRight = pts[-1], bar_last_last, 0.5, True
-            print('interupt',pts[-1], bar_last_last, 0.5, True)
-        else:
-            finished =False
-    return {'pts':pts,'curvs':curvs,'faces':faces, 'nodes':nodes, 'valid':valid, 'fail':fail}
 
 
 def createPly(tbm, seeds,thet = None, CPT = 0.125, calc_thick = True, tw = 6.35, maxPathLength = 1000):
@@ -422,12 +321,9 @@ def createPly(tbm, seeds,thet = None, CPT = 0.125, calc_thick = True, tw = 6.35,
             theta = seeds['thetas'][i]
         thetas.append(theta)
         startPt = seeds['pts'][i]
-        ref90 = seeds['ref90s'][i]
+        ref0 = seeds['ref0s'][i]
         startFace =seeds['faces'][i]
-        forward = seeds['bFor'][i]
-        geoline = createGeoLine(tbm, startPt, startFace, theta, ref90, calc_thick = calc_thick, tw = tw, forward = forward, maxPathLength = maxPathLength)
-        if len(geoline['pts']) < 3:
-            geoline = createGeoLine(tbm, startPt, startFace, theta, ref90, calc_thick = calc_thick, tw = tw, forward = not forward, maxPathLength = maxPathLength)
+        geoline = createGeoLine(tbm, startPt, startFace, theta, ref0, calc_thick = calc_thick, tw = tw, maxPathLength = maxPathLength)
         if geoline['valid']:
             geolines.append(geoline)
         else:
