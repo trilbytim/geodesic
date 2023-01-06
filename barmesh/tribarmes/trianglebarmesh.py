@@ -69,6 +69,7 @@ class TriangleBarMesh:
         self.faces = [ ]
         #self.xlo, self.xhi, self.ylo, self.yhi  # set in NewNode()
         self.ntriangles = 0
+        self.meshsize = 0
         
         if fname is not None:
             sr = stlgenerator.stlreader(fname, trans)
@@ -199,6 +200,10 @@ class TriangleBarMesh:
                 self.faces[bar.faceleft].bars.append(bar)
             if bar.faceright or bar.faceright == 0:
                 self.faces[bar.faceright].bars.append(bar)
+                
+        
+        for b in self.bars:
+            self.meshsize += P3.Len(b.GetNodeFore(True).p-b.GetNodeFore(False).p)/len(self.bars)
 
         if __debug__:
             Dntriangles = 0
@@ -208,7 +213,7 @@ class TriangleBarMesh:
                     if node2.i > bar.nodeback.i:
                         Dntriangles += 1
             assert self.ntriangles == Dntriangles
-                   
+        print('Triangle bar mesh loaded with',self.ntriangles, 'triangles of average size','%s' % float('%.3g' % self.meshsize))
 
     def GetBarMeshTriangles(self, flat9s=False):
         tris = [ ]

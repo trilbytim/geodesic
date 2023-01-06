@@ -202,6 +202,8 @@ def distPointLine(A,B,P):
 def createGeoLine(tbm, startPt, startFace, theta, ref0, calc_thick = False, tw = 6.35, maxPathLength = 1000, lim = (np.Inf,np.Inf, np.Inf), tol=1e-4):
     valid = True
     fail = 0
+    length = 0
+    ds = []
     startVec = rotAxisAngle(ref0,tbm.faces[startFace].normal,theta)
     startVN = P3.Cross(startVec,tbm.faces[startFace].normal)
     
@@ -260,14 +262,10 @@ def createGeoLine(tbm, startPt, startFace, theta, ref0, calc_thick = False, tw =
                             check_bars.append(b)
                     i += 1
                 A = B
-                
-            if faces[-1] != None:
-                CClast = pts[-1]-pts[-2]
-                curvature = P3.Dot(tbm.faces[faces[-1]].normal,CClast)/P3.Len(tbm.faces[faces[-1]].normal)
-                curvs.append(curvs[-1]*0.75 + curvature*0.25)
-            elif faces[-1] == None:
-                curvs.append(curvs[-1])
         
+        d = P3.Len(pt-pts[-2])
+        length += d
+        ds.append(d)
         if bar==None:
             finished =True
             print('edge reached on path', theta, 'deg')
@@ -275,12 +273,11 @@ def createGeoLine(tbm, startPt, startFace, theta, ref0, calc_thick = False, tw =
                 print('PATH FAIL: bad edge reached')
                 valid = False
                 fail = 1
-        elif len(pts)>maxPathLength:
+        elif length>maxPathLength:
             finished =True
             print('PATH FAIL: max path length reached on path', theta)
             valid = False
             fail = 2
-        #elif ## SOME FUNCTION TO DETERMINE IF CURVATURE HAS BEEN EXCEEDED AND SET FAIL TO 3
         elif pt.x > lim[0]:
             finished = True
         
@@ -293,7 +290,32 @@ def createGeoLine(tbm, startPt, startFace, theta, ref0, calc_thick = False, tw =
             finished = True
         else:
             finished =False
-    return {'pts':pts,'curvs':curvs,'faces':faces, 'nodes':nodes, 'valid':valid, 'fail':fail}
+            
+    curvs = [0]
+    for i in range(1,len(pts)-1):
+        vlast = pts[i] - pts[i-1]
+        vnext = pts[i+1] - pts[i]
+        curvature = P3.Dot(P3.ZNorm(tbm.faces[faces[i]].normal),P3.ZNorm(vlast))    
+        curvs.append(curvature)
+    curvs.append(0)
+
+    smcurvs = []
+    av = 100 #Number of points forwards and backwards to use in curvature calculation
+    for i in range(len(pts)):
+        lo = max(0,i-av)
+        hi = min(i+av+1,len(pts))
+        sm = 0
+        for j in range(lo,hi):
+            d = 1+(sum(ds[j:i])+sum(ds[i:j]))/tbm.meshsize
+            c = curvs[j]
+            sm += (c/d**2)/tbm.meshsize
+        smcurvs.append(sm)
+    if min(smcurvs) < 0:
+        print('PATH FAIL: concave area of',min(smcurvs),'on path', theta)
+        valid = False
+        fail = 3
+        
+    return {'pts':pts,'curvs':smcurvs,'faces':faces, 'nodes':nodes, 'valid':valid, 'fail':fail,'length':length}
 
 
 def createDoubleGeoLine(tbm, startPt, startFace, theta, ref0, calc_thick = True, tw = 6.35, maxPathLength = 1000):
