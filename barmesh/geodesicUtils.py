@@ -223,6 +223,7 @@ def createGeoLine(tbm, startPt, startFace, theta, ref0, calc_thick = False, tw =
     pts = [startPt]
     faces = [startFace]
     curvs = [0]
+    edges = [P3(0,0,0)]
     finished = False
     bar_last = tbm.bars[0]
     nodes = [] # list of nodes that fall within half a tow's width of the geoline
@@ -236,8 +237,13 @@ def createGeoLine(tbm, startPt, startFace, theta, ref0, calc_thick = False, tw =
             else:
                 faces.append(bar.faceleft)
             bar_last = bar
+            if bGoRight:
+                edges.append(bar.GetNodeFore(True).p - bar.GetNodeFore(False).p)
+            else:
+                edges.append(bar.GetNodeFore(False).p - bar.GetNodeFore(True).p)
             pt, bar, lam, bGoRight = GeoCrossBar(pts[-1], bar, lam, bGoRight)
             pts.append(pt)
+            
             
             #Thickness calc
             if calc_thick and type(calc_thick) != list:
@@ -315,7 +321,7 @@ def createGeoLine(tbm, startPt, startFace, theta, ref0, calc_thick = False, tw =
         valid = False
         fail = 3
         
-    return {'pts':pts,'curvs':smcurvs,'faces':faces, 'nodes':nodes, 'valid':valid, 'fail':fail,'length':length}
+    return {'pts':pts,'curvs':smcurvs,'faces':faces, 'nodes':nodes, 'edges':edges, 'valid':valid, 'fail':fail,'length':length}
 
 
 def createDoubleGeoLine(tbm, startPt, startFace, theta, ref0, calc_thick = True, tw = 6.35, maxPathLength = 1000):
