@@ -387,3 +387,51 @@ def sortBars(tbm, unsortedBars):
                 break
 
     return sortedBars
+
+#Create seeds along a chain of sorted bars.
+def createSeeds(goodEdgeBars, spacing):
+    spacetonext = spacing
+    b = goodEdgeBars[0]
+    ref0 = P3(0,1,0)
+    if b.faceright:
+        bFR = True
+        face = b.faceright
+        bFor = False
+    else:
+        bFR = False
+        face = b.faceleft
+        bFor = True
+    frontPt = b.GetNodeFore(bFR).p
+    backPt = b.GetNodeFore(not bFR).p
+    v = backPt - frontPt
+    firstSeed = frontPt + v*1e-3
+    seeds = {'pts':[firstSeed],'faces':[face],'ref0s':[ref0],'thetas':[0]}
+
+    for b in goodEdgeBars:
+        bPtPlaced = False
+
+        if b.faceright:
+            bFR = True
+            face = b.faceright
+            bFor = False
+        else:
+            bFR = False
+            face = b.faceleft
+            bFor = True
+        frontPt = b.GetNodeFore(bFR).p
+        backPt = b.GetNodeFore(not bFR).p
+        v = backPt - frontPt
+        while v.Len() > spacetonext:
+            frontPt += (v * (spacetonext/v.Len()))
+            v = backPt - frontPt
+            spacetonext = spacing
+            seeds['pts'].append(frontPt)
+            seeds['faces'].append(face)
+            seeds['ref0s'].append(ref0)
+            seeds['thetas'].append(0)
+            bPtPlaced = True
+        if bPtPlaced:
+            spacetonext -= (backPt - seeds['pts'][-1]).Len()
+        else:
+            spacetonext -= v.Len()
+    return seeds
