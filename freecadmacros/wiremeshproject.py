@@ -1,10 +1,8 @@
 # -*- coding: utf-8 -*-
-# Module to read the sections from SectionGroup and define the seval(u, v) parametric function on this surface
+# Use the MeshPart library to project a selected wire onto a selected mesh
 
 import Draft, Part, Mesh, MeshPart
 from FreeCAD import Vector, Rotation 
-
-#sys.path.append(os.path.split(__file__)[0])
 
 doc = App.ActiveDocument
 gui = App.Gui
