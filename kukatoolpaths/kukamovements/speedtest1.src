@@ -1,0 +1,103 @@
+&ACCESS RVEO
+&REL 11
+&PARAM TEMPLATE = C:\KRC\Roboter\Template\vorgabe
+&PARAM EDITMASK = *
+DEF variable_helical2( )
+;FOLD INI
+  ;FOLD BASISTECH INI
+    GLOBAL INTERRUPT DECL 3 WHEN $STOPMESS==TRUE DO IR_STOPM ( )
+    INTERRUPT ON 3
+    BAS (#INITMOV,0 )
+  ;ENDFOLD (BASISTECH INI)
+ ;FOLD USER INI
+
+
+    ;Make your modifications here
+  ;ENDFOLD (USER INI)
+;ENDFOLD (INI)
+ACTION(#AXIS_RESET,34,1000,#NOERROR,ERROR_CODE)
+;FOLD PTP HOME  Vel= 100 % DEFAULT;%{PE}%MKUKATPBASIS,%CMOVE,%VPTP,%P 1:PTP, 2:HOME, 3:, 5:100, 7:DEFAULT
+$BWDSTART = FALSE
+PDAT_ACT=PDEFAULT
+FDAT_ACT=FHOME
+BAS (#PTP_PARAMS,100 )
+$H_POS=XHOME
+PTP  XHOME
+;ENDFOLD
+BAS(#TOOL,1)
+BAS(#BASE,1)
+$VEL_AXIS[1]=100
+$VEL_AXIS[2]=100
+$VEL_AXIS[3]=100
+$VEL_AXIS[4]=100
+$VEL_AXIS[5]=100
+$VEL_AXIS[6]=100
+$VEL_EXTAX[1]=100
+$VEL_EXTAX[2]=100
+
+$ACC_AXIS[1]=100
+$ACC_AXIS[2]=100
+$ACC_AXIS[3]=100
+$ACC_AXIS[4]=100
+$ACC_AXIS[5]=100
+$ACC_AXIS[6]=100
+$ACC_EXTAX[1]=100
+$ACC_EXTAX[2]=100
+
+$APO.CDIS=85
+LIN {Y     +650.000, X     -154.997, Z       +0.000, A       +0.000, E1       +0.000} C_DIS
+LIN {Y     +663.265, X     -154.997, Z       +0.000, A       +0.000, E1       +0.000} C_DIS
+LIN {Y     +676.531, X     -154.997, Z       +0.000, A       +0.000, E1       +0.000} C_DIS
+LIN {Y     +689.796, X     -154.997, Z       +0.000, A       +0.000, E1       +0.000} C_DIS
+LIN {Y     +703.061, X     -154.997, Z       +0.000, A       +0.000, E1       +0.000} C_DIS
+LIN {Y     +716.327, X     -154.997, Z       +0.000, A       +0.000, E1       +0.000} C_DIS
+LIN {Y     +729.592, X     -154.997, Z       +0.000, A       +0.000, E1       +0.000} C_DIS
+LIN {Y     +742.857, X     -154.997, Z       +0.000, A       +0.000, E1       +0.000} C_DIS
+LIN {Y     +756.122, X     -154.997, Z       +0.000, A       +0.000, E1       +0.000} C_DIS
+LIN {Y     +769.388, X     -154.997, Z       +0.000, A       +0.000, E1       +0.000} C_DIS
+LIN {Y     +782.653, X     -154.997, Z       +0.000, A       +0.000, E1       +0.000} C_DIS
+LIN {Y     +795.918, X     -154.997, Z       +0.000, A       +0.000, E1       +0.000} C_DIS
+LIN {Y     +809.184, X     -154.997, Z       +0.000, A       +0.000, E1       +0.000} C_DIS
+LIN {Y     +822.449, X     -154.997, Z       +0.000, A       +0.000, E1       +0.000} C_DIS
+LIN {Y     +835.714, X     -154.997, Z       +0.000, A       +0.000, E1       +0.000} C_DIS
+LIN {Y     +848.980, X     -154.997, Z       +0.000, A       +0.000, E1       +0.000} C_DIS
+LIN {Y     +862.245, X     -154.997, Z       +0.000, A       +0.000, E1       +0.000} C_DIS
+LIN {Y     +875.510, X     -154.997, Z       +0.000, A       +0.000, E1       +0.000} C_DIS
+LIN {Y     +888.776, X     -154.997, Z       +0.000, A       +0.000, E1       +0.000} C_DIS
+LIN {Y     +902.041, X     -154.997, Z       +0.000, A       +0.000, E1       +0.000} C_DIS
+LIN {Y     +915.306, X     -154.997, Z       +0.000, A       +0.000, E1       +0.000} C_DIS
+LIN {Y     +928.571, X     -154.997, Z       +0.000, A       +0.000, E1       +0.000} C_DIS
+LIN {Y     +941.837, X     -154.997, Z       +0.000, A       +0.000, E1       +0.000} C_DIS
+LIN {Y     +955.102, X     -154.997, Z       +0.000, A       +0.000, E1       +0.000} C_DIS
+LIN {Y     +968.367, X     -154.997, Z       +0.000, A       +0.000, E1       +0.000} C_DIS
+LIN {Y     +981.633, X     -154.997, Z       +0.000, A       +0.000, E1       +0.000} C_DIS
+LIN {Y     +994.898, X     -154.997, Z       +0.000, A       +0.000, E1       +0.000} C_DIS
+LIN {Y     +1008.163, X     -154.997, Z       +0.000, A       +0.000, E1       +0.000} C_DIS
+LIN {Y     +1021.429, X     -154.997, Z       +0.000, A       +0.000, E1       +0.000} C_DIS
+LIN {Y     +1034.694, X     -154.997, Z       +0.000, A       +0.000, E1       +0.000} C_DIS
+LIN {Y     +1047.959, X     -154.997, Z       +0.000, A       +0.000, E1       +0.000} C_DIS
+LIN {Y     +1061.224, X     -154.997, Z       +0.000, A       +0.000, E1       +0.000} C_DIS
+LIN {Y     +1074.490, X     -154.997, Z       +0.000, A       +0.000, E1       +0.000} C_DIS
+LIN {Y     +1087.755, X     -154.997, Z       +0.000, A       +0.000, E1       +0.000} C_DIS
+LIN {Y     +1101.020, X     -154.997, Z       +0.000, A       +0.000, E1       +0.000} C_DIS
+LIN {Y     +1114.286, X     -154.997, Z       +0.000, A       +0.000, E1       +0.000} C_DIS
+LIN {Y     +1127.551, X     -154.997, Z       +0.000, A       +0.000, E1       +0.000} C_DIS
+LIN {Y     +1140.816, X     -154.997, Z       +0.000, A       +0.000, E1       +0.000} C_DIS
+LIN {Y     +1154.082, X     -154.997, Z       +0.000, A       +0.000, E1       +0.000} C_DIS
+LIN {Y     +1167.347, X     -154.997, Z       +0.000, A       +0.000, E1       +0.000} C_DIS
+LIN {Y     +1180.612, X     -154.997, Z       +0.000, A       +0.000, E1       +0.000} C_DIS
+LIN {Y     +1193.878, X     -154.997, Z       +0.000, A       +0.000, E1       +0.000} C_DIS
+LIN {Y     +1207.143, X     -154.997, Z       +0.000, A       +0.000, E1       +0.000} C_DIS
+LIN {Y     +1220.408, X     -154.997, Z       +0.000, A       +0.000, E1       +0.000} C_DIS
+LIN {Y     +1233.673, X     -154.997, Z       +0.000, A       +0.000, E1       +0.000} C_DIS
+LIN {Y     +1246.939, X     -154.997, Z       +0.000, A       +0.000, E1       +0.000} C_DIS
+LIN {Y     +1260.204, X     -154.997, Z       +0.000, A       +0.000, E1       +0.000} C_DIS
+LIN {Y     +1273.469, X     -154.997, Z       +0.000, A       +0.000, E1       +0.000} C_DIS
+LIN {Y     +1286.735, X     -154.997, Z       +0.000, A       +0.000, E1       +0.000} C_DIS
+LIN {Y     +1300.000, X     -154.997, Z       +0.000, A       +0.000, E1       +0.000} C_DIS
+LIN {Y     +650.000, X     -154.997, Z       +0.000, A       +0.000, E1       +0.000} C_DIS
+
+HALT
+
+
+END

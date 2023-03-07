@@ -1,0 +1,20 @@
+Tim Swait <t.swait@sheffield.ac.uk>
+	
+Attachments5 Dec 2022, 16:33
+	
+to Julian, Lewis, Alistair
+Tried the following:
+-TESTSPEEDV2. Tried to program speed tests on the machine through the pendant, but it didn't work so did the following on the laptop
+-DODGY_E1: This was the file that came out of CADfil to supposedly wind a pressure vessel, but we noticed that payout eye was wandering as the wind went on, incrementing round weirdly.
+-Speedtest1: used only LIN{} function to do 50 points along y axis spaced at 13.265mm and it went very slowly and jerkily out and very fast back to start point (which was one point)
+-Speedtest2:  used LIN_REL{} with C_DIS function set to 85. This went faster than speedtest 1, but still more slowly than the return. Not as jerky as previous but possibly still not super smooth
+-Speedtest2a: used LIN_REL{} without C_DIS and was as bad as speedtest1.
+
+So C_DIS is critical to getting smooth and constant movement.
+
+-Speedtest1_cdis: used only LIN{} function to do 50 points spaced at 13.265mm but with C_DIS set to 85. This ran the same as speeedtest2, so confirms that C_DIS is critical to smooth constant movement, but using LIN or LIN_REL doesn't matter.
+-Speedtest1_cdis_fine: was as previous but with 100 points at half the previous spacing. This was slower than the previous one, but not by half (took 6 seconds instead of 5). So smaller point spacing does make slower movement, but not proportionately.
+-Speedtest1_cdis_fine_adv: tried $ADVANCE as 15 but this was rejected, so value of 5 was tried instead. This made no noticeable difference from Speedtest1_cdis_fin, so advance doesn't seem to do much. Also set E2&E3 to rotate 1800 on the way back (5 turns) but they did less than 2 turns. This is where this 2.777777 ratio comes in (1000 units per rev).
+-Speedtest1_cdis850_fine: is as Speedtest1_cdis_fine but with C_DIS set to 850, also E2&E3 set to do 5000. We couldn't notice any difference from having the higher C_DIS value, but we did get 5 turns on the way back.
+-Axestest1 C_DIS left to 850 (by mistake), and we did notice a bit of an arc at the beginning of the movement (but not an 850mm arc?!) E1 worked as expected, with 90 and then 180 degree rotations. A also worked as expected with 10 and then 45 degree rotations around the roller point.
+
