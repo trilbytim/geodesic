@@ -5,7 +5,7 @@
 import Draft, Part, Mesh, MeshPart
 from FreeCAD import Vector, Rotation 
 
-import os, sys
+import os, sys, math
 sys.path.append(os.path.join(os.path.split(__file__)[0]))
 
 from barmesh.tribarmes import TriangleBarMesh, TriangleBar, MakeTriangleBoxing
