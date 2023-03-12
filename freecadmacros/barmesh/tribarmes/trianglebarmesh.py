@@ -1,6 +1,7 @@
 from ..basicgeo import P3, AlongAcc, I1
 from . import stlgenerator
 
+
 class TriangleNode:   # replace with just P3
     def __init__(self, p, i):
         self.p = p
