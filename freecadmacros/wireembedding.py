@@ -6,6 +6,7 @@ from FreeCAD import Vector, Rotation
 
 import os, sys, math, time
 sys.path.append(os.path.join(os.path.split(__file__)[0]))
+print(sys.path[-1])
 
 from barmesh.tribarmes import TriangleBarMesh, TriangleBar, MakeTriangleBoxing
 from barmesh.basicgeo import I1, Partition1, P3, P2, Along
@@ -72,10 +73,7 @@ def TriangleCrossTowards(bar, lam, bGoRight, ebar, ept):
     barBehind = barAhead.GetForeRightBL(barAheadGoRight)
     barBehindGoRight = (barBehind.nodeback == nodeOpposite)
     assert nodeBehind == barBehind.GetNodeFore(barBehindGoRight)
-    print("nodeback", bar.nodeback.p)
-    print("nodefore", bar.nodefore.p)
-    print(" nodeOpp", nodeOpposite.p)
-     
+    
     bpt = Along(lam, bar.nodeback.p, bar.nodefore.p)
     vpt = ept - bpt
     vopt = nodeOpposite.p - bpt
@@ -102,7 +100,7 @@ def TriangleCrossTowards(bar, lam, bGoRight, ebar, ept):
     dnptAB = P2.Dot(fvptPerp, fvAB)
     barCrossingLamO = -dopt/(dnptAB - dopt)
     assert barCrossingLamO >= 0.0
-    barCrossingLam = barCrossingLamO if (barCrossing.nodeback == nodeOpposite) == bGoRight else 1-barCrossingLamO
+    barCrossingLam = barCrossingLamO if (barCrossing.nodeback == nodeOpposite) else 1-barCrossingLamO
     barCrossingGoRight = (barCrossing.nodeback == nodeOpposite) == bAheadSeg
     
     return barCrossing, barCrossingLam, barCrossingGoRight
@@ -110,32 +108,15 @@ def TriangleCrossTowards(bar, lam, bGoRight, ebar, ept):
 def BetweenBarListE(sbarlam, ebarlam):
     ept = Along(ebarlam[1], ebarlam[0].nodeback.p, ebarlam[0].nodefore.p)
     tctleft = TriangleCrossTowards(sbarlam[0], sbarlam[1], False, ebarlam[0], ept)
-    #tctright = TriangleCrossTowards(sbarlam[0], sbarlam[1], True, ebarlam[0], ept)
+    tctright = TriangleCrossTowards(sbarlam[0], sbarlam[1], True, ebarlam[0], ept)
     Dtptleft = Along(tctleft[1], tctleft[0].nodeback.p, tctleft[0].nodefore.p)
-    #Dtptright = Along(tctright[1], tctright[0].nodeback.p, tctright[0].nodefore.p)
-    print("Start")
-    print("  ", sbarlam[0].nodeback.p)
-    print("  ", sbarlam[0].nodefore.p)
-    print("  ", sbarlam[1])
-    print("TCT")
-    tct = tctleft
-    print("  ", tct[0].nodeback.p)
-    print("  ", tct[0].nodefore.p)
-    print("  ", tct[1], tct[2], Dtptleft)
-    
-    #print("LR TCT ", tctleft[1], tctright[1])
-    print(Dtptleft)
-    #print(Dtptright)
-    print(ept)
-    bGoRight = False # (Dtptright - ept).Len() < (Dtptleft - ept).Len()
-    print("bGoRight", bGoRight)
-    bar, lam, bGoRight = tctleft # tctright if bGoRight else tctleft
-    print("00", bar.nodeback.p, bar.nodefore.p, lam, bGoRight)
+    Dtptright = Along(tctright[1], tctright[0].nodeback.p, tctright[0].nodefore.p)
+    bGoRight = (Dtptright - ept).Len() < (Dtptleft - ept).Len()
+    bar, lam, bGoRight = tctright if bGoRight else tctleft
     res = [ ]
     while bar != ebarlam[0]:
         res.append((bar, lam))
         bar, lam, bGoRight = TriangleCrossTowards(bar, lam, bGoRight, ebarlam[0], ept)
-        print("11", bar.nodeback.p, bar.nodefore.p, lam, bGoRight)
         if len(res) > 10:
             print("failed to generate between bar list")
             break
@@ -159,13 +140,16 @@ print(utbm)
 
 startbarlam = utbm.FindClosestEdge(P3(*drivepts[0]))
 drivebars = [ startbarlam ]
-for pt in drivepts[1:-1]:
+for i in range(1, len(drivepts)-1):
+    pt = drivepts[i]
     ebarlam = utbm.FindClosestEdge(P3(*pt))
+    if drivebars[-1][0] == ebarlam[0]:
+        print("skipping samebar (sameproj at)", drivebars[-1][1], ebarlam[1])
+        continue
     drivebars.extend(BetweenBarListE(drivebars[-1], ebarlam))
     drivebars.append(ebarlam)
-    break
-#drivebars.extend(BetweenBarListE(drivebars[-1], startbarlam))
-#drivebars.append(startbarlam)
+drivebars.extend(BetweenBarListE(drivebars[-1], startbarlam))
+drivebars.append(startbarlam)
 
 epts = [ ]
 for bar, lam in drivebars:
@@ -173,8 +157,40 @@ for bar, lam in drivebars:
     epts.append(ept)
 Part.show(Part.makePolygon(epts))
 
-facets = [ [ Vector(*bar.nodeback.p), Vector(*bar.nodefore.p), Vector(*TriangleNodeOpposite(bar, True).p) ]  for bar, lam in drivebars ]
-#mesh = doc.addObject("Mesh::Feature", "m1")
-#mesh.Mesh = Mesh.Mesh(facets)
+
+def facetbetweenbars(bar, barN):
+    assert bar != barN
+    nodeR = bar.barforeright.GetNodeFore(bar.barforeright.nodeback == bar.nodefore)
+    if barN.nodeback == nodeR or barN.nodefore == nodeR:
+        if nodeR.i > bar.nodeback.i:
+            tbar = bar
+        else:
+            tbar = bar.barforeright.GetForeRightBL(bar.barforeright.nodeback == bar.nodefore)
+            assert tbar.nodefore == bar.nodeback
+    else:
+        nodeL = bar.barbackleft.GetNodeFore(bar.barbackleft.nodeback == bar.nodeback)
+        if not (barN.nodeback == nodeL or barN.nodefore == nodeL):
+            print("  b:", bar.nodeback, bar.nodefore)
+            print("  N:", barN.nodeback, barN.nodefore)
+        assert barN.nodeback == nodeL or barN.nodefore == nodeL
+        if bar.nodeback.i > nodeL.i:
+            tbar = bar.barbackleft.GetForeRightBL(bar.barbackleft.nodeback == bar.nodeback)
+        else:
+            tbar = bar.barbackleft
+            
+    DtbarR = tbar.barforeright.GetNodeFore(tbar.barforeright.nodeback == tbar.nodefore)
+    assert DtbarR.i > tbar.nodeback.i
+    Dtbars = [ tbar, tbar.barforeright, 
+               tbar.barforeright.GetForeRightBL(tbar.barforeright.nodeback == tbar.nodefore) ]
+    assert bar in Dtbars and barN in Dtbars
+    return tbar
+    	
+tbarfacets = [ facetbetweenbars(drivebars[i][0], drivebars[i+1][0])  for i in range(len(drivebars)-1) ]
+facets = [ [ Vector(*tbar.nodeback.p), Vector(*tbar.nodefore.p), 
+             Vector(*TriangleNodeOpposite(tbar, True).p) ]  for tbar in tbarfacets ]
+mesh = doc.addObject("Mesh::Feature", "m1")
+mesh.Mesh = Mesh.Mesh(facets)
+
+
 
 
