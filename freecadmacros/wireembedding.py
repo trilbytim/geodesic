@@ -63,43 +63,84 @@ def TriangleNodeOpposite(bar, bGoRight):
         return bartop.GetNodeFore(bartop.nodeback == bar.GetNodeFore(bGoRight))
     return None
 
-def BarCrossTowards(bar, lam, ebar, elam):
-    assert bar != ebar
+def TriangleCrossTowards(bar, lam, bGoRight, ebar, ept):
+    nodeAhead = bar.GetNodeFore(bGoRight)
+    nodeBehind = bar.GetNodeFore(not bGoRight)
+    barAhead = bar.GetForeRightBL(bGoRight)
+    barAheadGoRight = (barAhead.nodeback == nodeAhead)
+    nodeOpposite = barAhead.GetNodeFore(barAheadGoRight)
+    barBehind = barAhead.GetForeRightBL(barAheadGoRight)
+    barBehindGoRight = (barBehind.nodeback == nodeOpposite)
+    assert nodeBehind == barBehind.GetNodeFore(barBehindGoRight)
+    print("nodeback", bar.nodeback.p)
+    print("nodefore", bar.nodefore.p)
+    print(" nodeOpp", nodeOpposite.p)
+     
     bpt = Along(lam, bar.nodeback.p, bar.nodefore.p)
-    ept = Along(elam, ebar.nodeback.p, ebar.nodefore.p)
-    axD = P3.ZNorm(ept - bpt)
-    axP = P3.Cross(axD, bar.nodefore.p - bar.nodeback.p)
-    axA = P3.Cross(axP, axD)
-    print("RS ", P3.Dot(axA, bar.nodefore.p - bar.nodeback.p))
-    return ebar, elam
+    vpt = ept - bpt
+    vopt = nodeOpposite.p - bpt
 
-    barforeright = bar.barforeright
-    noderight = barforeright.GetNodeFore(barforeright.nodeback == bar.nodefore)
-    barbackright = barforeright.GetForeRightBL(barforeright.nodeback == bar.nodefore)
-    barbackleft = bar.barbackleft
-    nodeleft = barbackleft.GetNodeFore(barbackleft.nodeback == bar.nodeback)
-    barforeleft = barbackleft.GetForeRightBL(barbackleft.nodeback == bar.nodeback)
-    if ebar in [ bar, barforeright, barbackright, barforeleft, barbackleft ]:
-        return ebar, elam
+    vbar = nodeAhead.p - nodeBehind.p
+    vbarleng = vbar.Len()
+    axA = vbar*(1/vbarleng)
+    axP = P3.ZNorm(P3.Cross(vpt, axA))
+    axV = P3.Cross(axA, axP)
+    fvpt = P2(P3.Dot(axV, vpt), P3.Dot(axA, vpt))
+    fvopt = P2(P3.Dot(axV, vopt), P3.Dot(axA, vopt))
+    fvptPerp = P2.APerp(fvpt)
+    dopt = P2.Dot(fvptPerp, fvopt)
+    bAheadSeg = (dopt < 0.0)
+    if (ebar == (barAhead if not bAheadSeg else barBehind)):
+        print("aiming back to ept case", dopt)
+        bAheadSeg = not bAheadSeg
+    barCrossing = (barAhead if bAheadSeg else barBehind)
+    nodeAB = (nodeAhead if bAheadSeg else nodeBehind)
+    fvAB = P2(0.0, vbarleng*((1-lam) if bGoRight == bAheadSeg else lam)*(1 if bAheadSeg else -1))
+    DvAB = nodeAB.p - bpt
+    DfvAB = P2(P3.Dot(axV, DvAB), P3.Dot(axA, DvAB))
+    assert (fvAB - DfvAB).Len() < 0.0001, (fvAB, DfvAB)
+    dnptAB = P2.Dot(fvptPerp, fvAB)
+    barCrossingLamO = -dopt/(dnptAB - dopt)
+    assert barCrossingLamO >= 0.0
+    barCrossingLam = barCrossingLamO if (barCrossing.nodeback == nodeOpposite) == bGoRight else 1-barCrossingLamO
+    barCrossingGoRight = (barCrossing.nodeback == nodeOpposite) == bAheadSeg
+    
+    return barCrossing, barCrossingLam, barCrossingGoRight
 
-    axB = P3.ZNorm(bar.nodefore.p - bar.nodeback.p)
-    axP = P3.ZNorm(P3.Cross(noderight.p - nodeleft.p, axB))
-    axR = P3.Cross(axB, axP)
-
-    dvec = ept - bpt
-    return ebar, elam
-
-def BetweenBarListE(barlam, ebarlam):
+def BetweenBarListE(sbarlam, ebarlam):
+    ept = Along(ebarlam[1], ebarlam[0].nodeback.p, ebarlam[0].nodefore.p)
+    tctleft = TriangleCrossTowards(sbarlam[0], sbarlam[1], False, ebarlam[0], ept)
+    #tctright = TriangleCrossTowards(sbarlam[0], sbarlam[1], True, ebarlam[0], ept)
+    Dtptleft = Along(tctleft[1], tctleft[0].nodeback.p, tctleft[0].nodefore.p)
+    #Dtptright = Along(tctright[1], tctright[0].nodeback.p, tctright[0].nodefore.p)
+    print("Start")
+    print("  ", sbarlam[0].nodeback.p)
+    print("  ", sbarlam[0].nodefore.p)
+    print("  ", sbarlam[1])
+    print("TCT")
+    tct = tctleft
+    print("  ", tct[0].nodeback.p)
+    print("  ", tct[0].nodefore.p)
+    print("  ", tct[1], tct[2], Dtptleft)
+    
+    #print("LR TCT ", tctleft[1], tctright[1])
+    print(Dtptleft)
+    #print(Dtptright)
+    print(ept)
+    bGoRight = False # (Dtptright - ept).Len() < (Dtptleft - ept).Len()
+    print("bGoRight", bGoRight)
+    bar, lam, bGoRight = tctleft # tctright if bGoRight else tctleft
+    print("00", bar.nodeback.p, bar.nodefore.p, lam, bGoRight)
     res = [ ]
-    while barlam[0] != ebarlam[0]:
-        barlam = BarCrossTowards(barlam[0], barlam[1], ebarlam[0], ebarlam[1])
-        res.append(barlam)
+    while bar != ebarlam[0]:
+        res.append((bar, lam))
+        bar, lam, bGoRight = TriangleCrossTowards(bar, lam, bGoRight, ebarlam[0], ept)
+        print("11", bar.nodeback.p, bar.nodefore.p, lam, bGoRight)
         if len(res) > 10:
             print("failed to generate between bar list")
             break
     return res
-    
-    
+
 meshobject = None
 drivepts = None
 for s in sel:
@@ -121,16 +162,19 @@ drivebars = [ startbarlam ]
 for pt in drivepts[1:-1]:
     ebarlam = utbm.FindClosestEdge(P3(*pt))
     drivebars.extend(BetweenBarListE(drivebars[-1], ebarlam))
-drivebars.extend(BetweenBarListE(drivebars[-1], startbarlam))
+    drivebars.append(ebarlam)
+    break
+#drivebars.extend(BetweenBarListE(drivebars[-1], startbarlam))
+#drivebars.append(startbarlam)
 
 epts = [ ]
 for bar, lam in drivebars:
     ept = Along(lam, bar.nodeback.p, bar.nodefore.p)
     epts.append(ept)
-#Part.show(Part.makePolygon(epts))
+Part.show(Part.makePolygon(epts))
 
 facets = [ [ Vector(*bar.nodeback.p), Vector(*bar.nodefore.p), Vector(*TriangleNodeOpposite(bar, True).p) ]  for bar, lam in drivebars ]
-mesh = doc.addObject("Mesh::Feature", "m1")
-mesh.Mesh = Mesh.Mesh(facets)
+#mesh = doc.addObject("Mesh::Feature", "m1")
+#mesh.Mesh = Mesh.Mesh(facets)
 
 
