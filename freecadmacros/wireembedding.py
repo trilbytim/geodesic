@@ -14,17 +14,11 @@ from barmesh.tribarmes import TriangleBarMesh, TriangleBar, MakeTriangleBoxing
 from barmesh.basicgeo import I1, Partition1, P3, P2, Along
 from FreeCAD import Vector
 from curvesutils import isdiscretizableobject, discretizeobject
-from trianglemeshutils import UsefulBoxedTriangleMesh
+from trianglemeshutils import UsefulBoxedTriangleMesh, facetbetweenbars
 
 doc = App.ActiveDocument
 gui = App.Gui
 sel = Gui.Selection.getSelection()
-
-def TriangleNodeOpposite(bar, bGoRight):
-    bartop = bar.GetForeRightBL(bGoRight)
-    if bartop != None:
-        return bartop.GetNodeFore(bartop.nodeback == bar.GetNodeFore(bGoRight))
-    return None
 
 def TriangleCrossTowards(bar, lam, bGoRight, ebar, ept):
     nodeAhead = bar.GetNodeFore(bGoRight)
@@ -119,37 +113,12 @@ for bar, lam in drivebars:
     epts.append(ept)
 Part.show(Part.makePolygon(epts))
 
+def facetnoderight(bar):
+    return bar.barforeright.GetNodeFore(bar.barforeright.nodeback == bar.nodefore)
 
-def facetbetweenbars(bar, barN):
-    assert bar != barN
-    nodeR = bar.barforeright.GetNodeFore(bar.barforeright.nodeback == bar.nodefore)
-    if barN.nodeback == nodeR or barN.nodefore == nodeR:
-        if nodeR.i > bar.nodeback.i:
-            tbar = bar
-        else:
-            tbar = bar.barforeright.GetForeRightBL(bar.barforeright.nodeback == bar.nodefore)
-            assert tbar.nodefore == bar.nodeback
-    else:
-        nodeL = bar.barbackleft.GetNodeFore(bar.barbackleft.nodeback == bar.nodeback)
-        if not (barN.nodeback == nodeL or barN.nodefore == nodeL):
-            print("  b:", bar.nodeback, bar.nodefore)
-            print("  N:", barN.nodeback, barN.nodefore)
-        assert barN.nodeback == nodeL or barN.nodefore == nodeL
-        if bar.nodeback.i > nodeL.i:
-            tbar = bar.barbackleft.GetForeRightBL(bar.barbackleft.nodeback == bar.nodeback)
-        else:
-            tbar = bar.barbackleft
-            
-    DtbarR = tbar.barforeright.GetNodeFore(tbar.barforeright.nodeback == tbar.nodefore)
-    assert DtbarR.i > tbar.nodeback.i
-    Dtbars = [ tbar, tbar.barforeright, 
-               tbar.barforeright.GetForeRightBL(tbar.barforeright.nodeback == tbar.nodefore) ]
-    assert bar in Dtbars and barN in Dtbars
-    return tbar
-    	
 tbarfacets = [ facetbetweenbars(drivebars[i][0], drivebars[i+1][0])  for i in range(len(drivebars)-1) ]
 facets = [ [ Vector(*tbar.nodeback.p), Vector(*tbar.nodefore.p), 
-             Vector(*TriangleNodeOpposite(tbar, True).p) ]  for tbar in tbarfacets ]
+             Vector(*facetnoderight(tbar).p) ]  for tbar in tbarfacets ]
 mesh = doc.addObject("Mesh::Feature", "m1")
 mesh.Mesh = Mesh.Mesh(facets)
 

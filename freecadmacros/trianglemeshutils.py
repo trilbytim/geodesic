@@ -42,4 +42,32 @@ class UsefulBoxedTriangleMesh:
                         barclosestlam = lam
                     self.hitreg[i] = self.nhitreg
         return barclosest, barclosestlam
+        
+def facetbetweenbars(bar, barN):
+    assert bar != barN
+    nodeR = bar.barforeright.GetNodeFore(bar.barforeright.nodeback == bar.nodefore)
+    if barN.nodeback == nodeR or barN.nodefore == nodeR:
+        if nodeR.i > bar.nodeback.i:
+            tbar = bar
+        else:
+            tbar = bar.barforeright.GetForeRightBL(bar.barforeright.nodeback == bar.nodefore)
+            assert tbar.nodefore == bar.nodeback
+    else:
+        nodeL = bar.barbackleft.GetNodeFore(bar.barbackleft.nodeback == bar.nodeback)
+        if not (barN.nodeback == nodeL or barN.nodefore == nodeL):
+            print("  b:", bar.nodeback, bar.nodefore)
+            print("  N:", barN.nodeback, barN.nodefore)
+        assert barN.nodeback == nodeL or barN.nodefore == nodeL
+        if bar.nodeback.i > nodeL.i:
+            tbar = bar.barbackleft.GetForeRightBL(bar.barbackleft.nodeback == bar.nodeback)
+        else:
+            tbar = bar.barbackleft
+            
+    DtbarR = tbar.barforeright.GetNodeFore(tbar.barforeright.nodeback == tbar.nodefore)
+    assert DtbarR.i > tbar.nodeback.i
+    Dtbars = [ tbar, tbar.barforeright, 
+               tbar.barforeright.GetForeRightBL(tbar.barforeright.nodeback == tbar.nodefore) ]
+    assert bar in Dtbars and barN in Dtbars
+    return tbar
+    
 
