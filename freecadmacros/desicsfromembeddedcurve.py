@@ -28,21 +28,50 @@ for s in sel:
 if not meshobject:
     print("Need a mesh object selected")
 
+# candidates for curveutils
+def cumlengthlist(pts):
+    ptcls = [ 0.0 ]
+    for i in range(len(pts)):
+        ptcls.append(ptcls[-1] + (pts[i] - pts[i-1]).Len())
+    return ptcls
+
+def seglampos(d, ptcls):
+    i0, i1 = 0, len(ptcls)-1
+    while i1 > i0 + 1:
+        im = (i0 + i1)//2
+        assert i0 < im < i1
+        if ptcls[im] < d:
+            i0 = im
+        else:
+            i1 = im
+        assert ptcls[i0] <= d <= ptcls[i1]
+    lam = (d - ptcls[i0]) / (ptcls[i1] - ptcls[i0])
+    return i0, lam
+
+
+def facetnormal(tbar):
+    node2 = tbar.barforeright.GetNodeFore(tbar.barforeright.nodeback == tbar.nodefore)
+    v2fore = tbar.nodefore.p - node2.p
+    v2back = tbar.nodeback.p - node2.p
+    return P3.ZNorm(P3.Cross(v2fore, v2back))
+
+# main code here
 utbm = UsefulBoxedTriangleMesh(meshobject)
 startbar, startlam = utbm.FindClosestEdge(drivept0)
 drivebars = planecutembeddedcurve(startbar, startlam, driveperpvec)
 
-epts = [ Along(lam, bar.nodeback.p, bar.nodefore.p)  for bar, lam in drivebars ]
-Part.show(Part.makePolygon(epts))
-
-def facetnoderight(bar):
-    return bar.barforeright.GetNodeFore(bar.barforeright.nodeback == bar.nodefore)
-tbarfacets = [ facetbetweenbars(drivebars[i][0], drivebars[i+1][0])  for i in range(len(drivebars)-1) ]
-facets = [ [ Vector(*tbar.nodeback.p), Vector(*tbar.nodefore.p), 
-             Vector(*facetnoderight(tbar).p) ]  for tbar in tbarfacets ]
-mesh = doc.addObject("Mesh::Feature", "m1")
-mesh.Mesh = Mesh.Mesh(facets)
-
+N = 5
+startangtoline = 60
+pts = [ Along(lam, bar.nodeback.p, bar.nodefore.p)  for bar, lam in drivebars ]
+ptcls = cumlengthlist(pts)
+for i in range(N):
+    d = Along((i + 0.5)/N, ptcls[0], ptcls[-1])
+    dseg, dlam = seglampos(d, ptcls)
+    gpts = [ Along(dlam, pts[dseg], pts[dseg+1]) ]
+    tbar = facetbetweenbars(drivebars[dseg][0], drivebars[dseg+1][0])
+    tnorm = facetnormal(tbar)
+    gpts.append(gpts[-1] + tnorm*10)
+    Part.show(Part.makePolygon([Vector(*p)  for p in gpts]))
 
 
 
