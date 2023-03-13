@@ -17,7 +17,7 @@ def discretizeobject(s, deflection=0.02):
         gap = (pts[-1] - epts[0]).Length if pts else 0
         if gap > 0.1:
             print("Gap between edges", gap)
-        pts.extend(epts[1 if gap > 0.1 else 0:])
+        pts.extend(epts[1 if gap < 0.1 else 0:])
     return pts
 
 
