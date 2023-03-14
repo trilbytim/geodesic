@@ -10,6 +10,7 @@ print(sys.path[-1])
 
 from barmesh.basicgeo import I1, Partition1, P3, P2, Along
 from curvesutils import isdiscretizableobject, discretizeobject
+from curvesutils import cumlengthlist, seglampos
 from trianglemeshutils import UsefulBoxedTriangleMesh, facetbetweenbars
 from wireembeddingutils import TriangleCrossCutPlane, planecutembeddedcurve
 from geodesicutils import GeoCrossAxis, GeoCrossBar
@@ -29,54 +30,37 @@ for s in sel:
 if not meshobject:
     print("Need a mesh object selected")
 
-# candidates for curveutils
-def cumlengthlist(pts):
-    ptcls = [ 0.0 ]
-    for i in range(len(pts)):
-        ptcls.append(ptcls[-1] + (pts[i] - pts[i-1]).Len())
-    return ptcls
-
-def seglampos(d, ptcls):
-    i0, i1 = 0, len(ptcls)-1
-    while i1 > i0 + 1:
-        im = (i0 + i1)//2
-        assert i0 < im < i1
-        if ptcls[im] < d:
-            i0 = im
-        else:
-            i1 = im
-        assert ptcls[i0] <= d <= ptcls[i1]
-    lam = (d - ptcls[i0]) / (ptcls[i1] - ptcls[i0])
-    return i0, lam
-
 def facetnormal(tbar):
     node2 = tbar.barforeright.GetNodeFore(tbar.barforeright.nodeback == tbar.nodefore)
     v2fore = tbar.nodefore.p - node2.p
     v2back = tbar.nodeback.p - node2.p
     return P3.ZNorm(P3.Cross(v2fore, v2back))
 
-# Finish coding this up and simplifying
+def InvAlong(v, a, b):
+    return (v - a)/(b - a)
+
 def TriangleExitCrossCutPlaneRight(tbar, perpvec, perpvecDot):
     node2 = tbar.barforeright.GetNodeFore(tbar.barforeright.nodeback == tbar.nodefore)
     dpvdnodefore = P3.Dot(perpvec, tbar.nodefore.p)
     dpvdnodeback = P3.Dot(perpvec, tbar.nodeback.p)
     dpvdnode2 = P3.Dot(perpvec, node2.p)
+    assert tbar.nodeback.i < tbar.nodefore.i
+    
     if dpvdnodefore <= perpvecDot <= dpvdnodeback:
-        tbarlam = (perpvecDot - dpvdnodeback)/(dpvdnodefore - dpvdnodeback)
+        tbarlam = InvAlong(perpvecDot,dpvdnodeback, dpvdnodefore)
         return tbar, tbarlam, False
-    if node2.i > tbar.nodefore.i:
-        if dpvdnode2 <= perpvecDot <= dpvdnodefore:
-            tbarlam = (perpvecDot - dpvdnodefore)/(dpvdnode2 - dpvdnodefore)
-            return tbar.barforeright, tbarlam, False
-    else:
-        if dpvdnode2 <= perpvecDot <= dpvdnodefore:
-            tbarlam = (perpvecDot - dpvdnode2)/(dpvdnodefore - dpvdnode2)
-            return tbar.barforeright, tbarlam, True
 
     if dpvdnodeback <= perpvecDot <= dpvdnode2:
-        tbarlam = (perpvecDot - dpvdnodeback)/(dpvdnode2 - dpvdnodeback)
+        tbarlam = InvAlong(perpvecDot, dpvdnodeback, dpvdnode2)
         barbackleft = tbar.barforeright.GetForeRightBL(tbar.barforeright.nodeback == tbar.nodefore)
+        assert barbackleft.nodeback.i < barbackleft.nodefore.i
         return barbackleft, tbarlam, True
+
+    if dpvdnode2 <= perpvecDot <= dpvdnodefore:
+        bforerightFore = (node2.i < tbar.nodefore.i)
+        tbarlamF = InvAlong(perpvecDot, dpvdnode2, dpvdnodefore)
+        tbarlam = tbarlamF if bforerightFore else 1.0 - tbarlamF
+        return tbar.barforeright, tbarlam, bforerightFore
 
     return None, 0, False         
 
@@ -88,7 +72,7 @@ drivebars = planecutembeddedcurve(startbar, startlam, driveperpvec)
 
 #epts = [ Along(lam, bar.nodeback.p, bar.nodefore.p)  for bar, lam in drivebars ]
 #Part.show(Part.makePolygon(epts))
-
+tridrivebarsmap = dict((drivebars[dseg][0].i, dseg)  for dseg in range(len(drivebars)))
 
 N = 5
 startangtoline = 120
@@ -99,13 +83,15 @@ ptcls = cumlengthlist(pts)
 for i in range(N):
     d = Along((i + 0.5)/N, ptcls[0], ptcls[-1])
     dseg, dlam = seglampos(d, ptcls)
+
+    tbar = facetbetweenbars(drivebars[dseg][0], drivebars[dseg+1][0])
     ptstart = Along(dlam, pts[dseg], pts[dseg+1])
     vsegN = P3.ZNorm(pts[dseg+1] - pts[dseg])
-    tbar = facetbetweenbars(drivebars[dseg][0], drivebars[dseg+1][0])
     tnorm = facetnormal(tbar)
-    tperp = P3.Cross(vsegN, tnorm) 
+    tperp = P3.Cross(vsegN, tnorm)
     startperpvec = vsegN*vang.u + tperp*vang.v
     startperpvecDot = P3.Dot(startperpvec, ptstart)
+    
     bar, lam, bGoRight = TriangleExitCrossCutPlaneRight(tbar, startperpvec, startperpvecDot)
     if bar == None:
         continue
@@ -118,6 +104,8 @@ for i in range(N):
             print("jjjk ", c, bar, lam, bGoRight)
             break
         gpts.append(c)
+        if bar.i in tridrivebarsmap:
+            break
     Part.show(Part.makePolygon([Vector(*p)  for p in gpts]))
 
 

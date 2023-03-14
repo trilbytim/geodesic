@@ -5,6 +5,7 @@ import Draft, Part, Mesh, MeshPart
 from FreeCAD import Vector, Rotation 
 
 # nix shell github:nixos/nixpkgs/nixos-unstable#godot_4
+# nix shell github:nixos/nixpkgs/53ac4afe310142f2ba005ace35429488a8b90339#godot_4
 
 import os, sys, math, time
 sys.path.append(os.path.join(os.path.split(__file__)[0]))

@@ -49,3 +49,21 @@ def thinptstotolerance(pts, tol):
             istack.append(imid)
     return [ pts[i]  for i in ithinned ]
 
+def cumlengthlist(pts):
+    ptcls = [ 0.0 ]
+    for i in range(len(pts)):
+        ptcls.append(ptcls[-1] + (pts[i] - pts[i-1]).Len())
+    return ptcls
+
+def seglampos(d, ptcls):
+    i0, i1 = 0, len(ptcls)-1
+    while i1 > i0 + 1:
+        im = (i0 + i1)//2
+        assert i0 < im < i1
+        if ptcls[im] < d:
+            i0 = im
+        else:
+            i1 = im
+        assert ptcls[i0] <= d <= ptcls[i1]
+    lam = (d - ptcls[i0]) / (ptcls[i1] - ptcls[i0])
+    return i0, lam
