@@ -13,6 +13,7 @@ from curvesutils import isdiscretizableobject, discretizeobject
 from curvesutils import cumlengthlist, seglampos
 from trianglemeshutils import UsefulBoxedTriangleMesh, facetbetweenbars
 from wireembeddingutils import TriangleCrossCutPlane, planecutembeddedcurve
+#from wireembeddingutils import showdrivebarsmesh, showdrivebarscurve
 from geodesicutils import GeoCrossAxis, GeoCrossBar
 
 doc = App.ActiveDocument
@@ -69,13 +70,27 @@ def TriangleExitCrossCutPlaneRight(tbar, perpvec, perpvecDot):
 utbm = UsefulBoxedTriangleMesh(meshobject)
 startbar, startlam = utbm.FindClosestEdge(drivept0)
 drivebars = planecutembeddedcurve(startbar, startlam, driveperpvec)
+# showdrivebarsmesh(drivebars, doc, meshname="m1"):
+# showdrivebarscurve(drivebars, doc)
 
-#epts = [ Along(lam, bar.nodeback.p, bar.nodefore.p)  for bar, lam in drivebars ]
-#Part.show(Part.makePolygon(epts))
 tridrivebarsmap = dict((drivebars[dseg][0].i, dseg)  for dseg in range(len(drivebars)))
 
+def drivepointstartfromangle(drivebars, dseg, dlam, dangle):
+    tbar = facetbetweenbars(drivebars[dseg][0], drivebars[dseg+1][0])
+    pt = Along(dlam, pts[dseg], pts[dseg+1])
+    vsegN = P3.ZNorm(pts[dseg+1] - pts[dseg])
+    tnorm = facetnormal(tbar)
+    tperp = P3.Cross(vsegN, tnorm)
+    perpvec = -vsegN*math.sin(math.radians(dangle)) - tperp*math.cos(math.radians(dangle))
+    perpvecDot = P3.Dot(perpvec, pt)
+    bar, lam, bGoRight = TriangleExitCrossCutPlaneRight(tbar, perpvec, perpvecDot)
+    return pt, bar, lam, bGoRight
+
+
+
+
 N = 5
-startangtoline = 120
+startangtoline = 30
 vang = P2(math.cos(math.radians(startangtoline)), math.sin(math.radians(startangtoline)))
 print("vang", vang)
 pts = [ Along(lam, bar.nodeback.p, bar.nodefore.p)  for bar, lam in drivebars ]
@@ -83,29 +98,25 @@ ptcls = cumlengthlist(pts)
 for i in range(N):
     d = Along((i + 0.5)/N, ptcls[0], ptcls[-1])
     dseg, dlam = seglampos(d, ptcls)
-
-    tbar = facetbetweenbars(drivebars[dseg][0], drivebars[dseg+1][0])
-    ptstart = Along(dlam, pts[dseg], pts[dseg+1])
-    vsegN = P3.ZNorm(pts[dseg+1] - pts[dseg])
-    tnorm = facetnormal(tbar)
-    tperp = P3.Cross(vsegN, tnorm)
-    startperpvec = vsegN*vang.u + tperp*vang.v
-    startperpvecDot = P3.Dot(startperpvec, ptstart)
-    
-    bar, lam, bGoRight = TriangleExitCrossCutPlaneRight(tbar, startperpvec, startperpvecDot)
+    ptprev, bar, lam, bGoRight = drivepointstartfromangle(drivebars, dseg, dlam, startangtoline)
     if bar == None:
         continue
-    gpts = [ ptstart ]
-    c = ptstart
-    gpts.append(Along(lam, bar.nodeback.p, bar.nodefore.p))
-    for i in range(350):
-        c, bar, lam, bGoRight = GeoCrossBar(c, bar, lam, bGoRight)
-        if not c:
+    ptcurr = Along(lam, bar.nodeback.p, bar.nodefore.p)
+    gpts = [ ptprev, ptcurr ]
+    while len(gpts) < 350:
+        prevbar, prevlam, prevbGoRight = bar, lam, bGoRight
+        Dc, bar, lam, bGoRight = GeoCrossBar(ptprev, bar, lam, bGoRight)
+        if not bar:
             print("jjjk ", c, bar, lam, bGoRight)
             break
-        gpts.append(c)
-        if bar.i in tridrivebarsmap:
+        ptprev = ptcurr
+        ptcurr = Along(lam, bar.nodeback.p, bar.nodefore.p)
+        assert (ptprev - Dc).Len() < 0.001
+        tbar = facetbetweenbars(prevbar, bar)
+        print(tbar, prevbar.GetForeRightBL(prevbGoRight), bar.GetForeRightBL(not bGoRight))
+        if tbar.i in tridrivebarsmap:
             break
+        gpts.append(ptcurr)
     Part.show(Part.makePolygon([Vector(*p)  for p in gpts]))
-
+    break
 

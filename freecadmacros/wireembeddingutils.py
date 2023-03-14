@@ -41,4 +41,16 @@ def planecutembeddedcurve(startbar, startlam, driveperpvec):
             break
     return drivebars
 
+def showdrivebarsmesh(drivebars, doc, meshname="m1"):
+    def facetnoderight(bar):
+        return bar.barforeright.GetNodeFore(bar.barforeright.nodeback == bar.nodefore)
+    tbarfacets = [ facetbetweenbars(drivebars[i][0], drivebars[i+1][0])  for i in range(len(drivebars)-1) ]
+    facets = [ [ Vector(*tbar.nodeback.p), Vector(*tbar.nodefore.p), 
+                 Vector(*facetnoderight(tbar).p) ]  for tbar in tbarfacets ]
+    mesh = doc.addObject("Mesh::Feature", meshname)
+    mesh.Mesh = Mesh.Mesh(facets)
+
+def showdrivebarscurve(drivebars, doc):
+    epts = [ Along(lam, bar.nodeback.p, bar.nodefore.p)  for bar, lam in drivebars ]
+    Part.show(Part.makePolygon(epts))
 
