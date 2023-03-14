@@ -205,4 +205,3 @@ print("Leaving angle", dsangle, "Continuing angle", dsangle2)
 
 # Cylinder position angle advance degrees 199.12638313124705
 # Leaving angle 30 Continuing angle 33.82565262364904
-

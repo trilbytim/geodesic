@@ -4,6 +4,10 @@
 import Draft, Part, Mesh, MeshPart
 from FreeCAD import Vector, Rotation 
 
+from curvesutils import isdiscretizableobject, discretizeobject, thinptstotolerance
+from barmesh.basicgeo import I1, Partition1, P3, P2, Along
+import math
+
 doc = App.ActiveDocument
 gui = App.Gui
 sel = Gui.Selection.getSelection()
@@ -16,38 +20,6 @@ sel = Gui.Selection.getSelection()
 # E3 - Rotation both chucks (headstock and tailstock)
 # E4 - Rotation of tailstock relative to headstock (rarely used)
 
-import math
-from collections import namedtuple
-class P2(namedtuple('P2', ['u', 'v'])):
-    __slots__ = ()
-    def __new__(self, u, v):
-        return super(P2, self).__new__(self, float(u), float(v))
-    def __repr__(self):
-        return "P2(%s, %s)" % (self.u, self.v)
-    def __add__(self, a):
-        return P2(self.u + a.u, self.v + a.v)
-    def __sub__(self, a):
-        return P2(self.u - a.u, self.v - a.v)
-    def __mul__(self, a):
-        return P2(self.u*a, self.v*a)
-    def __neg__(self):
-        return P2(-self.u, -self.v)
-    def __rmul__(self, a):
-        raise TypeError
-    def Len(self):
-        if self.u == 0.0:  return abs(self.v)
-        if self.v == 0.0:  return abs(self.u)
-        return math.sqrt(self.u*self.u + self.v*self.v)
-    def Arg(self):
-        return math.degrees(math.atan2(self.v, self.u))
-    @staticmethod
-    def CPerp(v):
-        return P2(v.v, -v.u)
-    @staticmethod
-    def Dot(a, b):
-        return a.u*b.u + a.v*b.v
-
-
 def outputsrclines(pts, freetapelength, robotstate):
     prevE1 = robotstate["E1"]  # used to track the number of complete winds on the eyelet part
     prevE3 = robotstate["E3"]  # used to track the number of complete winds on the lathe part
@@ -57,7 +29,7 @@ def outputsrclines(pts, freetapelength, robotstate):
     # (we use the incoming vector at each triangle edge, not the outgoing vector)
     for i in range(1, len(pts)):
         pt = pts[i]
-        vec = (pts[i] - pts[i-1]).normalize()
+        vec = P3.ZNorm(pts[i] - pts[i-1])
         tapevector = vec*freetapelength
         tcp = pt + tapevector
         radialvec = P2(tcp.x, tcp.z)
@@ -83,22 +55,41 @@ headersrc = os.path.join(os.path.split(__file__)[0], "header.src")
 print("making ", os.path.abspath(fname), " from ", __file__)
 freetapelength = 30.0
 selwireshapes = [ ]
+
 for s in sel:
-    if hasattr(s, "Shape") and isinstance(s.Shape, Part.Wire):
-        selwireshapes.append(s.Shape)
+    if isdiscretizableobject(s):
+        drivepts = discretizeobject(s, deflection=0.2)
+if not drivepts:
+    print("Need a linearizable object selected")
+
+dpts = [ P3(*p)  for p in drivepts ]
+tdpts = thinptstotolerance(dpts, tol=0.2)
+print("tolthin", len(dpts), len(tdpts))
+
+rotzadvances = [ 0, 199.12638313124705 ] 
+
+def rotxz(pt, vrotX):
+    rptxz = vrotX*pt.x + P2.APerp(vrotX)*pt.z
+    return P3(rptxz.u, pt.y, rptxz.v)
+
+Dcheckpath = [ ]
+
 fout = open(fname, "w")
 fout.write(open(headersrc).read())
 robotstate = { "X":0, "Y":300, "Z":0, "A":0, "E1":0, "E3":0, "E4":0 }
-
 fout.write("SLIN %s\n" % srcpt(robotstate))
-for wireshape in selwireshapes:
+for rotzadvanceby in rotzadvances:
     fout.write("SPLINE\n")
-    pts = [ v.Point  for v in wireshape.Vertexes ]
-    lns = outputsrclines(pts, freetapelength, robotstate)
+    vrotX = P2(math.cos(math.radians(rotzadvanceby)), math.sin(math.radians(rotzadvanceby)))
+    rtdpts = [ rotxz(pt, vrotX)  for pt in tdpts ]
+    lns = outputsrclines(rtdpts, freetapelength, robotstate)
+    Dcheckpath.extend(rtdpts)
     for ln in lns:
         fout.write("SPL %s\n" % srcpt(ln))
     fout.write("ENDSPLINE\n")
 fout.write("HALT\nEND\n")
 fout.close()    
 print("path made")
+
+Part.show(Part.makePolygon([Vector(*p)  for p in Dcheckpath]))
 

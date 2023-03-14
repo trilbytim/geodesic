@@ -1,5 +1,6 @@
 
 from FreeCAD import Vector
+from barmesh.basicgeo import P3, P2, Along
 
 def isdiscretizableobject(s):
     if s.isDerivedFrom("Sketcher::SketchObject"):
