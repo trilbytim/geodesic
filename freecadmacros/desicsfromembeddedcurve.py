@@ -74,10 +74,10 @@ drivebars = planecutembeddedcurve(startbar, startlam, driveperpvec)
 # showdrivebarscurve(drivebars, doc)
 tridrivebarsmap = dict((facetbetweenbars(drivebars[dseg][0], drivebars[dseg+1][0]).i, dseg)  for dseg in range(len(drivebars)-1))
 
-def drivepointstartfromangle(drivebars, dseg, dlam, dangle):
+def drivepointstartfromangle(drivebars, dpts, dseg, dlam, dangle):
     tbar = facetbetweenbars(drivebars[dseg][0], drivebars[dseg+1][0])
-    pt = Along(dlam, pts[dseg], pts[dseg+1])
-    vsegN = P3.ZNorm(pts[dseg+1] - pts[dseg])
+    pt = Along(dlam, dpts[dseg], dpts[dseg+1])
+    vsegN = P3.ZNorm(dpts[dseg+1] - dpts[dseg])
     tnorm = facetnormal(tbar)
     tperp = P3.Cross(vsegN, tnorm)
     perpvec = -vsegN*math.sin(math.radians(dangle)) - tperp*math.cos(math.radians(dangle))
@@ -142,35 +142,67 @@ def drivecurveintersectionfinder(drivebars, tridrivebarsmap, barlamB0, barlamB1)
     dlam = trilinecrossing(tbar, drivebars[dseg], drivebars[dseg+1], barlamB0, barlamB1)
     if dlam == -1.0:
         return -1, -1.0
+    print(tbar, dseg, dlam)
     return dseg, dlam
 
-N = 5
-startangtoline = 30
-pts = [ Along(lam, bar.nodeback.p, bar.nodefore.p)  for bar, lam in drivebars ]
-ptcls = cumlengthlist(pts)
-for i in range(N):
-    d = Along((i + 0.5)/N, ptcls[0], ptcls[-1])
-    dseg, dlam = seglampos(d, ptcls)
-    ptprev, bar, lam, bGoRight = drivepointstartfromangle(drivebars, dseg, dlam, startangtoline)
+def drivecurveanglefromvec(drivebars, dpts, dseg, vec):
+    tbar = facetbetweenbars(drivebars[dseg][0], drivebars[dseg+1][0])
+    print(dseg, tbar)
+    vsegN = P3.ZNorm(dpts[dseg+1] - dpts[dseg])
+    tnorm = facetnormal(tbar)
+    assert abs(P3.Dot(tnorm, vsegN)) < 0.001
+    assert abs(P3.Dot(tnorm, vec)) < 0.001
+    tperp = P3.Cross(vsegN, tnorm)
+    ang = math.degrees(math.atan2(-P3.Dot(tperp, vec), P3.Dot(vsegN, vec)))
+    return ang if ang > 0.0 else 360 + ang
+
+
+def drivegeodesic(drivebars, dpts, dptcls, ds, dsangle):
+    dsseg, dslam = seglampos(ds, dptcls)
+    ptprev, bar, lam, bGoRight = drivepointstartfromangle(drivebars, dpts, dsseg, dslam, dsangle)
     if bar == None:
-        continue
+        return None, -1, -1
     ptcurr = Along(lam, bar.nodeback.p, bar.nodefore.p)
     gpts = [ ptprev, ptcurr ]
     while len(gpts) < 350:
         prevbar, prevlam, prevbGoRight = bar, lam, bGoRight
         Dc, bar, lam, bGoRight = GeoCrossBar(ptprev, bar, lam, bGoRight)
         if not bar:
-            print("jjjk ", c, bar, lam, bGoRight)
+            print("jjjk ", Dc, bar, lam, bGoRight)
             break
         ptprev = ptcurr
         ptcurr = Along(lam, bar.nodeback.p, bar.nodefore.p)
         assert (ptprev - Dc).Len() < 0.001
         dcseg, dclam = drivecurveintersectionfinder(drivebars, tridrivebarsmap, (prevbar, prevlam), (bar, lam))
         if dcseg != -1:
-            cpt = Along(dclam, pts[dcseg], pts[dcseg+1])
+            cpt = Along(dclam, dpts[dcseg], dpts[dcseg+1])
             gpts.append(cpt)
-            break
+            angcross = drivecurveanglefromvec(drivebars, dpts, dcseg, ptcurr - ptprev)
+            dcross = Along(dclam, dptcls[dcseg], dptcls[dcseg+1])
+            print("angcross", angcross, dcross)
+            return gpts, dcross, angcross
         gpts.append(ptcurr)
-    Part.show(Part.makePolygon([Vector(*p)  for p in gpts]))
+    return gpts, -1, -1
+
+dpts = [ Along(lam, bar.nodeback.p, bar.nodefore.p)  for bar, lam in drivebars ]
+dptcls = cumlengthlist(dpts)
+
+for dsangle in range(26, 33, 1):
     break
+    ds = Along(0.1, dptcls[0], dptcls[-1])
+    gpts, ds, dsangle = drivegeodesic(drivebars, dpts, dptcls, ds, dsangle)
+    if gpts:
+        Part.show(Part.makePolygon([Vector(*p)  for p in gpts]))
+    print(ds, dsangle)
+
+ds = Along(0.1, dptcls[0], dptcls[-1])
+dsangle = 30
+gpts1, ds1, dsangle1 = drivegeodesic(drivebars, dpts, dptcls, ds, dsangle)
+gpts2, ds2, dsangle2 = drivegeodesic(drivebars, dpts, dptcls, ds1, dsangle1)
+Part.show(Part.makePolygon([Vector(*p)  for p in gpts1+gpts2[1:]]))
+print("Cylinder position angle advance degrees", 360*(ds2 - ds)/dptcls[-1])
+print("Leaving angle", dsangle, "Continuing angle", dsangle2)
+
+# Cylinder position angle advance degrees 199.12638313124705
+# Leaving angle 30 Continuing angle 33.82565262364904
 
