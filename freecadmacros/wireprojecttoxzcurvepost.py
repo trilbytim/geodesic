@@ -59,11 +59,17 @@ headersrc = os.path.join(os.path.split(__file__)[0], "header.src")
 print("making ", os.path.abspath(fname), " from ", __file__)
 selwireshapes = [ ]
 
+# need to convert the curve into a lookup XY thing
+# then we project out until the radius is X at the position Y
+# From here we can rotate round to fit the E values
+
+
 for s in sel:
     if isdiscretizableobject(s):
         drivepts = discretizeobject(s, deflection=0.2)
 if not drivepts:
     print("Need a linearizable object selected")
+print(drivepts)
 
 dpts = [ P3(*p)  for p in drivepts ]
 tdpts = thinptstotolerance(dpts, tol=0.2)
@@ -74,7 +80,6 @@ rotzadvances = [ 0, 199.12638313124705 ]
 def rotxz(pt, vrotX):
     rptxz = vrotX*pt.x + P2.APerp(vrotX)*pt.z
     return P3(rptxz.u, pt.y, rptxz.v)
-
 
 Dcheckpath = [ ]
 Drobotpath = [ ]

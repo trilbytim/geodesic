@@ -13,7 +13,7 @@ from curvesutils import isdiscretizableobject, discretizeobject
 from curvesutils import cumlengthlist, seglampos
 from trianglemeshutils import UsefulBoxedTriangleMesh, facetbetweenbars
 from wireembeddingutils import TriangleCrossCutPlane, planecutembeddedcurve
-#from wireembeddingutils import showdrivebarsmesh, showdrivebarscurve
+from wireembeddingutils import showdrivebarsmesh, showdrivebarscurve
 from geodesicutils import GeoCrossAxis, GeoCrossBar
 
 doc = App.ActiveDocument
@@ -164,7 +164,7 @@ def drivegeodesic(drivebars, dpts, dptcls, ds, dsangle):
         return None, -1, -1
     ptcurr = Along(lam, bar.nodeback.p, bar.nodefore.p)
     gpts = [ ptprev, ptcurr ]
-    while len(gpts) < 350:
+    while len(gpts) < 450:
         prevbar, prevlam, prevbGoRight = bar, lam, bGoRight
         Dc, bar, lam, bGoRight = GeoCrossBar(ptprev, bar, lam, bGoRight)
         if not bar:
@@ -195,10 +195,11 @@ for dsangle in range(26, 33, 1):
         Part.show(Part.makePolygon([Vector(*p)  for p in gpts]))
     print(ds, dsangle)
 
-ds = Along(0.1, dptcls[0], dptcls[-1])
+ds = Along(0.15, dptcls[0], dptcls[-1])
 dsangle = 30
 gpts1, ds1, dsangle1 = drivegeodesic(drivebars, dpts, dptcls, ds, dsangle)
-gpts2, ds2, dsangle2 = drivegeodesic(drivebars, dpts, dptcls, ds1, dsangle1)
+print("pos ds1", ds1, dsangle1)
+gpts2, ds2, dsangle2 = drivegeodesic(drivebars, dpts, dptcls, ds1, dsangle1+10)
 Part.show(Part.makePolygon([Vector(*p)  for p in gpts1+gpts2[1:]]))
 print("Cylinder position angle advance degrees", 360*(ds2 - ds)/dptcls[-1])
 print("Leaving angle", dsangle, "Continuing angle", dsangle2)
