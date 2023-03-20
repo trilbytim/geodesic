@@ -6,7 +6,7 @@ from FreeCAD import Vector, Rotation
 
 from curvesutils import isdiscretizableobject, discretizeobject, thinptstotolerance
 from barmesh.basicgeo import I1, Partition1, P3, P2, Along
-import math
+import math, numpy
 
 doc = App.ActiveDocument
 gui = App.Gui
@@ -63,58 +63,58 @@ selwireshapes = [ ]
 # then we project out until the radius is X at the position Y
 # From here we can rotate round to fit the E values
 
-
+tcpcurve = None
+tapecurve = None
 for s in sel:
     if isdiscretizableobject(s):
-        drivepts = discretizeobject(s, deflection=0.2)
-if not drivepts:
-    print("Need a linearizable object selected")
-print(drivepts)
+        pts = [ P3(*p)  for p in discretizeobject(s, deflection=0.02) ]
+        rg = I1.AbsorbList(pt[2]  for pt in pts)
+        if rg.lo == rg.hi == 0:
+            tcpcurve = pts
+        else:
+            assert tapecurve is None, "two tape curves found"
+            tapecurve = thinptstotolerance(pts, tol=0.2)
+            tapecurve = pts
+            
+if not tapecurve:
+    print("Need a linearizable tape curve object selected")
+if not tcpcurve:
+    print("Need a linearizable tool centre point (tcp) curve object selected")
 
-dpts = [ P3(*p)  for p in drivepts ]
-tdpts = thinptstotolerance(dpts, tol=0.2)
-print("tolthin", len(dpts), len(tdpts))
+import scipy.interpolate
+tcpinterpolator = scipy.interpolate.CubicSpline([p.y for p in tcpcurve], [p.x for p in tcpcurve], axis=0, bc_type='natural')
+tcpsplineys = numpy.linspace(tcpcurve[0].y, tcpcurve[-1].y, 200)
+tcpsplinexs = tcpinterpolator(tcpsplineys)
+#Part.show(Part.makePolygon([Vector(x, y, 0)  for x, y in zip(tcpsplinexs, tcpsplineys)]))
+#Part.show(Part.makePolygon([Vector(*p)  for p in tcpcurve]))
+tcpconstXval = min(p.x for p in tcpcurve)
 
-rotzadvances = [ 0, 199.12638313124705 ] 
+def projectToXvalplane(pt, vec, cx):
+    qa = P2(vec.x, vec.z).Lensq()
+    qb2 = pt.x*vec.x + pt.z*vec.z
+    qc = P2(pt.x, pt.z).Lensq() - cx*cx
+    qdq = qb2*qb2 - qa*qc
+    qs = math.sqrt(qdq) / qa
+    qm = -qb2 / qa
+    q = qm + qs
+    #TOL_ZERO((P2(pt.x, pt.z) + P2(vec.x, vec.z)*q).Len())
+    return pt + vec*q
 
-def rotxz(pt, vrotX):
-    rptxz = vrotX*pt.x + P2.APerp(vrotX)*pt.z
-    return P3(rptxz.u, pt.y, rptxz.v)
+print("tcpconstXval", tcpconstXval, len(tapecurve))
+tapevecs = [ ]
+tapetcps = [ ]
 
-Dcheckpath = [ ]
-Drobotpath = [ ]
-
-freetapelength = 30.0
-xhome = -200
-ymid = 0.0  # or 1000
-
-fout = open(fname, "w")
-fout.write(open(headersrc).read())
-robotstate = { "X":xhome, "Y":ymid, "Z":0, "A":0, "E1":0, "E3":0, "E4":0 }
-fout.write("SLIN %s\n" % srcpt(robotstate))
-firstlinenonsplined = True
-for rotzadvanceby in rotzadvances:
-    vrotX = P2(math.cos(math.radians(rotzadvanceby)), math.sin(math.radians(rotzadvanceby)))
-    rtdpts = [ rotxz(pt, vrotX)+P3(0,ymid,0)  for pt in tdpts ]
-    lns = outputsrclines(rtdpts, freetapelength, robotstate)
-    Dcheckpath.extend(rtdpts)
-    Drobotpath.extend(Vector(ln["X"], ln["Y"], 0.0)  for ln in lns)
-
-    if firstlinenonsplined:
-        fout.write("SLIN %s\n" % srcpt(lns[0]))
-        fout.write("HALT\n")
-    fout.write("SPLINE\n")
-    for ln in lns[1 if firstlinenonsplined else 0:]:
-        fout.write("SPL %s\n" % srcpt(ln))
-    fout.write("ENDSPLINE\n")
-    firstlinenonsplined = False
-robotstate["X"] = xhome
-fout.write("SLIN %s\n" % srcpt(robotstate))
-fout.write("HALT\nEND\n")
-
-fout.close()    
-print("path made")
-Part.show(Part.makePolygon([Vector(*p)  for p in Dcheckpath]))
-Part.show(Part.makePolygon(Drobotpath))
-
+facets = [ ]
+#for i in range(1, len(tapecurve)):
+for i in range(470, 550):
+    vec = tapecurve[i] - tapecurve[i-1]
+    tcp = projectToXvalplane(tapecurve[i], vec, tcpconstXval)
+    if tapetcps:
+        facets.append([Vector(*tapetcps[-1]), Vector(*tapecurve[i-1]), Vector(*tcp)])
+        facets.append([Vector(*tcp), Vector(*tapecurve[i-1]), Vector(*tapecurve[i])])
+    tapevecs.append(vec)
+    tapetcps.append(tcp)
+Part.show(Part.makePolygon([Vector(*p)  for p in tapetcps]))
+mesh = doc.addObject("Mesh::Feature", "tcpmesh")
+mesh.Mesh = Mesh.Mesh(facets)
 
