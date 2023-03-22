@@ -34,29 +34,21 @@ for s in sel:
 if not meshobject:
     print("Need a mesh object selected")
 
-def barfacetnormal(bar, bGoRight):
+def barfacetnormal(bar, bGoRight, ptcommon=None):
     nodeAhead = bar.GetNodeFore(bGoRight)
     nodeBehind = bar.GetNodeFore(not bGoRight)
     barAhead = bar.GetForeRightBL(bGoRight)
     barAheadGoRight = (barAhead.nodeback == nodeAhead)
     nodeOpposite = barAhead.GetNodeFore(barAheadGoRight)
-    v2ahead = nodeAhead.p - nodeOpposite.p
-    v2behind = nodeBehind.p - nodeOpposite.p
+    ptc = nodeOpposite.p if ptcommon is None else ptcommon
+    v2ahead = nodeAhead.p - ptc
+    v2behind = nodeBehind.p - ptc
     return P3.ZNorm(P3.Cross(v2ahead, v2behind))
-
-def facetnormal(tbar):
-    #return barfacetnormal(tbar, True)
-
-    node2 = tbar.barforeright.GetNodeFore(tbar.barforeright.nodeback == tbar.nodefore)
-    v2fore = tbar.nodefore.p - node2.p
-    v2back = tbar.nodeback.p - node2.p
-    return P3.ZNorm(P3.Cross(v2fore, v2back))
 
 def TOL_ZERO(X, msg=""):
     if not (abs(X) < 0.0001):
         print("TOL_ZERO fail", X, msg)
         assert False
-
 
 def InvAlong(v, a, b):
     return (v - a)/(b - a)
@@ -156,6 +148,8 @@ def drivecurveintersectionfinder(drivebars, tridrivebarsmap, gb0, gb1):
     res = GBarT(drivebars, dseg, dlam)
     res.dcseg = dseg
     res.dclam = dlam
+    TOL_ZERO(P3.Cross(gb1.tnorm_incoming, res.tnorm).Len())
+    res.tnorm_incoming = gb1.tnorm_incoming
     return res
     
 
@@ -173,7 +167,6 @@ class GBarC:
         TOL_ZERO((c - self.pt).Len())
         return res
 
-
 class GBarT:
     def __init__(self, drivebars, dseg, dlam):
         self.tbar = facetbetweenbars(drivebars[dseg][0], drivebars[dseg+1][0])
@@ -181,7 +174,7 @@ class GBarT:
         dpt1 = Along(drivebars[dseg+1][1], drivebars[dseg+1][0].nodeback.p, drivebars[dseg+1][0].nodefore.p)
         self.pt = Along(dlam, dpt, dpt1)
         self.vsegN = P3.ZNorm(dpt1 - dpt)
-        self.tnorm = facetnormal(self.tbar)
+        self.tnorm = barfacetnormal(self.tbar, True)
         self.tperp = P3.Cross(self.vsegN, self.tnorm)
 
     def drivepointstartfromangle(self, dangle):
@@ -202,23 +195,30 @@ def drivegeodesic(drivebars, dpts, dptcls, ds, dsangle):
     gbStart = GBarT(drivebars, dsseg, dslam)
     gb = gbStart.drivepointstartfromangle(dsangle)
     gbs = [ gbStart, gb ]
-    while True:
+    gbEnd = None
+    Nconcavefolds = 0
+    while gbEnd is None:
         gb = gbs[-1].GBCrossBar(gbs[-2].pt)
         if not gb.bar or len(gbs) > 450:
             return gbs, -1, -1
-        veccurr = gb.pt - gbs[-1].pt
-        TOL_ZERO(P3.Dot(gb.tnorm_incoming, P3.ZNorm(veccurr)), "mmnn")
-        fndot = P3.Dot(gbs[-1].tnorm_incoming, P3.ZNorm(veccurr))
-        if fndot < -0.04:
-            print("concave fold", fndot, gbs[-1].pt)
         gbEnd = drivecurveintersectionfinder(drivebars, tridrivebarsmap, gbs[-1], gb)
-        if gbEnd is not None:
-            break
-        gbs.append(gb)
+        gbs.append(gb if gbEnd is None else gbEnd)
+        
+        while len(gbs) >= 3:
+            veccurr = gbs[-1].pt - gbs[-2].pt
+            TOL_ZERO(P3.Dot(gbs[-1].tnorm_incoming, P3.ZNorm(veccurr)))
+            fndot = P3.Dot(P3.ZNorm(veccurr), gbs[-2].tnorm_incoming)
+            if fndot >= 0.0:
+                break
+            Nconcavefolds += 1
+            del gbs[-2]
+            Dprevtnorm_incoming = gbs[-1].tnorm_incoming
+            gbs[-1].tnorm_incoming = barfacetnormal(gbs[-1].bar, not gbs[-1].bGoRight, gbs[-2].pt)
+            assert P3.Dot(gbs[-1].tnorm_incoming, Dprevtnorm_incoming) > 0.9
 
-    angcross = gbEnd.drivecurveanglefromvec(gbEnd.pt - gbs[-1].pt)
+    print("Nconcavefolds removed", Nconcavefolds, "leaving", len(gbs))
+    angcross = gbEnd.drivecurveanglefromvec(gbs[-2].pt - gbs[-1].pt)
     dcross = Along(gbEnd.dclam, dptcls[gbEnd.dcseg], dptcls[gbEnd.dcseg+1])
-    gbs.append(gbEnd)
     print("angcross", angcross, dcross)
     return gbs, dcross, angcross
 
