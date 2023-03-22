@@ -143,30 +143,21 @@ def trilinecrossing(tbar, barlamA0, barlamA1, barlamB0, barlamB1):
     assert (DptcrossB - DptcrossA).Len() < 0.001
     return lamA   
     
-def drivecurveintersectionfinder(drivebars, tridrivebarsmap, barlamB0, barlamB1):
-    tbar = facetbetweenbars(barlamB0[0], barlamB1[0])
+def drivecurveintersectionfinder(drivebars, tridrivebarsmap, gb0, gb1):
+    tbar = facetbetweenbars(gb0.bar, gb1.bar)
     if tbar.i not in tridrivebarsmap:
-        return -1, -1.0
+        return None
     dseg = tridrivebarsmap[tbar.i]
     Dtbar = facetbetweenbars(drivebars[dseg][0], drivebars[dseg+1][0])
     assert tbar == Dtbar
-    dlam = trilinecrossing(tbar, drivebars[dseg], drivebars[dseg+1], barlamB0, barlamB1)
+    dlam = trilinecrossing(tbar, drivebars[dseg], drivebars[dseg+1], (gb0.bar, gb0.lam), (gb1.bar, gb1.lam))
     if dlam == -1.0:
-        return -1, -1.0
-    print(tbar, dseg, dlam)
-    return dseg, dlam
-
-def drivecurveanglefromvec(drivebars, dpts, dseg, vec):
-    tbar = facetbetweenbars(drivebars[dseg][0], drivebars[dseg+1][0])
-    print(dseg, tbar)
-    vsegN = P3.ZNorm(dpts[dseg+1] - dpts[dseg])
-    tnorm = facetnormal(tbar)
-    assert abs(P3.Dot(tnorm, vsegN)) < 0.001
-    assert abs(P3.Dot(tnorm, vec)) < 0.001
-    tperp = P3.Cross(vsegN, tnorm)
-    ang = math.degrees(math.atan2(-P3.Dot(tperp, vec), P3.Dot(vsegN, vec)))
-    return ang if ang > 0.0 else 360 + ang
-
+        return None
+    res = GBarT(drivebars, dseg, dlam)
+    res.dcseg = dseg
+    res.dclam = dlam
+    return res
+    
 
 class GBarC:
     def __init__(self, bar, lam, bGoRight):
@@ -182,11 +173,14 @@ class GBarC:
         TOL_ZERO((c - self.pt).Len())
         return res
 
+
 class GBarT:
-    def __init__(self, drivebars, dpts, dseg, dlam):
+    def __init__(self, drivebars, dseg, dlam):
         self.tbar = facetbetweenbars(drivebars[dseg][0], drivebars[dseg+1][0])
-        self.pt = Along(dlam, dpts[dseg], dpts[dseg+1])
-        self.vsegN = P3.ZNorm(dpts[dseg+1] - dpts[dseg])
+        dpt = Along(drivebars[dseg][1], drivebars[dseg][0].nodeback.p, drivebars[dseg][0].nodefore.p)
+        dpt1 = Along(drivebars[dseg+1][1], drivebars[dseg+1][0].nodeback.p, drivebars[dseg+1][0].nodefore.p)
+        self.pt = Along(dlam, dpt, dpt1)
+        self.vsegN = P3.ZNorm(dpt1 - dpt)
         self.tnorm = facetnormal(self.tbar)
         self.tperp = P3.Cross(self.vsegN, self.tnorm)
 
@@ -197,41 +191,37 @@ class GBarT:
         res = GBarC(bar, lam, bGoRight)
         TOL_ZERO((self.tnorm - res.tnorm_incoming).Len(), "oo")
         return res
+
+    def drivecurveanglefromvec(self, vec):
+        ang = math.degrees(math.atan2(-P3.Dot(self.tperp, vec), P3.Dot(self.vsegN, vec)))
+        return ang if ang > 0.0 else 360 + ang
         
 
 def drivegeodesic(drivebars, dpts, dptcls, ds, dsangle):
     dsseg, dslam = seglampos(ds, dptcls)
-    gbStart = GBarT(drivebars, dpts, dsseg, dslam)
-    ptprev = gbStart.pt
+    gbStart = GBarT(drivebars, dsseg, dslam)
     gb = gbStart.drivepointstartfromangle(dsangle)
-    ptcurr = gb.pt
-    gpts = [ ptprev, ptcurr ]
-    bar, lam, bGoRight = gb.bar, gb.lam, gb.bGoRight
-    while len(gpts) < 450:
-        prevgb = gb
-        prevfacetnormal = barfacetnormal(prevgb.bar, not prevgb.bGoRight)
-        TOL_ZERO((prevgb.tnorm_incoming - prevfacetnormal).Len(), "mm")
-        gb = gb.GBCrossBar(ptprev)
-        facetnormal = barfacetnormal(gb.bar, not gb.bGoRight)
-        if not gb.bar:
+    gbs = [ gbStart, gb ]
+    while True:
+        gb = gbs[-1].GBCrossBar(gbs[-2].pt)
+        if not gb.bar or len(gbs) > 450:
+            return gbs, -1, -1
+        veccurr = gb.pt - gbs[-1].pt
+        TOL_ZERO(P3.Dot(gb.tnorm_incoming, P3.ZNorm(veccurr)), "mmnn")
+        fndot = P3.Dot(gbs[-1].tnorm_incoming, P3.ZNorm(veccurr))
+        if fndot < -0.04:
+            print("concave fold", fndot, gbs[-1].pt)
+        gbEnd = drivecurveintersectionfinder(drivebars, tridrivebarsmap, gbs[-1], gb)
+        if gbEnd is not None:
             break
-        ptprev = ptcurr
-        ptcurr = gb.pt
-        veccurr = ptcurr - ptprev
-        fndot = P3.Dot(prevfacetnormal, P3.ZNorm(veccurr))
-        TOL_ZERO(P3.Dot(facetnormal, P3.ZNorm(veccurr)), "mmnn")
-        if fndot < -0.1:
-            print(fndot, ptprev)
-        dcseg, dclam = drivecurveintersectionfinder(drivebars, tridrivebarsmap, (prevgb.bar, prevgb.lam), (gb.bar, gb.lam))
-        if dcseg != -1:
-            cpt = Along(dclam, dpts[dcseg], dpts[dcseg+1])
-            gpts.append(cpt)
-            angcross = drivecurveanglefromvec(drivebars, dpts, dcseg, ptcurr - ptprev)
-            dcross = Along(dclam, dptcls[dcseg], dptcls[dcseg+1])
-            print("angcross", angcross, dcross)
-            return gpts, dcross, angcross
-        gpts.append(ptcurr)
-    return gpts, -1, -1
+        gbs.append(gb)
+
+    angcross = gbEnd.drivecurveanglefromvec(gbEnd.pt - gbs[-1].pt)
+    dcross = Along(gbEnd.dclam, dptcls[gbEnd.dcseg], dptcls[gbEnd.dcseg+1])
+    gbs.append(gbEnd)
+    print("angcross", angcross, dcross)
+    return gbs, dcross, angcross
+
 
 dpts = [ Along(lam, bar.nodeback.p, bar.nodefore.p)  for bar, lam in drivebars ]
 dptcls = cumlengthlist(dpts)
@@ -239,18 +229,18 @@ dptcls = cumlengthlist(dpts)
 for dsangle in range(26, 33, 1):
     break
     ds = Along(0.1, dptcls[0], dptcls[-1])
-    gpts, ds, dsangle = drivegeodesic(drivebars, dpts, dptcls, ds, dsangle)
-    if gpts:
-        Part.show(Part.makePolygon([Vector(*p)  for p in gpts]))
+    gbs, ds, dsangle = drivegeodesic(drivebars, dpts, dptcls, ds, dsangle)
+    if gbs:
+        Part.show(Part.makePolygon([Vector(*gb.pt)  for gb in gps]))
     print(ds, dsangle)
 
 ds = Along(0.15, dptcls[0], dptcls[-1])
 dsangle = 30
-gpts1, ds1, dsangle1 = drivegeodesic(drivebars, dpts, dptcls, ds, dsangle)
+gbs1, ds1, dsangle1 = drivegeodesic(drivebars, dpts, dptcls, ds, dsangle)
 print("pos ds1", ds1, dsangle1)
-gpts2 = [ gpts1[-1] ]
-#gpts2, ds2, dsangle2 = drivegeodesic(drivebars, dpts, dptcls, ds1, dsangle1+10)
-Part.show(Part.makePolygon([Vector(*p)  for p in gpts1+gpts2[1:]]))
+gbs2 = [ gbs1[-1] ]
+#gbs2, ds2, dsangle2 = drivegeodesic(drivebars, dpts, dptcls, ds1, dsangle1+30)
+Part.show(Part.makePolygon([Vector(*gb.pt)  for gb in gbs1+gbs2[1:]]))
 #print("Cylinder position angle advance degrees", 360*(ds2 - ds)/dptcls[-1])
 #print("Leaving angle", dsangle, "Continuing angle", dsangle2)
 
