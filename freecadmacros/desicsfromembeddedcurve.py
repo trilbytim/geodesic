@@ -1,4 +1,7 @@
 # -*- coding: utf-8 -*-
+
+# directional geodesics from embedded curve
+
 # Embed a curve into a mesh so we can head off in different directions and tell when it is crossed
 
 import Draft, Part, Mesh, MeshPart
@@ -14,7 +17,7 @@ from curvesutils import cumlengthlist, seglampos
 from trianglemeshutils import UsefulBoxedTriangleMesh, facetbetweenbars
 from wireembeddingutils import TriangleCrossCutPlane, planecutembeddedcurve
 from wireembeddingutils import showdrivebarsmesh, showdrivebarscurve
-from geodesicutils import GeoCrossAxis, GeoCrossBar
+from geodesicutils import GeoCrossAxis, GeoCrossBar, TOL_ZERO
 
 doc = App.ActiveDocument
 gui = App.Gui
@@ -31,11 +34,24 @@ for s in sel:
 if not meshobject:
     print("Need a mesh object selected")
 
+def barfacetnormal(bar, bGoRight):
+    nodeAhead = bar.GetNodeFore(bGoRight)
+    nodeBehind = bar.GetNodeFore(not bGoRight)
+    barAhead = bar.GetForeRightBL(bGoRight)
+    barAheadGoRight = (barAhead.nodeback == nodeAhead)
+    nodeOpposite = barAhead.GetNodeFore(barAheadGoRight)
+    v2ahead = nodeAhead.p - nodeOpposite.p
+    v2behind = nodeBehind.p - nodeOpposite.p
+    return P3.ZNorm(P3.Cross(v2ahead, v2behind))
+
 def facetnormal(tbar):
+    #return barfacetnormal(tbar, True)
+
     node2 = tbar.barforeright.GetNodeFore(tbar.barforeright.nodeback == tbar.nodefore)
     v2fore = tbar.nodefore.p - node2.p
     v2back = tbar.nodeback.p - node2.p
     return P3.ZNorm(P3.Cross(v2fore, v2back))
+
 
 def InvAlong(v, a, b):
     return (v - a)/(b - a)
@@ -74,16 +90,6 @@ drivebars = planecutembeddedcurve(startbar, startlam, driveperpvec)
 # showdrivebarscurve(drivebars, doc)
 tridrivebarsmap = dict((facetbetweenbars(drivebars[dseg][0], drivebars[dseg+1][0]).i, dseg)  for dseg in range(len(drivebars)-1))
 
-def drivepointstartfromangle(drivebars, dpts, dseg, dlam, dangle):
-    tbar = facetbetweenbars(drivebars[dseg][0], drivebars[dseg+1][0])
-    pt = Along(dlam, dpts[dseg], dpts[dseg+1])
-    vsegN = P3.ZNorm(dpts[dseg+1] - dpts[dseg])
-    tnorm = facetnormal(tbar)
-    tperp = P3.Cross(vsegN, tnorm)
-    perpvec = -vsegN*math.sin(math.radians(dangle)) - tperp*math.cos(math.radians(dangle))
-    perpvecDot = P3.Dot(perpvec, pt)
-    bar, lam, bGoRight = TriangleExitCrossCutPlaneRight(tbar, perpvec, perpvecDot)
-    return pt, bar, lam, bGoRight
 
 def triclambarlam(tbar, barlam):
     bar, lam = barlam
@@ -157,22 +163,52 @@ def drivecurveanglefromvec(drivebars, dpts, dseg, vec):
     return ang if ang > 0.0 else 360 + ang
 
 
+class GBarC:
+    def __init__(self, bar, pt, lam, bGoRight):
+        self.bar = bar
+        self.lam = lam
+        self.bGoRight = bGoRight
+        self.pt = Along(self.lam, self.bar.nodeback.p, self.bar.nodefore.p)
+        self.tnorm_incoming = barfacetnormal(self.bar, not self.bGoRight)
+
+class GBarT:
+    def __init__(self, drivebars, dpts, dseg, dlam):
+        self.tbar = facetbetweenbars(drivebars[dseg][0], drivebars[dseg+1][0])
+        self.pt = Along(dlam, dpts[dseg], dpts[dseg+1])
+        self.vsegN = P3.ZNorm(dpts[dseg+1] - dpts[dseg])
+        self.tnorm = facetnormal(self.tbar)
+        self.tperp = P3.Cross(self.vsegN, self.tnorm)
+
+    def drivepointstartfromangle(self, dangle):
+        perpvec = -self.vsegN*math.sin(math.radians(dangle)) - self.tperp*math.cos(math.radians(dangle))
+        perpvecDot = P3.Dot(perpvec, self.pt)
+        bar, lam, bGoRight = TriangleExitCrossCutPlaneRight(self.tbar, perpvec, perpvecDot)
+        return self.pt, bar, lam, bGoRight
+    
+
 def drivegeodesic(drivebars, dpts, dptcls, ds, dsangle):
     dsseg, dslam = seglampos(ds, dptcls)
-    ptprev, bar, lam, bGoRight = drivepointstartfromangle(drivebars, dpts, dsseg, dslam, dsangle)
+    gbStart = GBarT(drivebars, dpts, dsseg, dslam)
+    ptprev, bar, lam, bGoRight = gbStart.drivepointstartfromangle(dsangle)
     if bar == None:
         return None, -1, -1
     ptcurr = Along(lam, bar.nodeback.p, bar.nodefore.p)
     gpts = [ ptprev, ptcurr ]
     while len(gpts) < 450:
         prevbar, prevlam, prevbGoRight = bar, lam, bGoRight
+        prevfacetnormal = barfacetnormal(prevbar, not prevbGoRight)
         Dc, bar, lam, bGoRight = GeoCrossBar(ptprev, bar, lam, bGoRight)
+        facetnormal = barfacetnormal(bar, not bGoRight)
         if not bar:
-            print("jjjk ", Dc, bar, lam, bGoRight)
             break
         ptprev = ptcurr
         ptcurr = Along(lam, bar.nodeback.p, bar.nodefore.p)
-        assert (ptprev - Dc).Len() < 0.001
+        veccurr = ptcurr - ptprev
+        fndot = P3.Dot(prevfacetnormal, P3.ZNorm(veccurr))
+        TOL_ZERO(P3.Dot(facetnormal, P3.ZNorm(veccurr)))
+        if fndot < -0.1:
+            print(fndot, ptprev)
+        TOL_ZERO((ptprev - Dc).Len())
         dcseg, dclam = drivecurveintersectionfinder(drivebars, tridrivebarsmap, (prevbar, prevlam), (bar, lam))
         if dcseg != -1:
             cpt = Along(dclam, dpts[dcseg], dpts[dcseg+1])
@@ -199,10 +235,11 @@ ds = Along(0.15, dptcls[0], dptcls[-1])
 dsangle = 30
 gpts1, ds1, dsangle1 = drivegeodesic(drivebars, dpts, dptcls, ds, dsangle)
 print("pos ds1", ds1, dsangle1)
-gpts2, ds2, dsangle2 = drivegeodesic(drivebars, dpts, dptcls, ds1, dsangle1+10)
+gpts2 = [ gpts1[-1] ]
+#gpts2, ds2, dsangle2 = drivegeodesic(drivebars, dpts, dptcls, ds1, dsangle1+10)
 Part.show(Part.makePolygon([Vector(*p)  for p in gpts1+gpts2[1:]]))
-print("Cylinder position angle advance degrees", 360*(ds2 - ds)/dptcls[-1])
-print("Leaving angle", dsangle, "Continuing angle", dsangle2)
+#print("Cylinder position angle advance degrees", 360*(ds2 - ds)/dptcls[-1])
+#print("Leaving angle", dsangle, "Continuing angle", dsangle2)
 
 # Cylinder position angle advance degrees 199.12638313124705
 # Leaving angle 30 Continuing angle 33.82565262364904

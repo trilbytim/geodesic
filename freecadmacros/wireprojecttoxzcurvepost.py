@@ -59,9 +59,6 @@ headersrc = os.path.join(os.path.split(__file__)[0], "header.src")
 print("making ", os.path.abspath(fname), " from ", __file__)
 selwireshapes = [ ]
 
-# need to convert the curve into a lookup XY thing
-# then we project out until the radius is X at the position Y
-# From here we can rotate round to fit the E values
 
 tcpcurve = None
 tapecurve = None
@@ -117,4 +114,17 @@ for i in range(470, 550):
 Part.show(Part.makePolygon([Vector(*p)  for p in tapetcps]))
 mesh = doc.addObject("Mesh::Feature", "tcpmesh")
 mesh.Mesh = Mesh.Mesh(facets)
+
+# need to convert the curve into a lookup XY thing
+# then we project out until the radius is X at the position Y
+# From here we can rotate round to fit the E values
+
+# outputsrclines will take tcp and tapevector
+# we will sample along this fixed X (along Y) path 
+# and break the splines at the extreme Y points
+# We can make a tcpconstXval too
+
+# Somewhere we need to convexify the path.  Cannot have the vector out 
+# along the tape intersecting the mesh (which happens when there is concavity.
+# We can trim back on the geodesic where the back points are discarded until it's convex
 
