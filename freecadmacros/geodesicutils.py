@@ -4,9 +4,9 @@ import math
 
 def Square(X):
     return X*X
-def TOL_ZERO(X):
+def TOL_ZERO(X, msg=""):
     if not (abs(X) < 0.0001):
-        print("TOL_ZERO fail", X)
+        print("TOL_ZERO fail", X, msg)
 
 def GeoCrossAxisE(a, Vae, Vab, Isq, Isgn):
     # Solve: Isq*x.Lensq() - Square(P3.Dot(x, Vab)) = 0   for x = a + Vae*q

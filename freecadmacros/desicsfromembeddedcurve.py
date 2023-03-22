@@ -52,6 +52,11 @@ def facetnormal(tbar):
     v2back = tbar.nodeback.p - node2.p
     return P3.ZNorm(P3.Cross(v2fore, v2back))
 
+def TOL_ZERO(X, msg=""):
+    if not (abs(X) < 0.0001):
+        print("TOL_ZERO fail", X, msg)
+        assert False
+
 
 def InvAlong(v, a, b):
     return (v - a)/(b - a)
@@ -164,12 +169,18 @@ def drivecurveanglefromvec(drivebars, dpts, dseg, vec):
 
 
 class GBarC:
-    def __init__(self, bar, pt, lam, bGoRight):
+    def __init__(self, bar, lam, bGoRight):
         self.bar = bar
         self.lam = lam
         self.bGoRight = bGoRight
         self.pt = Along(self.lam, self.bar.nodeback.p, self.bar.nodefore.p)
         self.tnorm_incoming = barfacetnormal(self.bar, not self.bGoRight)
+
+    def GBCrossBar(self, ptpushfrom):
+        c, bar, lam, bGoRight = GeoCrossBar(ptpushfrom, self.bar, self.lam, self.bGoRight)
+        res = GBarC(bar, lam, bGoRight)
+        TOL_ZERO((c - self.pt).Len())
+        return res
 
 class GBarT:
     def __init__(self, drivebars, dpts, dseg, dlam):
@@ -183,33 +194,35 @@ class GBarT:
         perpvec = -self.vsegN*math.sin(math.radians(dangle)) - self.tperp*math.cos(math.radians(dangle))
         perpvecDot = P3.Dot(perpvec, self.pt)
         bar, lam, bGoRight = TriangleExitCrossCutPlaneRight(self.tbar, perpvec, perpvecDot)
-        return self.pt, bar, lam, bGoRight
-    
+        res = GBarC(bar, lam, bGoRight)
+        TOL_ZERO((self.tnorm - res.tnorm_incoming).Len(), "oo")
+        return res
+        
 
 def drivegeodesic(drivebars, dpts, dptcls, ds, dsangle):
     dsseg, dslam = seglampos(ds, dptcls)
     gbStart = GBarT(drivebars, dpts, dsseg, dslam)
-    ptprev, bar, lam, bGoRight = gbStart.drivepointstartfromangle(dsangle)
-    if bar == None:
-        return None, -1, -1
-    ptcurr = Along(lam, bar.nodeback.p, bar.nodefore.p)
+    ptprev = gbStart.pt
+    gb = gbStart.drivepointstartfromangle(dsangle)
+    ptcurr = gb.pt
     gpts = [ ptprev, ptcurr ]
+    bar, lam, bGoRight = gb.bar, gb.lam, gb.bGoRight
     while len(gpts) < 450:
-        prevbar, prevlam, prevbGoRight = bar, lam, bGoRight
-        prevfacetnormal = barfacetnormal(prevbar, not prevbGoRight)
-        Dc, bar, lam, bGoRight = GeoCrossBar(ptprev, bar, lam, bGoRight)
-        facetnormal = barfacetnormal(bar, not bGoRight)
-        if not bar:
+        prevgb = gb
+        prevfacetnormal = barfacetnormal(prevgb.bar, not prevgb.bGoRight)
+        TOL_ZERO((prevgb.tnorm_incoming - prevfacetnormal).Len(), "mm")
+        gb = gb.GBCrossBar(ptprev)
+        facetnormal = barfacetnormal(gb.bar, not gb.bGoRight)
+        if not gb.bar:
             break
         ptprev = ptcurr
-        ptcurr = Along(lam, bar.nodeback.p, bar.nodefore.p)
+        ptcurr = gb.pt
         veccurr = ptcurr - ptprev
         fndot = P3.Dot(prevfacetnormal, P3.ZNorm(veccurr))
-        TOL_ZERO(P3.Dot(facetnormal, P3.ZNorm(veccurr)))
+        TOL_ZERO(P3.Dot(facetnormal, P3.ZNorm(veccurr)), "mmnn")
         if fndot < -0.1:
             print(fndot, ptprev)
-        TOL_ZERO((ptprev - Dc).Len())
-        dcseg, dclam = drivecurveintersectionfinder(drivebars, tridrivebarsmap, (prevbar, prevlam), (bar, lam))
+        dcseg, dclam = drivecurveintersectionfinder(drivebars, tridrivebarsmap, (prevgb.bar, prevgb.lam), (gb.bar, gb.lam))
         if dcseg != -1:
             cpt = Along(dclam, dpts[dcseg], dpts[dcseg+1])
             gpts.append(cpt)
