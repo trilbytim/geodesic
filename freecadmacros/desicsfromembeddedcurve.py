@@ -217,7 +217,7 @@ def drivegeodesic(drivebars, dpts, dptcls, ds, dsangle):
             assert P3.Dot(gbs[-1].tnorm_incoming, Dprevtnorm_incoming) > 0.9
 
     print("Nconcavefolds removed", Nconcavefolds, "leaving", len(gbs))
-    angcross = gbEnd.drivecurveanglefromvec(gbs[-2].pt - gbs[-1].pt)
+    angcross = gbEnd.drivecurveanglefromvec(gbs[-1].pt - gbs[-2].pt)
     dcross = Along(gbEnd.dclam, dptcls[gbEnd.dcseg], dptcls[gbEnd.dcseg+1])
     print("angcross", angcross, dcross)
     return gbs, dcross, angcross
@@ -239,10 +239,10 @@ dsangle = 30
 gbs1, ds1, dsangle1 = drivegeodesic(drivebars, dpts, dptcls, ds, dsangle)
 print("pos ds1", ds1, dsangle1)
 gbs2 = [ gbs1[-1] ]
-#gbs2, ds2, dsangle2 = drivegeodesic(drivebars, dpts, dptcls, ds1, dsangle1+30)
+gbs2, ds2, dsangle2 = drivegeodesic(drivebars, dpts, dptcls, ds1, dsangle1+0)
 Part.show(Part.makePolygon([Vector(*gb.pt)  for gb in gbs1+gbs2[1:]]))
-#print("Cylinder position angle advance degrees", 360*(ds2 - ds)/dptcls[-1])
-#print("Leaving angle", dsangle, "Continuing angle", dsangle2)
+print("Cylinder position angle advance degrees", 360*(ds2 - ds)/dptcls[-1])
+print("Leaving angle", dsangle, "Continuing angle", dsangle2)
 
-# Cylinder position angle advance degrees 199.12638313124705
-# Leaving angle 30 Continuing angle 33.82565262364904
+# Cylinder position angle advance degrees 214.11943707609635
+# Leaving angle 30 Continuing angle 32.0713484386398
