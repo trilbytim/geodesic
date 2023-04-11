@@ -90,7 +90,7 @@ class TCPplusfibre:
         TOL_ZERO((DtcpR - tcpR).Len())
         vec = P3(P3.Dot(rvX, vecR), P3.Dot(rvY, vecR), P3.Dot(rvZ, vecR))
         TOL_ZERO(self.freefibrelength - vec.Len())
-        self.E1 = P2(-vec.z, -vec.y).Arg()
+        self.E1 = P2(vec.z, vec.y).Arg()
         self.E2 = math.degrees(math.acos(vec.z/self.freefibrelength))
         TOL_ZERO((tcpR - self.GetTCP(True)).Len())
 #        TOL_ZERO((vecR - self.GetVecR(True)).Len())
@@ -141,6 +141,14 @@ def tadd(tcp, dE3):
 tcps.extend(tadd(tcp, dE3)  for tcp in tcpsC[1:])
 tcps.extend(tadd(tcp, dE3*2)  for tcp in tcpsC[1:])
 
+tcpYfilterdistance = 1.0
+Ftcps = [ ]
+for tcp in tcps:
+    if not Ftcps or abs(Ftcps[-1].Y - tcp.Y) > tcpYfilterdistance:
+        Ftcps.append(tcp)
+print("Filtered by y distance", tcpYfilterdistance, "reducing from", len(tcps), "to", len(Ftcps), "points")
+tcps = Ftcps
+
 tcpblocks = [ ]
 for tcp in tcps[1:]:
     if len(tcpblocks) == 0:
@@ -156,9 +164,11 @@ def srcpt(ps):
 
 Ymid = 1000
 def srctcp(tcp):
-    return srcpt({"X":tcp.X, "Y":tcp.Y + Ymid, "E1":tcp.E1, "E3":tcp.E3*1000/360})
-		
-fname = "filwin9g.src"
+    return srcpt({"X":tcp.X, "Y":tcp.Y + Ymid, "E1":tcp.E1*0, "E3":tcp.E3*1000/360*0})
+fname = "filwin9gNoE1E3.src"
+fname = "filwin9f.src"
+fname = "filwin9fNoE1E3filter1.src"
+
 headersrc = os.path.join(os.path.split(__file__)[0], "header.src")
 print("making ", os.path.abspath(fname), " from ", __file__)
 fout = open(fname, "w")
@@ -174,6 +184,6 @@ for i in range(len(tcpblocks)):
     for tcp in tcpblock:
         fout.write("SPL %s\n" % srctcp(tcp))
     fout.write("ENDSPLINE\n\n")
-fout.write("SLIN %s\n" % srcpt({"X":-200, "Y":Ymid, "E1":0, "E3":0}))
+fout.write("SLIN %s\n" % srcpt({"X":-200, "Y":Ymid, "E1":0}))
 fout.write("HALT\nEND\n")
 fout.close()
