@@ -46,3 +46,26 @@ def removeobjectbylabel(lab):
         for obj in objs:
             if obj.Label == lab:
                 doc.removeObject(obj.Name)
+
+
+
+from barmesh.basicgeo import I1, Partition1, P3, P2, Along
+from trianglemeshutils import facetbetweenbars
+
+def showdrivebarscurve(drivebars, lab):
+    removeobjectbylabel(lab)
+    epts = [ Along(lam, bar.nodeback.p, bar.nodefore.p)  for bar, lam in drivebars ]
+    wire = Part.show(Part.makePolygon(epts), lab)
+    return wire
+
+
+def showdrivebarsmesh(drivebars, lab):
+    removeobjectbylabel(lab)
+    def facetnoderight(bar):
+        return bar.barforeright.GetNodeFore(bar.barforeright.nodeback == bar.nodefore)
+    tbarfacets = [ facetbetweenbars(drivebars[i][0], drivebars[i+1][0])  for i in range(len(drivebars)-1) ]
+    facets = [ [ Vector(*tbar.nodeback.p), Vector(*tbar.nodefore.p), 
+                 Vector(*facetnoderight(tbar).p) ]  for tbar in tbarfacets ]
+    mesh = doc.addObject("Mesh::Feature", lab)
+    mesh.Mesh = Mesh.Mesh(facets)
+    return mesh

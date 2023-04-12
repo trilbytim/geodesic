@@ -26,8 +26,6 @@ def TOL_ZERO(X, msg=""):
         print("TOL_ZERO fail", X, msg)
         assert False
 
-
-
 tcpcurve = None
 tapecurve = None
 for s in sel:
