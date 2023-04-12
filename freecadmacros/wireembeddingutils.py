@@ -49,8 +49,9 @@ def showdrivebarsmesh(drivebars, doc, meshname="m1"):
                  Vector(*facetnoderight(tbar).p) ]  for tbar in tbarfacets ]
     mesh = doc.addObject("Mesh::Feature", meshname)
     mesh.Mesh = Mesh.Mesh(facets)
+    return mesh
 
 def showdrivebarscurve(drivebars, doc):
     epts = [ Along(lam, bar.nodeback.p, bar.nodefore.p)  for bar, lam in drivebars ]
-    Part.show(Part.makePolygon(epts))
-
+    wire = Part.show(Part.makePolygon(epts))
+    return wire
