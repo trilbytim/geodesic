@@ -188,10 +188,7 @@ def drivegeodesic(drivebars, tridrivebarsmap, dpts, dptcls, ds, dsangle):
         
         while len(gbs) >= 3:
             veccurr = gbs[-1].pt - gbs[-2].pt
-            
-            # fails when gbEnd smoothing has happened and we need to sort out 
-            # the barfacetnormal code for setting fiilamentangle at 45
-            #TOL_ZERO(P3.Dot(gbs[-1].tnorm_incoming, P3.ZNorm(veccurr)))
+            TOL_ZERO(P3.Dot(gbs[-1].tnorm_incoming, P3.ZNorm(veccurr)))
             fndot = P3.Dot(P3.ZNorm(veccurr), gbs[-2].tnorm_incoming)
             if fndot >= 0.0:
                 break
@@ -202,7 +199,10 @@ def drivegeodesic(drivebars, tridrivebarsmap, dpts, dptcls, ds, dsangle):
                 print("About bad", gbEnd, gbs[:10], gbs[-10:])
             if not gbEnd:
                 gbs[-1].tnorm_incoming = barfacetnormal(gbs[-1].bar, not gbs[-1].bGoRight, gbs[-2].pt)
-                assert P3.Dot(gbs[-1].tnorm_incoming, Dprevtnorm_incoming) > 0.9
+            else:
+                ltn = P3.Cross(gbs[-1].vsegN, gbs[-2].pt - gbs[-1].pt)
+                gbs[-1].tnorm_incoming = P3.ZNorm(ltn if P3.Dot(ltn, gbs[-1].tnorm) > 0 else -ltn)
+            assert P3.Dot(gbs[-1].tnorm_incoming, Dprevtnorm_incoming) > 0.9
 
     print("Nconcavefolds removed", Nconcavefolds, "leaving", len(gbs))
     angcross = gbEnd.drivecurveanglefromvec(gbs[-1].pt - gbs[-2].pt)
