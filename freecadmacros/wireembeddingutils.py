@@ -1,5 +1,6 @@
 from barmesh.tribarmes import TriangleBarMesh, TriangleBar, MakeTriangleBoxing
 from barmesh.basicgeo import I1, Partition1, P3, P2, Along
+import Draft, Part, Mesh, MeshPart
 
 def TriangleCrossCutPlane(bar, lam, bGoRight, driveperpvec, driveperpvecDot):
     nodeAhead = bar.GetNodeFore(bGoRight)

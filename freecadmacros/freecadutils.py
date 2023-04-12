@@ -29,6 +29,12 @@ def getlabelofselectedmesh():
         if hasattr(s, "Mesh") and isinstance(s.Mesh, Mesh.Mesh):
             return s.Label
     return ""
+
+def getlabelofselectedsketch():
+    for s in sel:
+        if hasattr(s, "Module") and s.Module == 'Sketcher':
+            return s.Label
+    return ""
     
 def findobjectbylabel(lab):
     objs = [ obj  for obj in doc.findObjects(Label=lab)  if obj.Label == lab ]

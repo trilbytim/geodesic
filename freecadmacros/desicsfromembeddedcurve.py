@@ -15,7 +15,7 @@ from barmesh.basicgeo import I1, Partition1, P3, P2, Along
 from curvesutils import isdiscretizableobject, discretizeobject
 from curvesutils import cumlengthlist, seglampos
 from trianglemeshutils import UsefulBoxedTriangleMesh, facetbetweenbars
-from wireembeddingutils import TriangleCrossCutPlane, planecutembeddedcurve
+from wireembeddingutils import planecutembeddedcurve
 from wireembeddingutils import showdrivebarsmesh, showdrivebarscurve
 from geodesicutils import GeoCrossAxis, GeoCrossBar, TOL_ZERO
 
