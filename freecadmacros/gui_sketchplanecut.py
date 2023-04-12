@@ -10,7 +10,7 @@ from PySide import QtGui, QtCore
 import sys;  sys.modules.pop("wireembeddingutils")
 from wireembeddingutils import planecutembeddedcurve, planecutbars
 from trianglemeshutils import UsefulBoxedTriangleMesh, facetbetweenbars
-import sys;  sys.modules.pop("freecadutils")
+#import sys;  sys.modules.pop("freecadutils")
 
 import freecadutils
 freecadutils.init(App)
@@ -25,8 +25,10 @@ def okaypressed():
         utbm = UsefulBoxedTriangleMesh(meshobject.Mesh)
         startbar, startlam = planecutbars(utbm.tbarmesh, driveperpvec, driveperpvecDot)
         drivebars = planecutembeddedcurve(startbar, startlam, driveperpvec)
-        freecadutils.showdrivebarscurve(drivebars, qcutwire.text())
-        freecadutils.showdrivebarsmesh(drivebars, qcutwiresnake.text())
+        if qcutwire.text():
+            freecadutils.showdrivebarscurve(drivebars, qcutwire.text())
+        if qcutwiresnake.text():
+            freecadutils.showdrivebarsmesh(drivebars, qcutwiresnake.text())
     else:
         print("Need to select a Sketch and a Mesh object in the UI to make this work")
     print("qoptioncheck", qoptioncheck.isChecked())

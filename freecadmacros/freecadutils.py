@@ -11,11 +11,12 @@ def init(App):
     doc = App.ActiveDocument
     sel = App.Gui.Selection.getSelection()
 
-def qrow(qw, slab, yval):
+def qrow(qw, slab, yval, txt=""):
     v = QtGui.QLineEdit(qw); 
     v.move(120, yval); 
     vlab = QtGui.QLabel(slab, qw)
     vlab.move(20, yval+5)
+    v.setText(txt)
     return v
 
 def getlabelofselectedwire():

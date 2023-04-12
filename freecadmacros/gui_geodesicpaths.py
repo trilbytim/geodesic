@@ -6,6 +6,7 @@
 
 import Draft, Part, Mesh, MeshPart
 from FreeCAD import Vector, Rotation 
+from PySide import QtGui, QtCore
 
 import os, sys, math, time
 sys.path.append(os.path.join(os.path.split(__file__)[0]))
@@ -15,24 +16,12 @@ from barmesh.basicgeo import I1, Partition1, P3, P2, Along
 from curvesutils import isdiscretizableobject, discretizeobject
 from curvesutils import cumlengthlist, seglampos
 from trianglemeshutils import UsefulBoxedTriangleMesh, facetbetweenbars
-from wireembeddingutils import planecutembeddedcurve
-from wireembeddingutils import showdrivebarsmesh, showdrivebarscurve
+from wireembeddingutils import planecutembeddedcurve, planecutbars
 from geodesicutils import GeoCrossAxis, GeoCrossBar, TOL_ZERO
 
-doc = App.ActiveDocument
-gui = App.Gui
-sel = Gui.Selection.getSelection()
-
-# drive curve definition (cut plane)
-drivept0 = P3(110.160362, -1.82, 1.1216061)
-driveperpvec = P3(0, 1, 0)
-
-meshobject = None
-for s in sel:
-    if hasattr(s, "Mesh") and isinstance(s.Mesh, Mesh.Mesh):
-        meshobject = s.Mesh
-if not meshobject:
-    print("Need a mesh object selected")
+import sys;  sys.modules.pop("freecadutils")
+import freecadutils
+freecadutils.init(App)
 
 def barfacetnormal(bar, bGoRight, ptcommon=None):
     nodeAhead = bar.GetNodeFore(bGoRight)
@@ -79,13 +68,6 @@ def TriangleExitCrossCutPlaneRight(tbar, perpvec, perpvecDot):
     return None, 0, False         
 
 
-# main code here
-utbm = UsefulBoxedTriangleMesh(meshobject)
-startbar, startlam = utbm.FindClosestEdge(drivept0)
-drivebars = planecutembeddedcurve(startbar, startlam, driveperpvec)
-# showdrivebarsmesh(drivebars, doc, meshname="m1"):
-# showdrivebarscurve(drivebars, doc)
-tridrivebarsmap = dict((facetbetweenbars(drivebars[dseg][0], drivebars[dseg+1][0]).i, dseg)  for dseg in range(len(drivebars)-1))
 
 
 def triclambarlam(tbar, barlam):
@@ -190,7 +172,7 @@ class GBarT:
         return ang if ang > 0.0 else 360 + ang
         
 
-def drivegeodesic(drivebars, dpts, dptcls, ds, dsangle):
+def drivegeodesic(drivebars, tridrivebarsmap, dpts, dptcls, ds, dsangle):
     dsseg, dslam = seglampos(ds, dptcls)
     gbStart = GBarT(drivebars, dsseg, dslam)
     gb = gbStart.drivepointstartfromangle(dsangle)
@@ -206,15 +188,21 @@ def drivegeodesic(drivebars, dpts, dptcls, ds, dsangle):
         
         while len(gbs) >= 3:
             veccurr = gbs[-1].pt - gbs[-2].pt
-            TOL_ZERO(P3.Dot(gbs[-1].tnorm_incoming, P3.ZNorm(veccurr)))
+            
+            # fails when gbEnd smoothing has happened and we need to sort out 
+            # the barfacetnormal code for setting fiilamentangle at 45
+            #TOL_ZERO(P3.Dot(gbs[-1].tnorm_incoming, P3.ZNorm(veccurr)))
             fndot = P3.Dot(P3.ZNorm(veccurr), gbs[-2].tnorm_incoming)
             if fndot >= 0.0:
                 break
             Nconcavefolds += 1
             del gbs[-2]
             Dprevtnorm_incoming = gbs[-1].tnorm_incoming
-            gbs[-1].tnorm_incoming = barfacetnormal(gbs[-1].bar, not gbs[-1].bGoRight, gbs[-2].pt)
-            assert P3.Dot(gbs[-1].tnorm_incoming, Dprevtnorm_incoming) > 0.9
+            if not hasattr(gbs[-1], "bar"):
+                print("About bad", gbEnd, gbs[:10], gbs[-10:])
+            if not gbEnd:
+                gbs[-1].tnorm_incoming = barfacetnormal(gbs[-1].bar, not gbs[-1].bGoRight, gbs[-2].pt)
+                assert P3.Dot(gbs[-1].tnorm_incoming, Dprevtnorm_incoming) > 0.9
 
     print("Nconcavefolds removed", Nconcavefolds, "leaving", len(gbs))
     angcross = gbEnd.drivecurveanglefromvec(gbs[-1].pt - gbs[-2].pt)
@@ -223,26 +211,59 @@ def drivegeodesic(drivebars, dpts, dptcls, ds, dsangle):
     return gbs, dcross, angcross
 
 
-dpts = [ Along(lam, bar.nodeback.p, bar.nodefore.p)  for bar, lam in drivebars ]
-dptcls = cumlengthlist(dpts)
 
-for dsangle in range(26, 33, 1):
-    break
-    ds = Along(0.1, dptcls[0], dptcls[-1])
-    gbs, ds, dsangle = drivegeodesic(drivebars, dpts, dptcls, ds, dsangle)
-    if gbs:
-        Part.show(Part.makePolygon([Vector(*gb.pt)  for gb in gps]))
-    print(ds, dsangle)
 
-ds = Along(0.15, dptcls[0], dptcls[-1])
-dsangle = 30
-gbs1, ds1, dsangle1 = drivegeodesic(drivebars, dpts, dptcls, ds, dsangle)
-print("pos ds1", ds1, dsangle1)
-gbs2 = [ gbs1[-1] ]
-gbs2, ds2, dsangle2 = drivegeodesic(drivebars, dpts, dptcls, ds1, dsangle1+0)
-Part.show(Part.makePolygon([Vector(*gb.pt)  for gb in gbs1+gbs2[1:]]))
-print("Cylinder position angle advance degrees", 360*(ds2 - ds)/dptcls[-1])
-print("Leaving angle", dsangle, "Continuing angle", dsangle2)
+def okaypressed():
+    print("Okay Pressed") 
+    sketchplane = freecadutils.findobjectbylabel(qsketchplane.text())
+    meshobject = freecadutils.findobjectbylabel(qmeshobject.text())
+    alongwire = float(qalongwire.text())
+    dsangle = float(qanglefilament.text())
+    if sketchplane and meshobject:
+        driveperpvec = sketchplane.Placement.Rotation.multVec(Vector(0,0,1))
+        driveperpvecDot = driveperpvec.dot(sketchplane.Placement.Base)
+        utbm = UsefulBoxedTriangleMesh(meshobject.Mesh)
+        startbar, startlam = planecutbars(utbm.tbarmesh, driveperpvec, driveperpvecDot)
+        drivebars = planecutembeddedcurve(startbar, startlam, driveperpvec)
+        tridrivebarsmap = dict((facetbetweenbars(drivebars[dseg][0], drivebars[dseg+1][0]).i, dseg)  for dseg in range(len(drivebars)-1))
 
-# Cylinder position angle advance degrees 214.11943707609635
-# Leaving angle 30 Continuing angle 32.0713484386398
+        dpts = [ Along(lam, bar.nodeback.p, bar.nodefore.p)  for bar, lam in drivebars ]
+        dptcls = cumlengthlist(dpts)
+
+        ds = Along(alongwire, dptcls[0], dptcls[-1])
+        gbs1, ds1, dsangle1 = drivegeodesic(drivebars, tridrivebarsmap, dpts, dptcls, ds, dsangle)
+        print("pos ds1", ds1, dsangle1)
+        gbs2 = [ gbs1[-1] ]
+        gbs2, ds2, dsangle2 = drivegeodesic(drivebars, tridrivebarsmap, dpts, dptcls, ds1, dsangle1+0)
+        Part.show(Part.makePolygon([Vector(*gb.pt)  for gb in gbs1+gbs2[1:]]), qoutputfilament.text())
+        qalongwire.setText("%f" % InvAlong(ds2, dptcls[0], dptcls[-1]))
+        qanglefilament.setText("%f" % dsangle2)
+        print("Cylinder position angle advance degrees", 360*(ds2 - ds)/dptcls[-1])
+        print("Leaving angle", dsangle, "Continuing angle", dsangle2)
+        try:
+            qoutputfilament.setText("w%d" % (int(qoutputfilament.text()[1:]) + 1))
+        except ValueError:
+            pass
+    else:
+        print("Need to select a Sketch and a Mesh object in the UI to make this work")
+        qw.hide()
+    
+qw = QtGui.QWidget()
+qw.setWindowFlag(QtCore.Qt.WindowStaysOnTopHint)
+qw.setGeometry(700, 400, 300, 250)
+qw.setWindowTitle('Drive geodesic')
+qsketchplane = freecadutils.qrow(qw, "Sketchplane: ", 15+35*0)
+qmeshobject = freecadutils.qrow(qw, "Meshobject: ", 15+35*1 )
+qalongwire = freecadutils.qrow(qw, "Along wire: ", 15+35*2, "0.5")
+qanglefilament = freecadutils.qrow(qw, "Angle filament: ", 15+35*3, "30.0")
+qoutputfilament = freecadutils.qrow(qw, "Output filament: ", 15+35*4, "w1")
+okButton = QtGui.QPushButton("Drive", qw)
+okButton.move(160, 15+35*5)
+QtCore.QObject.connect(okButton, QtCore.SIGNAL("pressed()"), okaypressed)  
+
+qsketchplane.setText(freecadutils.getlabelofselectedsketch())
+qmeshobject.setText(freecadutils.getlabelofselectedmesh())
+
+qw.show()
+
+
