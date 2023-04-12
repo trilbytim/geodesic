@@ -5,6 +5,10 @@ import Draft, Part, Mesh, MeshPart
 from FreeCAD import Vector, Rotation 
 from PySide import QtGui, QtCore
 
+import os, sys, math, time
+sys.path.append(os.path.join(os.path.split(__file__)[0]))
+print(sys.path[-1])
+
 #import sys;  sys.modules.pop("freecadutils")
 import freecadutils
 

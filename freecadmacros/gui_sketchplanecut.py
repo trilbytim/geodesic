@@ -6,8 +6,10 @@ from barmesh.basicgeo import I1, Partition1, P3, P2, Along
 from FreeCAD import Vector, Rotation 
 from PySide import QtGui, QtCore
 
+import os, sys, math, time
+sys.path.append(os.path.join(os.path.split(__file__)[0]))
 
-import sys;  sys.modules.pop("wireembeddingutils")
+#import sys;  sys.modules.pop("wireembeddingutils")
 from wireembeddingutils import planecutembeddedcurve, planecutbars
 from trianglemeshutils import UsefulBoxedTriangleMesh, facetbetweenbars
 #import sys;  sys.modules.pop("freecadutils")

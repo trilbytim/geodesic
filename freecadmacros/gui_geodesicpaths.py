@@ -19,7 +19,7 @@ from trianglemeshutils import UsefulBoxedTriangleMesh, facetbetweenbars
 from wireembeddingutils import planecutembeddedcurve, planecutbars
 from geodesicutils import GeoCrossAxis, GeoCrossBar, TOL_ZERO
 
-import sys;  sys.modules.pop("freecadutils")
+#import sys;  sys.modules.pop("freecadutils")
 import freecadutils
 freecadutils.init(App)
 
