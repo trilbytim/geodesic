@@ -17,9 +17,10 @@ from curvesutils import isdiscretizableobject, discretizeobject
 from curvesutils import cumlengthlist, seglampos
 from trianglemeshutils import UsefulBoxedTriangleMesh, facetbetweenbars
 from wireembeddingutils import planecutembeddedcurve, planecutbars
+
+import sys;  sys.modules.pop("geodesicutils")
 from geodesicutils import GeoCrossAxis, GeoCrossBar, TOL_ZERO
 
-#import sys;  sys.modules.pop("freecadutils")
 import freecadutils
 freecadutils.init(App)
 
@@ -145,6 +146,8 @@ class GBarC:
 
     def GBCrossBar(self, ptpushfrom):
         c, bar, lam, bGoRight = GeoCrossBar(ptpushfrom, self.bar, self.lam, self.bGoRight)
+        if not bar:
+            return None
         res = GBarC(bar, lam, bGoRight)
         TOL_ZERO((c - self.pt).Len())
         return res
@@ -181,7 +184,7 @@ def drivegeodesic(drivebars, tridrivebarsmap, dpts, dptcls, ds, dsangle):
     Nconcavefolds = 0
     while gbEnd is None:
         gb = gbs[-1].GBCrossBar(gbs[-2].pt)
-        if not gb.bar or len(gbs) > 450:
+        if not gb or len(gbs) > 450:
             return gbs, -1, -1
         gbEnd = drivecurveintersectionfinder(drivebars, tridrivebarsmap, gbs[-1], gb)
         gbs.append(gb if gbEnd is None else gbEnd)
@@ -234,16 +237,18 @@ def okaypressed():
         gbs1, ds1, dsangle1 = drivegeodesic(drivebars, tridrivebarsmap, dpts, dptcls, ds, dsangle)
         print("pos ds1", ds1, dsangle1)
         gbs2 = [ gbs1[-1] ]
-        gbs2, ds2, dsangle2 = drivegeodesic(drivebars, tridrivebarsmap, dpts, dptcls, ds1, dsangle1+0)
+        if ds1 != -1:
+            gbs2, ds2, dsangle2 = drivegeodesic(drivebars, tridrivebarsmap, dpts, dptcls, ds1, dsangle1+0)
         Part.show(Part.makePolygon([Vector(*gb.pt)  for gb in gbs1+gbs2[1:]]), qoutputfilament.text())
-        qalongwire.setText("%f" % InvAlong(ds2, dptcls[0], dptcls[-1]))
-        qanglefilament.setText("%f" % dsangle2)
-        print("Cylinder position angle advance degrees", 360*(ds2 - ds)/dptcls[-1])
-        print("Leaving angle", dsangle, "Continuing angle", dsangle2)
-        try:
-            qoutputfilament.setText("w%d" % (int(qoutputfilament.text()[1:]) + 1))
-        except ValueError:
-            pass
+        if ds1 != -1 and ds2 != -1:
+            qalongwire.setText("%f" % InvAlong(ds2, dptcls[0], dptcls[-1]))
+            qanglefilament.setText("%f" % dsangle2)
+            print("Cylinder position angle advance degrees", 360*(ds2 - ds)/dptcls[-1])
+            print("Leaving angle", dsangle, "Continuing angle", dsangle2)
+            try:
+                qoutputfilament.setText("w%d" % (int(qoutputfilament.text()[1:]) + 1))
+            except ValueError:
+                pass
     else:
         print("Need to select a Sketch and a Mesh object in the UI to make this work")
         qw.hide()

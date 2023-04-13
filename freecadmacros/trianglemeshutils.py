@@ -6,7 +6,7 @@ def clamp(num, min_value, max_value):
     return max(min(num, max_value), min_value)
 
 class UsefulBoxedTriangleMesh:
-    def __init__(self, meshobject):
+    def __init__(self, meshobject, btriangleboxing=True):
         global tbarmesh, tboxing, hitreg, nhitreg
         trpts = [ sum(f.Points, ())  for f in meshobject.Facets ]
         print("building tbarmesh ", len(trpts))
@@ -14,9 +14,10 @@ class UsefulBoxedTriangleMesh:
         self.tbarmesh.BuildTriangleBarmesh(trpts)
         assert len(self.tbarmesh.nodes) == meshobject.CountPoints
         assert len(self.tbarmesh.bars) == meshobject.CountEdges
-        self.tboxing = MakeTriangleBoxing(self.tbarmesh)
-        self.hitreg = [0]*len(self.tbarmesh.bars)
-        self.nhitreg = 0
+        if btriangleboxing:
+            self.tboxing = MakeTriangleBoxing(self.tbarmesh)
+            self.hitreg = [0]*len(self.tbarmesh.bars)
+            self.nhitreg = 0
         
     def FindClosestEdge(self, p, r=3):
         self.nhitreg += 1

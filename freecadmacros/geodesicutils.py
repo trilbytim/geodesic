@@ -74,6 +74,8 @@ def GeoCrossBar(c, bar, lam, bGoRight):
     d = Na.p + (Nb.p - Na.p)*lam
     Ne = TriangleNodeOpposite(bar, bGoRight)
     if Ne == None:
+        print("GeoCrossBar fail", Na.p, Nb.p, lam, bGoRight, c)
+        print(bar.barforeright, bar.barbackleft)
         return (None, None, 0.0, False)
     bAEcrossing, q, Gx, bEnd = GeoCrossAxis(Na.p, Nb.p, c, lam, Ne.p)
     if bGoRight:
