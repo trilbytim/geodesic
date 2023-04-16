@@ -12,6 +12,8 @@ import os, sys, math, time
 sys.path.append(os.path.join(os.path.split(__file__)[0]))
 print(sys.path[-1])
 
+import sys;  sys.modules.pop("curvesutils")
+
 from barmesh.basicgeo import I1, Partition1, P3, P2, Along
 from curvesutils import isdiscretizableobject, discretizeobject
 from curvesutils import cumlengthlist, seglampos
@@ -80,8 +82,9 @@ def spraylines():
         ds = Along(alongwire, dptcls[0], dptcls[-1])
 
         a0, a1, sa = 10, 82, 10
-        fout = open("/home/julian/geodesic.csv", "w")
-        fout.write("angleout, pathlength, cylangleadvance, anglein\n")
+        a0, a1, sa = 10, 25, 40
+        fout = open("/home/julian/geodesicspraylines2.csv", "w")
+        fout.write("angleout,pathlength,cylangleadvance,anglein\n")
         for i in range((a1 - a0)*sa):
             ldsangle = a0 + i/sa
             gbs1, ds1, dsangle1 = drivegeodesic(drivebars, tridrivebarsmap, dpts, dptcls, ds, ldsangle)
@@ -93,7 +96,7 @@ def spraylines():
             else:
                 ds2, dsangle2 = -1, -1
             pathlength = sum((a.pt - b.pt).Len()  for a, b in zip(gbs, gbs[1:]))
-            angleadvance = 360*(ds2 - ds)/dptcls[-1] if ds2 != -1 else -1
+            angleadvance = (360*(ds2 - ds)/dptcls[-1] + 360)%360 if ds2 != -1 else -1
             fout.write("%f, %f, %f, %f\n" % (ldsangle, pathlength, angleadvance, dsangle2))
             if qoutputfilament.text():
                 Part.show(Part.makePolygon([Vector(*gb.pt)  for gb in gbs1+gbs2[1:]]), qoutputfilament.text())

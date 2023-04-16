@@ -66,5 +66,6 @@ def seglampos(d, ptcls):
         else:
             i1 = im
         assert ptcls[i0] <= d <= ptcls[i1]
-    lam = (d - ptcls[i0]) / (ptcls[i1] - ptcls[i0])
+    d01 = (ptcls[i1] - ptcls[i0])
+    lam = (d - ptcls[i0]) / d01 if d01 != 0 else 0.5
     return i0, lam
