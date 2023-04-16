@@ -76,8 +76,8 @@ def GeoCrossBar(c, bar, lam, bGoRight):
     d = Na.p + (Nb.p - Na.p)*lam
     Ne = TriangleNodeOpposite(bar, bGoRight)
     if Ne == None:
-        print("GeoCrossBar fail", Na.p, Nb.p, lam, bGoRight, c)
-        print(bar.barforeright, bar.barbackleft)
+        #print("GeoCrossBar fail", Na.p, Nb.p, lam, bGoRight, c)
+        #print(bar.barforeright, bar.barbackleft)
         return (None, None, 0.0, False)
     bAEcrossing, q, Gx, bEnd = GeoCrossAxis(Na.p, Nb.p, c, lam, Ne.p)
     if bGoRight:
@@ -274,8 +274,6 @@ def drivegeodesic(drivebars, tridrivebarsmap, dpts, dptcls, ds, dsangle):
             Nconcavefolds += 1
             del gbs[-2]
             Dprevtnorm_incoming = gbs[-1].tnorm_incoming
-            if not hasattr(gbs[-1], "bar"):
-                print("About bad", gbEnd, gbs[:10], gbs[-10:])
             if not gbEnd:
                 gbs[-1].tnorm_incoming = barfacetnormal(gbs[-1].bar, not gbs[-1].bGoRight, gbs[-2].pt)
             else:
@@ -283,10 +281,10 @@ def drivegeodesic(drivebars, tridrivebarsmap, dpts, dptcls, ds, dsangle):
                 gbs[-1].tnorm_incoming = P3.ZNorm(ltn if P3.Dot(ltn, gbs[-1].tnorm) > 0 else -ltn)
             assert P3.Dot(gbs[-1].tnorm_incoming, Dprevtnorm_incoming) > 0.9
 
-    print("Nconcavefolds removed", Nconcavefolds, "leaving", len(gbs))
+    #print("Nconcavefolds removed", Nconcavefolds, "leaving", len(gbs))
     angcross = gbEnd.drivecurveanglefromvec(gbs[-1].pt - gbs[-2].pt)
     dcross = Along(gbEnd.dclam, dptcls[gbEnd.dcseg], dptcls[gbEnd.dcseg+1])
-    print("angcross", angcross, dcross)
+    #print("angcross", angcross, dcross)
     return gbs, dcross, angcross
 
 
