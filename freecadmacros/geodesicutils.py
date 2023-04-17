@@ -41,25 +41,25 @@ def GeoCrossAxisE(a, Vae, Vab, Isq, Isgn):
 #
 # This is the basic function that crosses from one triangle to the next
 #
-def GeoCrossAxis(Ga, Gb, Gc, lam, Ge):
+def GeoCrossAxis(Ga, Gb, Gcfrom, lam, Geopposite):
     Vab = Gb - Ga
     Gd = Ga + Vab*lam
-    Vcd = Gd - Gc
+    Vcd = Gd - Gcfrom
     if Vcd.Len() == 0:
         bEnd = True
         bAEcrossing = False
         q = 0
-        Gx = Gc
+        Gx = Gcfrom
     else:
         bEnd = False
         cdDab = P3.Dot(Vcd, Vab)
         Isq = Square(cdDab) / Vcd.Lensq()
         Isgn = -1 if cdDab < 0 else 1
-        qVae = GeoCrossAxisE(Ga - Gd, Ge - Ga, Vab, Isq, Isgn)
-        qVbe = GeoCrossAxisE(Gb - Gd, Ge - Gb, -Vab, Isq, -Isgn)
+        qVae = GeoCrossAxisE(Ga - Gd, Geopposite - Ga, Vab, Isq, Isgn)
+        qVbe = GeoCrossAxisE(Gb - Gd, Geopposite - Gb, -Vab, Isq, -Isgn)
         bAEcrossing = (abs(qVae - 0.5) < abs(qVbe - 0.5))
         q = qVae if bAEcrossing else qVbe
-        Gx = (Ga + (Ge - Ga)*q) if bAEcrossing else (Gb + (Ge - Gb)*q)
+        Gx = (Ga + (Geopposite - Ga)*q) if bAEcrossing else (Gb + (Geopposite - Gb)*q)
         Dx = Gx - Gd
         TOL_ZERO(Isq - Square(P3.Dot(Dx, Vab)/Dx.Len()))
         TOL_ZERO(P3.Dot(Vcd, Vab)/Vcd.Len() - P3.Dot(Dx, Vab)/Dx.Len())
