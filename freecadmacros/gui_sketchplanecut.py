@@ -11,7 +11,7 @@ sys.path.append(os.path.join(os.path.split(__file__)[0]))
 
 #import sys;  sys.modules.pop("trianglemeshutils")
 from wireembeddingutils import planecutembeddedcurve, planecutbars
-from trianglemeshutils import UsefulBoxedTriangleMesh, facetbetweenbars
+from trianglemeshutils import UsefulBoxedTriangleMesh, facetbetweenbars, GetBarForeLeftBRN
 #import sys;  sys.modules.pop("freecadutils")
 
 import freecadutils
@@ -37,19 +37,6 @@ def okaypressed():
     qw.hide()
 
 
-def GetBarForeLeftBRN(tbar, bforeleft):
-    tbarR = tbar
-    Dcounter = 0
-    nodeC = tbar.GetNodeFore(bforeleft)
-    while True:
-        assert tbarR.nodeback == nodeC or tbarR.nodefore == nodeC
-        tbarRnext = tbarR.GetForeRightBL(tbarR.nodefore == nodeC)
-        if tbarRnext == None or tbarRnext == tbar:
-            break
-        tbarR = tbarRnext
-        Dcounter += 1
-        assert Dcounter < 1000
-    return tbarR
 
 def makemeshboundaries():
     print("makemeshboundaries Pressed") 

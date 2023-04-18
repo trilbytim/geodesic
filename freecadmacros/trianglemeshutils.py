@@ -71,4 +71,17 @@ def facetbetweenbars(bar, barN):
     assert bar in Dtbars and barN in Dtbars
     return tbar
     
+def GetBarForeLeftBRN(tbar, bforeleft):
+    tbarR = tbar
+    Dcounter = 0
+    nodeC = tbar.GetNodeFore(bforeleft)
+    while True:
+        assert tbarR.nodeback == nodeC or tbarR.nodefore == nodeC
+        tbarRnext = tbarR.GetForeRightBL(tbarR.nodefore == nodeC)
+        if tbarRnext == None or tbarRnext == tbar:
+            break
+        tbarR = tbarRnext
+        Dcounter += 1
+        assert Dcounter < 1000
+    return tbarR
 

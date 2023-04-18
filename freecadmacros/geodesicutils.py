@@ -41,9 +41,8 @@ def GeoCrossAxisE(a, Vae, Vab, Isq, Isgn):
 #
 # This is the basic function that crosses from one triangle to the next
 #
-def GeoCrossAxis(Ga, Gb, Gcfrom, lam, Geopposite):
-    Vab = Gb - Ga
-    Gd = Ga + Vab*lam
+def GeoCrossAxis(Ga, Gb, Gcfrom, lam, Geopposite, VabInterpolated):
+    Gd = Along(lam, Ga, Gb)
     Vcd = Gd - Gcfrom
     if Vcd.Len() == 0:
         bEnd = True
@@ -52,17 +51,17 @@ def GeoCrossAxis(Ga, Gb, Gcfrom, lam, Geopposite):
         Gx = Gcfrom
     else:
         bEnd = False
-        cdDab = P3.Dot(Vcd, Vab)
+        cdDab = P3.Dot(Vcd, VabInterpolated)
         Isq = Square(cdDab) / Vcd.Lensq()
         Isgn = -1 if cdDab < 0 else 1
-        qVae = GeoCrossAxisE(Ga - Gd, Geopposite - Ga, Vab, Isq, Isgn)
-        qVbe = GeoCrossAxisE(Gb - Gd, Geopposite - Gb, -Vab, Isq, -Isgn)
+        qVae = GeoCrossAxisE(Ga - Gd, Geopposite - Ga, VabInterpolated, Isq, Isgn)
+        qVbe = GeoCrossAxisE(Gb - Gd, Geopposite - Gb, -VabInterpolated, Isq, -Isgn)
         bAEcrossing = (abs(qVae - 0.5) < abs(qVbe - 0.5))
         q = qVae if bAEcrossing else qVbe
         Gx = (Ga + (Geopposite - Ga)*q) if bAEcrossing else (Gb + (Geopposite - Gb)*q)
         Dx = Gx - Gd
-        TOL_ZERO(Isq - Square(P3.Dot(Dx, Vab)/Dx.Len()))
-        TOL_ZERO(P3.Dot(Vcd, Vab)/Vcd.Len() - P3.Dot(Dx, Vab)/Dx.Len())
+        TOL_ZERO(Isq - Square(P3.Dot(Dx, VabInterpolated)/Dx.Len()))
+        TOL_ZERO(P3.Dot(Vcd, VabInterpolated)/Vcd.Len() - P3.Dot(Dx, VabInterpolated)/Dx.Len())
     return bAEcrossing, q, Gx, bEnd
 
 def TriangleNodeOpposite(bar, bGoRight):
@@ -71,15 +70,20 @@ def TriangleNodeOpposite(bar, bGoRight):
         return bartop.GetNodeFore(bartop.nodeback == bar.GetNodeFore(bGoRight))
     return None
     
-def GeoCrossBar(c, bar, lam, bGoRight):
+def GeoCrossBar(c, bar, lam, bGoRight, flatbartangents):
     Na, Nb = bar.nodeback, bar.nodefore
-    d = Na.p + (Nb.p - Na.p)*lam
+    d = Along(lam, Na.p, Nb.p)
     Ne = TriangleNodeOpposite(bar, bGoRight)
     if Ne == None:
         #print("GeoCrossBar fail", Na.p, Nb.p, lam, bGoRight, c)
         #print(bar.barforeright, bar.barbackleft)
         return (None, None, 0.0, False)
-    bAEcrossing, q, Gx, bEnd = GeoCrossAxis(Na.p, Nb.p, c, lam, Ne.p)
+    if flatbartangents is not None:
+        vback, vfore = flatbartangents[bar.i]
+        VabInterpolated = Along(lam, vback, vfore)
+    else:
+        VabInterpolated = Nb.p - Na.p
+    bAEcrossing, q, Gx, bEnd = GeoCrossAxis(Na.p, Nb.p, c, lam, Ne.p, VabInterpolated)
     if bGoRight:
         if bAEcrossing:
             bar = bar.barforeright.GetForeRightBL(bar.barforeright.nodeback == Nb)
@@ -218,8 +222,8 @@ class GBarC:
         self.pt = Along(self.lam, self.bar.nodeback.p, self.bar.nodefore.p)
         self.tnorm_incoming = barfacetnormal(self.bar, not self.bGoRight)
 
-    def GBCrossBar(self, ptpushfrom):
-        c, bar, lam, bGoRight = GeoCrossBar(ptpushfrom, self.bar, self.lam, self.bGoRight)
+    def GBCrossBar(self, ptpushfrom, flatbartangents):
+        c, bar, lam, bGoRight = GeoCrossBar(ptpushfrom, self.bar, self.lam, self.bGoRight, flatbartangents)
         if not bar:
             return None
         res = GBarC(bar, lam, bGoRight)
@@ -251,7 +255,7 @@ class GBarT:
         
 
 
-def drivegeodesic(drivebars, tridrivebarsmap, dpts, dptcls, ds, dsangle):
+def drivegeodesic(drivebars, tridrivebarsmap, dpts, dptcls, ds, dsangle, flatbartangents=None):
     dsseg, dslam = seglampos(ds, dptcls)
     gbStart = GBarT(drivebars, dsseg, dslam)
     gb = gbStart.drivepointstartfromangle(dsangle)
@@ -259,7 +263,7 @@ def drivegeodesic(drivebars, tridrivebarsmap, dpts, dptcls, ds, dsangle):
     gbEnd = None
     Nconcavefolds = 0
     while gbEnd is None:
-        gb = gbs[-1].GBCrossBar(gbs[-2].pt)
+        gb = gbs[-1].GBCrossBar(gbs[-2].pt, flatbartangents)
         if not gb or len(gbs) > 450:
             return gbs, -1, -1
         gbEnd = drivecurveintersectionfinder(drivebars, tridrivebarsmap, gbs[-1], gb)
