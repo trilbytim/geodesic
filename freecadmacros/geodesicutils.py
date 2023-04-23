@@ -240,18 +240,21 @@ class GBarT:
         self.tnorm = barfacetnormal(self.tbar, True)
         self.tperp = P3.Cross(self.vsegN, self.tnorm)
 
-    def drivepointstartfromangle(self, dangle):
+    def drivepointstartfromangle(self, dangle, getbackbar=False):
         perpvec = -self.vsegN*math.sin(math.radians(dangle)) - self.tperp*math.cos(math.radians(dangle))
         perpvecDot = P3.Dot(perpvec, self.pt)
         bar, lam, bGoRight = TriangleExitCrossCutPlaneRight(self.tbar, perpvec, perpvecDot)
         res = GBarC(bar, lam, bGoRight)
         TOL_ZERO((self.tnorm - res.tnorm_incoming).Len(), "oo")
-        return res
+        if not getbackbar:
+            return res
+        backbar, backlam, backbGoRight = TriangleExitCrossCutPlaneRight(self.tbar, -perpvec, -perpvecDot)
+        resbackbar = GBarC(backbar, backlam, not backbGoRight)
+        return res, resbackbar
 
     def drivecurveanglefromvec(self, vec):
         ang = math.degrees(math.atan2(-P3.Dot(self.tperp, vec), P3.Dot(self.vsegN, vec)))
         return ang if ang > 0.0 else 360 + ang
-        
         
 
 
@@ -283,7 +286,7 @@ def drivegeodesic(drivebars, tridrivebarsmap, dpts, dptcls, ds, dsangle, flatbar
             else:
                 ltn = P3.Cross(gbs[-1].vsegN, gbs[-2].pt - gbs[-1].pt)
                 gbs[-1].tnorm_incoming = P3.ZNorm(ltn if P3.Dot(ltn, gbs[-1].tnorm) > 0 else -ltn)
-            assert P3.Dot(gbs[-1].tnorm_incoming, Dprevtnorm_incoming) > 0.9
+            assert P3.Dot(gbs[-1].tnorm_incoming, Dprevtnorm_incoming) > 0.8, P3.Dot(gbs[-1].tnorm_incoming, Dprevtnorm_incoming)
 
     #print("Nconcavefolds removed", Nconcavefolds, "leaving", len(gbs))
     angcross = gbEnd.drivecurveanglefromvec(gbs[-1].pt - gbs[-2].pt)

@@ -11,11 +11,11 @@ def init(App):
     doc = App.ActiveDocument
     sel = App.Gui.Selection.getSelection()
 
-def qrow(qw, slab, yval, txt=""):
+def qrow(qw, slab, yval, txt="", xposoffs=0):
     v = QtGui.QLineEdit(qw); 
-    v.move(120, yval); 
+    v.move(120+xposoffs, yval); 
     vlab = QtGui.QLabel(slab, qw)
-    vlab.move(20, yval+5)
+    vlab.move(20+xposoffs, yval+5)
     v.setText(txt)
     return v
 

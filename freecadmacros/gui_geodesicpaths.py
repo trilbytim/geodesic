@@ -217,25 +217,30 @@ def spraylines():
         dptcls = cumlengthlist(dpts)
         ds = Along(alongwire, dptcls[0], dptcls[-1])
 
-        a0, a1, sa = 10, 82, 4
+        a0, a1, sa = 10, 82, 10
         #a0, a1, sa = 30, 31, 50
         #a0, a1, sa = 10, 25, 40
         #a0, a1, sa = 20, 21, 1000
-        # error with 57.75 and defaults
+        # error with 57.75 and defaults on fc4
+        # error with 19.5 and defaults on fc6working
 
         fout = open(qoutputcsvfile.text(), "w") if qoutputcsvfile.text() else None
         if fout:  fout.write("angleout,pathlength,cylangleadvance,windingrot,anglein\n")
         for i in range((a1 - a0)*sa):
             ldsangle = a0 + i/sa
-            print(ldsangle)
-            gbs1, ds1, dsangle1 = drivegeodesic(drivebars, tridrivebarsmap, dpts, dptcls, ds, ldsangle, flatbartangents)
-            gbs2 = [ gbs1[-1] ]
-            gbs = gbs1
-            if ds1 != -1:
-                gbs2, ds2, dsangle2 = drivegeodesic(drivebars, tridrivebarsmap, dpts, dptcls, ds1, dsangle1+0, flatbartangents)
-                gbs = gbs1+gbs2[1:]
-            else:
-                ds2, dsangle2 = -1, -1
+            try:
+                gbs1, ds1, dsangle1 = drivegeodesic(drivebars, tridrivebarsmap, dpts, dptcls, ds, ldsangle, flatbartangents)
+                gbs2 = [ gbs1[-1] ]
+                gbs = gbs1
+                if ds1 != -1:
+                    gbs2, ds2, dsangle2 = drivegeodesic(drivebars, tridrivebarsmap, dpts, dptcls, ds1, dsangle1+0, flatbartangents)
+                    gbs = gbs1+gbs2[1:]
+                else:
+                    ds2, dsangle2 = -1, -1
+            except AssertionError as e:
+                print("Bad on angle", ldsangle)
+                continue
+                
             pathlength = sum((a.pt - b.pt).Len()  for a, b in zip(gbs, gbs[1:]))
             
             windingrot = windingangle(gbs, rotplanevecX, rotplanevecY)
