@@ -30,30 +30,6 @@ from geodesicutils import drivegeodesic, InvAlong, GBarT, drivecurveintersection
 import freecadutils
 freecadutils.init(App)
 
-# could send this back into geodesicutils
-def Idrivecurveintersectionfinder(drivebars, tridrivebarsmap, gb0, gb1, LRdirection=0):
-    tbar = facetbetweenbars(gb0.bar, gb1.bar)
-    if tbar.i not in tridrivebarsmap:
-        return None
-    dseg = tridrivebarsmap[tbar.i]
-    Dtbar = facetbetweenbars(drivebars[dseg][0], drivebars[dseg+1][0])
-    assert tbar == Dtbar
-    dlam = trilinecrossing(tbar, drivebars[dseg], drivebars[dseg+1], (gb0.bar, gb0.lam), (gb1.bar, gb1.lam))
-    if dlam == -1.0:
-        return None
-    res = GBarT(drivebars, dseg, dlam)
-    if LRdirection != 0:
-        tperpdorapproach = P3.Dot(res.tperp, gb1.pt - gb0.pt)
-        if (tperpdorapproach > 0.0) == (LRdirection == 1):
-            print("crossing point detected but from wrong side")
-            return None
-    res.dcseg = dseg
-    res.dclam = dlam
-    TOL_ZERO(P3.Cross(gb1.tnorm_incoming, res.tnorm).Len())
-    res.tnorm_incoming = gb1.tnorm_incoming
-    res.gbBackbarC = gb0
-    res.gbForebarC = gb1
-    return res
 
 def drivesetBFstartfromangle(drivebars, dpts, dptcls, ds, dsangle):
     dsseg, dslam = seglampos(ds, dptcls)
@@ -73,7 +49,7 @@ def drivegeodesicR(drivebars, tridrivebarsmap, dpts, dptcls, ds, dsangle, MAX_SE
         if not gb or len(gbs) > MAX_SEGMENTS:
             print("exceeded MAX_SEGMENTS", MAX_SEGMENTS)
             return gbs, -1, -1
-        gbEnd = Idrivecurveintersectionfinder(drivebars, tridrivebarsmap, gbs[-1], gb, LRdirection=1)
+        gbEnd = drivecurveintersectionfinder(drivebars, tridrivebarsmap, gbs[-1], gb, LRdirection=1)
         if gbEnd:
             gbs.append(gbEnd)
             break
@@ -91,14 +67,13 @@ def drivegeodesicRI(gbStart, drivebars, tridrivebarsmap, LRdirection=1, MAX_SEGM
             print("exceeded MAX_SEGMENTS or off edge", MAX_SEGMENTS)
             gbs.append(None)
             break
-        gbEnd = Idrivecurveintersectionfinder(drivebars, tridrivebarsmap, gbs[-1], gbFore, LRdirection=LRdirection)
+        gbEnd = drivecurveintersectionfinder(drivebars, tridrivebarsmap, gbs[-1], gbFore, LRdirection=LRdirection)
         if gbEnd:
             gbs.append(gbEnd)
             break
         gbs.append(gbFore)
     return gbs
 
-# meshconvexificationbyflipedge
 
 def okaypressed():
     print("Okay Pressed") 
@@ -178,7 +153,7 @@ qmeshobject = freecadutils.qrow(qw, "Meshobject: ", 15+35*1 )
 
 qalongwire = freecadutils.qrow(qw, "Along wire: ", 15+35*2, "0.51")
 qanglefilament = freecadutils.qrow(qw, "Angle filament: ", 15+35*3, "30.0")
-qalongwireI = freecadutils.qrow(qw, "Along wire in: ", 15+35*2, "0.28", 260) # approx 0.304
+qalongwireI = freecadutils.qrow(qw, "Along wire in: ", 15+35*2, "0.208", 260) # approx 0.214
 qanglefilamentI = freecadutils.qrow(qw, "Angle fil. in: ", 15+35*3, "30.0", 260)
 
 qoutputfilament = freecadutils.qrow(qw, "Output name: ", 15+35*4, "w1")

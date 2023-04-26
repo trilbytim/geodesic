@@ -196,7 +196,8 @@ def trilinecrossing(tbar, barlamA0, barlamA1, barlamB0, barlamB1):
     assert (DptcrossB - DptcrossA).Len() < 0.001
     return lamA   
     
-def drivecurveintersectionfinder(drivebars, tridrivebarsmap, gb0, gb1):
+
+def drivecurveintersectionfinder(drivebars, tridrivebarsmap, gb0, gb1, LRdirection=0):
     tbar = facetbetweenbars(gb0.bar, gb1.bar)
     if tbar.i not in tridrivebarsmap:
         return None
@@ -207,11 +208,19 @@ def drivecurveintersectionfinder(drivebars, tridrivebarsmap, gb0, gb1):
     if dlam == -1.0:
         return None
     res = GBarT(drivebars, dseg, dlam)
+    if LRdirection != 0:
+        tperpdorapproach = P3.Dot(res.tperp, gb1.pt - gb0.pt)
+        if (tperpdorapproach > 0.0) == (LRdirection == 1):
+            print("crossing point detected but from wrong side")
+            return None
     res.dcseg = dseg
     res.dclam = dlam
     TOL_ZERO(P3.Cross(gb1.tnorm_incoming, res.tnorm).Len())
     res.tnorm_incoming = gb1.tnorm_incoming
+    res.gbBackbarC = gb0
+    res.gbForebarC = gb1
     return res
+
     
 
 class GBarC:
