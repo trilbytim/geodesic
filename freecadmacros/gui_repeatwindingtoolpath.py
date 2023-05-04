@@ -12,7 +12,6 @@ import os, sys, math, time
 sys.path.append(os.path.join(os.path.split(__file__)[0]))
 print(sys.path[-1])
 
-
 import curvesutils;  import sys;  sys.modules.pop("curvesutils")
 import trianglemeshutils;  import sys;  sys.modules.pop("trianglemeshutils")
 import geodesicutils;  import sys;  sys.modules.pop("geodesicutils")
@@ -51,6 +50,7 @@ def okaypressed():
         for pt in tpt0[1:]:
             tpt.append(P3(pt.x*rotcos + pt.z*rotsin, pt.y, pt.z*rotcos - pt.x*rotsin))
     Part.show(Part.makePolygon([Vector(pt)  for pt in tpt]), qoutputfilament.text())
+    qw.hide()
     
 qw = QtGui.QWidget()
 qw.setWindowFlag(QtCore.Qt.WindowStaysOnTopHint)
