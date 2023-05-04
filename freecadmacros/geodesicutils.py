@@ -10,6 +10,17 @@ def TOL_ZERO(X, msg=""):
     if not (abs(X) < 0.0001):
         print("TOL_ZERO fail", X, msg)
 
+
+# Fold between the two triangles is alpha (0=flat)
+# Incoming angle to edge: beta, outgoing angle to edge: gamma
+# Incoming vector: (sin(beta), cos(beta), 0)
+# Outgoing vector: (cos(alpha)sin(gamma), cos(gamma), sin(alpha)sin(gamma))
+# Resultant force on edge: (cos(alpha)sin(gamma) - sin(beta), cos(gamma) - cos(beta), sin(alpha)sin(gamma))
+# Along edge force: E = cos(gamma) - cos(beta)
+# Into edge force: N = |(cos(alpha)sin(gamma) - sin(beta), sin(alpha)sin(gamma))|
+# Friction coefficent r, so |E| <= rN
+
+
 def GeoCrossAxisE(a, Vae, Vab, Isq, Isgn):
     # Solve: Isq*x.Lensq() - Square(P3.Dot(x, Vab)) = 0   for x = a + Vae*q
     # 0 = Isq*(a^2 + 2q a.Vae + q^2 Vae^2) - (a.Vab + Vae.Vab q)^2
@@ -37,6 +48,7 @@ def GeoCrossAxisE(a, Vae, Vab, Isq, Isgn):
     if abs(q) < 100:
         TOL_ZERO(qA*Square(q) + qB2*2*q + qC)
     return q
+
 
 #
 # This is the basic function that crosses from one triangle to the next
@@ -221,6 +233,7 @@ def drivecurveintersectionfinder(drivebars, tridrivebarsmap, gb0, gb1, LRdirecti
     res.gbForebarC = gb1
     return res
 
+
     
 
 class GBarC:
@@ -238,6 +251,9 @@ class GBarC:
         res = GBarC(bar, lam, bGoRight)
         TOL_ZERO((c - self.pt).Len())
         return res
+
+
+
 
 class GBarT:
     def __init__(self, drivebars, dseg, dlam):
