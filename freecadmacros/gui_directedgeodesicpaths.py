@@ -43,60 +43,6 @@ def calcfriction(gb, pt0, pt1):
     pullforce = P3.ZNorm(gb.pt - pt0) + P3.ZNorm(gb.pt - pt1)
     return calcfriccoeff(pullforce, vn)
 
-
-def GeoCrossAxisER(a, Vae, Vab, Isq, Isgn):
-    # Solve: Isq*x.Lensq() - Square(P3.Dot(x, Vab)) = 0   for x = a + Vae*q
-    # 0 = Isq*(a^2 + 2q a.Vae + q^2 Vae^2) - (a.Vab + Vae.Vab q)^2
-    #   = Isq*(a^2 + 2q adf + q^2 Vae^2) - (adv + fdv q)^2
-
-    fdv = P3.Dot(Vae, Vab)
-    adv = P3.Dot(a, Vab)
-    adf = P3.Dot(a, Vae)
-    qA = Square(fdv) - Vae.Lensq()*Isq
-    qB2 = adv*fdv - adf*Isq
-    qC = Square(adv) - a.Lensq()*Isq
-    if abs(qA) <= abs(qB2)*1e-7:
-        if qB2 == 0:
-            return -1.0
-        q = -qC/(2*qB2)
-    else:
-        qdq = Square(qB2) - qA*qC
-        if qdq < 0.0:
-            #print("qdq", qdq)
-            return -1.0
-        qs = math.sqrt(qdq) / qA
-        qm = -qB2 / qA
-        q = qm + qs*Isgn
-    # q = qs +- qm,  x = a + Vae*q,  Dot(x, Vab) same sign as Dot(Vcd, Vab)
-    if abs(q) < 100:
-        TOL_ZERO(qA*Square(q) + qB2*2*q + qC)
-    return q
-
-
-def GeoCrossAxisR(Ga, Gb, Gcfrom, lam, Geopposite, VabInterpolated):
-    Gd = Along(lam, Ga, Gb)
-    Vcd = Gd - Gcfrom
-    if Vcd.Len() == 0:
-        bEnd = True
-        bAEcrossing = False
-        q = 0
-        Gx = Gcfrom
-    else:
-        bEnd = False
-        cdDab = P3.Dot(Vcd, VabInterpolated)
-        Isq = Square(cdDab) / Vcd.Lensq()
-        Isgn = -1 if cdDab < 0 else 1
-        qVae = GeoCrossAxisE(Ga - Gd, Geopposite - Ga, VabInterpolated, Isq, Isgn)
-        qVbe = GeoCrossAxisE(Gb - Gd, Geopposite - Gb, -VabInterpolated, Isq, -Isgn)
-        bAEcrossing = (abs(qVae - 0.5) < abs(qVbe - 0.5))
-        q = qVae if bAEcrossing else qVbe
-        Gx = (Ga + (Geopposite - Ga)*q) if bAEcrossing else (Gb + (Geopposite - Gb)*q)
-        Dx = Gx - Gd
-        TOL_ZERO(Isq - Square(P3.Dot(Dx, VabInterpolated)/Dx.Len()))
-        TOL_ZERO(P3.Dot(Vcd, VabInterpolated)/Vcd.Len() - P3.Dot(Dx, VabInterpolated)/Dx.Len())
-    return bAEcrossing, q, Gx, bEnd
-
-
 def calcfriccoeff(pullforce, vn):
     alongforce = P3.Dot(pullforce, vn)
     sideforcesq = pullforce.Lensq() - alongforce*alongforce
@@ -111,58 +57,15 @@ def calcfriccoeffbarEnds(pullforceFrom, vn):
     sideforce = math.sqrt(max(0, sideforcesq))
     return (alongforce + 1.0)/sideforce, (alongforce - 1.0)/sideforce
 
-def GBCrossBarR(gb, ptpushfrom, friccoeff):
-    barforerightBL = gb.bar.GetForeRightBL(gb.bGoRight)
-    if barforerightBL is None:
-        return None
-    tnodeopposite = barforerightBL.GetNodeFore(barforerightBL.nodeback == gb.bar.GetNodeFore(gb.bGoRight))
-    vn = P3.ZNorm(gb.bar.nodefore.p - gb.bar.nodeback.p)
-    pullforceFrom = P3.ZNorm(gb.pt - ptpushfrom)
-    pullforcetnodeopposite = P3.ZNorm(gb.pt - tnodeopposite.p)
-    fcnodeopposite = calcfriccoeff(pullforceFrom + pullforcetnodeopposite, vn)
-    bForeTriSide = (friccoeff <= fcnodeopposite)
-    if gb.bGoRight == bForeTriSide:
-        barcrossing = barforerightBL
-    else:
-        barcrossing = barforerightBL.GetForeRightBL(barforerightBL.nodefore == tnodeopposite)
-    assert barcrossing.GetNodeFore(barcrossing.nodeback == tnodeopposite) == gb.bar.GetNodeFore(bForeTriSide)
-    
-    fcnodeback, fcnodefore = calcfriccoeffbarEnds(pullforceFrom, vn)
-    TOL_ZERO(fcnodeback - calcfriccoeff(pullforceFrom + vn, vn))
-    TOL_ZERO(fcnodefore - calcfriccoeff(pullforceFrom - vn, vn))
-    print(gb.bGoRight, fcnodeback, fcnodeopposite, fcnodefore)
-#    bAEcrossing, q, Gx, bEnd = GeoCrossAxis(Na.p, Nb.p, c, lam, Ne.p, VabInterpolated)
-    return
-    
-    if bGoRight:
-        if bAEcrossing:
-            bar = bar.barforeright.GetForeRightBL(bar.barforeright.nodeback == Nb)
-            lam = q if bar.nodeback == Na else 1-q
-            bGoRight = (bar.nodeback == Na)   
-        else:
-            bar = bar.barforeright
-            lam = q if bar.nodeback == Nb else 1-q
-            bGoRight = not (bar.nodeback == Nb)
-    else:
-        if bAEcrossing:
-            bar = bar.barbackleft
-            lam = q if bar.nodeback == Na else 1-q
-            bGoRight = not (bar.nodeback == Na)
-        else:
-            bar = bar.barbackleft.GetForeRightBL(bar.barbackleft.nodeback == Na)
-            lam = q if bar.nodeback == Nb else 1-q
-            bGoRight = (bar.nodeback == Nb)
-            
-    c = bar.nodeback.p + (bar.nodefore.p - bar.nodeback.p)*lam
-    TOL_ZERO((c - Gx).Len())
-    return (d, bar, lam, bGoRight)
 
 
 def GBCrossBarRS(gb, ptpushfrom, sideslipturningfactor):
     v = gb.bar.nodefore.p - gb.bar.nodeback.p
     vn = P3.ZNorm(v)
     pullforceFrom = P3.ZNorm(gb.pt - ptpushfrom)
+
     sinalpha = P3.Dot(vn, pullforceFrom)
+    cosalpha = math.sqrt(max(0.0, 1.0 - sinalpha**2))
 
     barforerightBL = gb.bar.GetForeRightBL(gb.bGoRight)
     if barforerightBL is None:
@@ -173,8 +76,32 @@ def GBCrossBarRS(gb, ptpushfrom, sideslipturningfactor):
     trisideperp = P3.Cross(vn, trisidenorm)
     assert P3.Dot(trisideperp, tnodeopposite.p - gb.pt) >= 0.0
     
-    sinbeta = sinalpha
-    cosbeta = math.sqrt(max(0.0, 1.0 - sinbeta**2))
+    fromGoRight = gb.bGoRight
+    
+    if sideslipturningfactor != 0.0:
+        barforerightBLBack = gb.bar.GetForeRightBL(not gb.bGoRight)
+        tnodeoppositeBack = barforerightBLBack.GetNodeFore(barforerightBLBack.nodeback == gb.bar.GetNodeFore(not gb.bGoRight))
+        trisidenormBack = P3.ZNorm(P3.Cross(tnodeoppositeBack.p - gb.bar.nodeback.p, v))
+        costheta = -P3.Dot(trisidenorm, trisidenormBack)
+        tfoldangle = math.acos(costheta)
+        siderotangle = sideslipturningfactor*tfoldangle*(-1 if gb.bGoRight else 1)
+        sinra = math.sin(siderotangle)
+        cosra = math.cos(siderotangle)
+        sinbeta = sinalpha*cosra + cosalpha*sinra
+        cosbeta = cosalpha*cosra - sinalpha*sinra
+        TOL_ZERO(math.hypot(sinbeta, cosbeta) - 1.0)
+        if cosbeta < 0.0:
+            print("bouncing back from glancing edge")
+            cosbeta = -cosbeta
+            fromGoRight = not gb.bGoRight
+            tnodeopposite = tnodeoppositeBack
+            trisidenorm = trisidenormBack
+            trisideperp = P3.Cross(vn, trisidenorm)
+            assert P3.Dot(trisideperp, tnodeopposite.p - gb.pt) >= 0.0
+
+    else:
+        sinbeta = sinalpha
+        cosbeta = cosalpha
 
     vecoppoutto = vn*sinbeta + trisideperp*cosbeta
     vecoppouttoPerp = vn*cosbeta - trisideperp*sinbeta
@@ -182,7 +109,7 @@ def GBCrossBarRS(gb, ptpushfrom, sideslipturningfactor):
     vecoppouttoPerpSide = P3.Dot(vecoppouttoPerp, tnodeopposite.p)
 
     bForeTriSide = (vecoppouttoPerpSide <= vecoppouttoPerpD0)
-    barcrossing = barforerightBL if gb.bGoRight == bForeTriSide else barforerightBL.GetForeRightBL(barforerightBL.nodefore == tnodeopposite)
+    barcrossing = barforerightBL if fromGoRight == bForeTriSide else barforerightBL.GetForeRightBL(barforerightBL.nodefore == tnodeopposite)
     assert barcrossing.GetNodeFore(barcrossing.nodeback == tnodeopposite) == gb.bar.GetNodeFore(bForeTriSide)
 
     vecoppouttoPerpDI = P3.Dot(vecoppouttoPerp, gb.bar.GetNodeFore(bForeTriSide).p)
@@ -193,7 +120,7 @@ def GBCrossBarRS(gb, ptpushfrom, sideslipturningfactor):
     Dptbarcrossing = Along(lambarcrossing, barcrossing.nodeback.p, barcrossing.nodefore.p)
     Dsinbeta = P3.Dot(P3.ZNorm(Dptbarcrossing - gb.pt), vn)
     TOL_ZERO(Dsinbeta - sinbeta)
-    lambarcrossingGoRight = (barcrossing.nodeback == tnodeopposite) == (bForeTriSide == gb.bGoRight)
+    lambarcrossingGoRight = (barcrossing.nodeback == tnodeopposite) == (bForeTriSide == fromGoRight)
 
     return GBarC(barcrossing, lambarcrossing, lambarcrossingGoRight)
 
@@ -206,25 +133,6 @@ def drivesetBFstartfromangle(drivebars, dpts, dptcls, ds, dsangle):
     gbStart.gbForebarC = gb
     return gbStart
 
-
-def drivegeodesicR(drivebars, tridrivebarsmap, dpts, dptcls, ds, dsangle, MAX_SEGMENTS=2000):
-    gbStart = drivesetBFstartfromangle(drivebars, dpts, dptcls, ds, dsangle)
-    gbs = [ gbStart, gbStart.gbForebarC ]
-    Nconcavefolds = 0
-    while True:
-        gb = gbs[-1].GBCrossBar(gbs[-2].pt, None)
-        if not gb or len(gbs) > MAX_SEGMENTS:
-            print("exceeded MAX_SEGMENTS", MAX_SEGMENTS)
-            return gbs, -1, -1
-        gbEnd = drivecurveintersectionfinder(drivebars, tridrivebarsmap, gbs[-1], gb, LRdirection=1)
-        if gbEnd:
-            gbs.append(gbEnd)
-            break
-        gbs.append(gb)
-
-    angcross = gbEnd.drivecurveanglefromvec(gbs[-1].pt - gbs[-2].pt)
-    dcross = Along(gbEnd.dclam, dptcls[gbEnd.dcseg], dptcls[gbEnd.dcseg+1])
-    return gbs, dcross, angcross
 
 def drivegeodesicRI(gbStart, drivebars, tridrivebarsmap, LRdirection=1, sideslipturningfactor=0.0, MAX_SEGMENTS=2000):
     gbs = [ gbStart, gbStart.gbForebarC ]
@@ -271,15 +179,15 @@ def okaypressed():
 
     ds = Along(alongwire, dptcls[0], dptcls[-1])
     gbStart = drivesetBFstartfromangle(drivebars, dpts, dptcls, ds, dsangle)
-    gbs = drivegeodesicRI(gbStart, drivebars, tridrivebarsmap)
-    Part.show(Part.makePolygon([Vector(*gb.pt)  for gb in gbs]), qoutputfilament.text())
+    gbs = drivegeodesicRI(gbStart, drivebars, tridrivebarsmap, sideslipturningfactor=-0.91)
+    Part.show(Part.makePolygon([Vector(*gb.pt)  for gb in gbs  if gb != None]), qoutputfilament.text())
 
-    for i in range(20, 50, 5):
-        break
-        #GBCrossBarR(gbs[i], gbs[i-1].pt, friccoeff)
-        h = GBCrossBarRS(gbs[i], gbs[i-1].pt, friccoeff)
-        print(h.bar.i, gbs[i+1].bar.i, h.lam, gbs[i+1].lam, h.bGoRight, gbs[i+1].bGoRight)
-        
+    #for i in range(20, 50, 5):
+    #    h = GBCrossBarRS(gbs[i], gbs[i-1].pt, sideslipturningfactor=0.91)
+    #    print(h.bar.i, gbs[i+1].bar.i, h.lam, gbs[i+1].lam, h.bGoRight, gbs[i+1].bGoRight)
+    if gbs[-1] == None:
+        return
+    
     gbsS = gbs[:]
     gbsS[0] = gbsS[0].gbBackbarC
     gbsS[-1] = gbsS[-1].gbForebarC
