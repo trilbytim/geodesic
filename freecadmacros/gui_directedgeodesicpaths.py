@@ -150,14 +150,15 @@ def drivegeodesicRI(gbStart, drivebars, tridrivebarsmap, LRdirection=1, sideslip
         gbs.append(gbFore)
     return gbs
 
+
 def okaypressed():
     print("Okay Pressed") 
     sketchplane = freecadutils.findobjectbylabel(qsketchplane.text())
     meshobject = freecadutils.findobjectbylabel(qmeshobject.text())
     alongwire = float(qalongwire.text())
     dsangle = float(qanglefilament.text())
-    alongwireI = float(qalongwireI.text())
-    dsangleI = float(qanglefilamentI.text())
+    alongwireadvanceI = float(qalongwireadvanceI.text())
+    alongwireI = (alongwire + alongwireadvanceI) % 1.0
 
     if not (sketchplane and meshobject):
         print("Need to select a Sketch and a Mesh object in the UI to make this work")
@@ -176,43 +177,56 @@ def okaypressed():
     tridrivebarsmap = dict((facetbetweenbars(drivebars[dseg][0], drivebars[dseg+1][0]).i, dseg)  for dseg in range(len(drivebars)-1))
     dpts = [ Along(lam, bar.nodeback.p, bar.nodefore.p)  for bar, lam in drivebars ]
     dptcls = cumlengthlist(dpts)
+    print("girth comparison", mandrelgirth, dptcls[-1])
 
     ds = Along(alongwire, dptcls[0], dptcls[-1])
     gbStart = drivesetBFstartfromangle(drivebars, dpts, dptcls, ds, dsangle)
-    gbs = drivegeodesicRI(gbStart, drivebars, tridrivebarsmap, sideslipturningfactor=-0.91)
-    Part.show(Part.makePolygon([Vector(*gb.pt)  for gb in gbs  if gb != None]), qoutputfilament.text())
-
-    #for i in range(20, 50, 5):
-    #    h = GBCrossBarRS(gbs[i], gbs[i-1].pt, sideslipturningfactor=0.91)
-    #    print(h.bar.i, gbs[i+1].bar.i, h.lam, gbs[i+1].lam, h.bGoRight, gbs[i+1].bGoRight)
+    gbs = drivegeodesicRI(gbStart, drivebars, tridrivebarsmap, sideslipturningfactor=0.0)
     if gbs[-1] == None:
+        Part.show(Part.makePolygon([Vector(*gb.pt)  for gb in gbs[:-1]]), qoutputfilament.text())
+        print("Collided with open edge")
         return
     
-    gbsS = gbs[:]
-    gbsS[0] = gbsS[0].gbBackbarC
-    gbsS[-1] = gbsS[-1].gbForebarC
-
+    gbsS = [ gbs[0].gbBackbarC ] + gbs[1:-1] + [ gbs[-1].gbForebarC ]
     drivebarsB = [ (gb.bar, gb.lam)  for gb in gbsS ]
     tridrivebarsmapB = dict((facetbetweenbars(drivebarsB[dseg][0], drivebarsB[dseg+1][0]).i, dseg)  for dseg in range(len(drivebarsB)-1))
-    dsI = Along(alongwireI, dptcls[0], dptcls[-1])
-    gbStartI = drivesetBFstartfromangle(drivebars, dpts, dptcls, dsI, dsangleI+180)
-    gbsI = drivegeodesicRI(gbStartI, drivebarsB, tridrivebarsmapB, LRdirection=0, MAX_SEGMENTS=100)
-    Part.show(Part.makePolygon([Vector(*gb.pt)  for gb in (gbsI[:-1] if gbsI[-1] is None else gbsI)]), qoutputfilament.text())
 
-    gbEnd = gbs[-1]
-    if gbEnd is not None:
-        dsangleForeIn = gbEnd.drivecurveanglefromvec(gbEnd.gbForebarC.pt - gbEnd.gbBackbarC.pt)
-        dsForeIn = Along(gbEnd.dclam, dptcls[gbEnd.dcseg], dptcls[gbEnd.dcseg+1])
-        print("pos dsForeIn", dsForeIn, dsangleForeIn)
-        print(windingangle(gbs, rotplanevecX, rotplanevecY))
-        qalongwire.setText("%f" % InvAlong(dsForeIn, dptcls[0], dptcls[-1]))
-        qanglefilament.setText("%f" % dsangleForeIn)
-        print("Cylinder position angle advance degrees", 360*(dsForeIn - ds)/dptcls[-1])
-        print("Leaving angle", dsangle, "Continuing angle", dsangleForeIn)
-        try:
-            qoutputfilament.setText("w%d" % (int(qoutputfilament.text()[1:]) + 1))
-        except ValueError:
-            pass
+    alongwireI1 = min([alongwireI, alongwireI+1], key=lambda X: abs(X - alongwire))
+    
+    LRdirectionI = -1 if (alongwireI1 > alongwire) else 1
+    sideslipturningfactor = Maxsideslipturningfactor*LRdirectionI
+    
+    dsI = Along(alongwireI, dptcls[0], dptcls[-1])
+    gbStartI = drivesetBFstartfromangle(drivebars, dpts, dptcls, dsI, dsangle+180)
+    gbsI = drivegeodesicRI(gbStartI, drivebarsB, tridrivebarsmapB, sideslipturningfactor=sideslipturningfactor, LRdirection=LRdirectionI, MAX_SEGMENTS=len(gbs))
+
+    if gbsI[-1] == None:
+        print("Reversed path did not intersect")
+        Part.show(Part.makePolygon([Vector(*gb.pt)  for gb in gbs]), qoutputfilament.text())
+        Part.show(Part.makePolygon([Vector(*gb.pt)  for gb in gbsI[:-1]]), qoutputfilament.text())
+        return
+
+    for j in range(3):
+        sideslipturningfactor *= 0.75
+        gbStartIN = drivesetBFstartfromangle(drivebars, dpts, dptcls, dsI, dsangle+180)
+        gbsIN = drivegeodesicRI(gbStartIN, drivebarsB, tridrivebarsmapB, sideslipturningfactor=sideslipturningfactor, LRdirection=LRdirectionI, MAX_SEGMENTS=len(gbs))
+        if gbsIN[-1] != None:
+            gbsI = gbsIN
+            print("smaller sideslipturningfactor", sideslipturningfactor, "worked")
+        else:
+            break
+            
+    print("making join bit")
+    dseg = tridrivebarsmapB[gbsI[-1].tbar.i]
+    gbarT1 = gbsI[0]
+    gbarT1.gbBackbarC, gbarT1.gbForebarC = gbarT1.gbForebarC, gbarT1.gbBackbarC
+    gbsjoined = gbs[:dseg+1] + [ GBarC(gb.bar, gb.lam, not gb.bGoRight)  for gb in gbsI[-2:0:-1] ] + [ gbarT1 ]
+    
+    #Part.show(Part.makePolygon([Vector(*gb.pt)  for gb in gbs[:dseg]]), qoutputfilament.text())
+    #Part.show(Part.makePolygon([Vector(*gb.pt)  for gb in gbsI]), qoutputfilament.text())
+    Part.show(Part.makePolygon([Vector(*gb.pt)  for gb in gbsjoined]), qoutputfilament.text())
+    
+
 
 def windingangle(gbs, rotplanevecX, rotplanevecY):
     prevFV = None
@@ -225,6 +239,16 @@ def windingangle(gbs, rotplanevecX, rotplanevecY):
         prevFV = FV
     return sumA
 
+Maxsideslipturningfactor = 0.26
+mandrelradius = 110
+mandrelgirth = 2*math.pi*mandrelradius
+mandrelwindings = 10
+mandrelrotations = 7
+filamentoverlapadvance = 20/mandrelgirth
+anglefilament = 30
+mandreladvanceperwind = (filamentoverlapadvance/math.sin(math.radians(anglefilament)) + mandrelrotations)/mandrelwindings
+TOL_ZERO(mandrelwindings*mandreladvanceperwind - mandrelrotations - filamentoverlapadvance/math.sin(math.radians(anglefilament)))
+
 qw = QtGui.QWidget()
 qw.setWindowFlag(QtCore.Qt.WindowStaysOnTopHint)
 qw.setGeometry(700, 500, 570, 350)
@@ -233,9 +257,9 @@ qsketchplane = freecadutils.qrow(qw, "Sketchplane: ", 15+35*0)
 qmeshobject = freecadutils.qrow(qw, "Meshobject: ", 15+35*1 )
 
 qalongwire = freecadutils.qrow(qw, "Along wire: ", 15+35*2, "0.51")
-qanglefilament = freecadutils.qrow(qw, "Angle filament: ", 15+35*3, "30.0")
-qalongwireI = freecadutils.qrow(qw, "Along wire in: ", 15+35*2, "0.208", 260) # approx 0.214
-qanglefilamentI = freecadutils.qrow(qw, "Angle fil. in: ", 15+35*3, "30.0", 260)
+qanglefilament = freecadutils.qrow(qw, "Angle filament: ", 15+35*3, "%.1f" % anglefilament)
+
+qalongwireadvanceI = freecadutils.qrow(qw, "Along wire adv.: ", 15+35*2, "%.2f" % mandreladvanceperwind, 260)
 
 qoutputfilament = freecadutils.qrow(qw, "Output name: ", 15+35*4, "w1")
 okButton = QtGui.QPushButton("Drive", qw)
