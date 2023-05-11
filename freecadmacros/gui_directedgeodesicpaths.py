@@ -210,7 +210,7 @@ def okaypressed():
     sideslipturningfactor = Maxsideslipturningfactor*LRdirectionI
     
     dsI = Along(alongwireI, dptcls[0], dptcls[-1])
-    gbStartI = drivesetBFstartfromangle(drivebars, dpts, dptcls, dsI, dsangle+180)
+    gbStartI = drivesetBFstartfromangle(drivebars, dpts, dptcls, dsI, dsangle+180.0)
     gbsI = drivegeodesicRI(gbStartI, drivebarsB, tridrivebarsmapB, sideslipturningfactor=sideslipturningfactor, LRdirection=LRdirectionI, MAX_SEGMENTS=len(gbs))
 
     if gbsI[-1] == None:

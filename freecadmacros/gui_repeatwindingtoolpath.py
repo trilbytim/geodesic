@@ -57,6 +57,8 @@ qw.setWindowFlag(QtCore.Qt.WindowStaysOnTopHint)
 qw.setGeometry(700, 500, 570, 350)
 qw.setWindowTitle('Repeat winding toolpath')
 qsinglewindpath = freecadutils.qrow(qw, "Single wind: ", 15+35*1)
+mandrelwindings = 10
+
 
 qmandrelwindings = freecadutils.qrow(qw, "Windings adv: ", 15+35*2, "%d" % mandrelwindings)
 qmandrelwindingsmultiples = freecadutils.qrow(qw, "Windings mult: ", 15+35*3, "2")
