@@ -157,8 +157,11 @@ def okaypressed():
     meshobject = freecadutils.findobjectbylabel(qmeshobject.text())
     alongwire = float(qalongwire.text())
     dsangle = float(qanglefilament.text())
-    alongwireadvanceI = float(qalongwireadvanceI.text())
-    alongwireI = (alongwire + alongwireadvanceI) % 1.0
+    if len(qalongwireadvanceI.text()) != 0:
+        alongwireadvanceI = float(qalongwireadvanceI.text())
+        alongwireI = (alongwire + alongwireadvanceI) % 1.0
+    else:
+        alongwireI = None
 
     if not (sketchplane and meshobject):
         print("Need to select a Sketch and a Mesh object in the UI to make this work")
@@ -185,6 +188,11 @@ def okaypressed():
     if gbs[-1] == None:
         Part.show(Part.makePolygon([Vector(*gb.pt)  for gb in gbs[:-1]]), qoutputfilament.text())
         print("Collided with open edge")
+        return
+        
+    if alongwireI is None:
+        Part.show(Part.makePolygon([Vector(*gb.pt)  for gb in gbs[:-1]]), qoutputfilament.text())
+        print("Find the alongwire here!")
         return
     
     gbsS = [ gbs[0].gbBackbarC ] + gbs[1:-1] + [ gbs[-1].gbForebarC ]
