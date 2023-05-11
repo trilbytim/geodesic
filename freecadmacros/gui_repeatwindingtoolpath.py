@@ -51,7 +51,9 @@ def okaypressed():
             tpt.append(P3(pt.x*rotcos + pt.z*rotsin, pt.y, pt.z*rotcos - pt.x*rotsin))
     Part.show(Part.makePolygon([Vector(pt)  for pt in tpt]), qoutputfilament.text())
     qw.hide()
-    
+
+mandrelwindings = 10
+mandrelrotations = 7
 qw = QtGui.QWidget()
 qw.setWindowFlag(QtCore.Qt.WindowStaysOnTopHint)
 qw.setGeometry(700, 500, 570, 350)
