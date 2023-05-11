@@ -162,6 +162,7 @@ def okaypressed():
         alongwireI = (alongwire + alongwireadvanceI) % 1.0
     else:
         alongwireI = None
+    sideslipturningfactor = float(qsideslip.text())
 
     if not (sketchplane and meshobject):
         print("Need to select a Sketch and a Mesh object in the UI to make this work")
@@ -184,24 +185,28 @@ def okaypressed():
 
     ds = Along(alongwire, dptcls[0], dptcls[-1])
     gbStart = drivesetBFstartfromangle(drivebars, dpts, dptcls, ds, dsangle)
-    gbs = drivegeodesicRI(gbStart, drivebars, tridrivebarsmap, sideslipturningfactor=0.0)
+    gbs = drivegeodesicRI(gbStart, drivebars, tridrivebarsmap, sideslipturningfactor=sideslipturningfactor)
     if gbs[-1] == None:
         Part.show(Part.makePolygon([Vector(*gb.pt)  for gb in gbs[:-1]]), qoutputfilament.text())
         print("Collided with open edge")
         return
         
+    dslanded = Along(gbs[-1].dclam, dptcls[gbs[-1].dcseg], dptcls[gbs[-1].dcseg + 1])
+    alongwirelanded = InvAlong(dslanded, dptcls[0], dptcls[-1])
     if alongwireI is None:
         Part.show(Part.makePolygon([Vector(*gb.pt)  for gb in gbs[:-1]]), qoutputfilament.text())
-        print("Find the alongwire here!")
+        print("alongwirelanded", alongwirelanded)
+        qalongwireadvanceI.setText("%.3f" % alongwirelanded)
         return
     
     gbsS = [ gbs[0].gbBackbarC ] + gbs[1:-1] + [ gbs[-1].gbForebarC ]
     drivebarsB = [ (gb.bar, gb.lam)  for gb in gbsS ]
+    print("trimming off half the drive bars so we don't collide too early!")
+    drivebarsB = drivebarsB[:len(drivebarsB)//2]  
     tridrivebarsmapB = dict((facetbetweenbars(drivebarsB[dseg][0], drivebarsB[dseg+1][0]).i, dseg)  for dseg in range(len(drivebarsB)-1))
 
-    alongwireI1 = min([alongwireI, alongwireI+1], key=lambda X: abs(X - alongwire))
-    
-    LRdirectionI = -1 if (alongwireI1 > alongwire) else 1
+    alongwireI1 = min([alongwireI, alongwireI+1], key=lambda X: abs(X - alongwirelanded))
+    LRdirectionI = -1 if (alongwireI1 > alongwirelanded) else 1
     sideslipturningfactor = Maxsideslipturningfactor*LRdirectionI
     
     dsI = Along(alongwireI, dptcls[0], dptcls[-1])
@@ -214,7 +219,7 @@ def okaypressed():
         Part.show(Part.makePolygon([Vector(*gb.pt)  for gb in gbsI[:-1]]), qoutputfilament.text())
         return
 
-    for j in range(3):
+    for j in range(2):
         sideslipturningfactor *= 0.75
         gbStartIN = drivesetBFstartfromangle(drivebars, dpts, dptcls, dsI, dsangle+180)
         gbsIN = drivegeodesicRI(gbStartIN, drivebarsB, tridrivebarsmapB, sideslipturningfactor=sideslipturningfactor, LRdirection=LRdirectionI, MAX_SEGMENTS=len(gbs))
@@ -268,6 +273,9 @@ qalongwire = freecadutils.qrow(qw, "Along wire: ", 15+35*2, "0.51")
 qanglefilament = freecadutils.qrow(qw, "Angle filament: ", 15+35*3, "%.1f" % anglefilament)
 
 qalongwireadvanceI = freecadutils.qrow(qw, "Along wire adv.: ", 15+35*2, "%.2f" % mandreladvanceperwind, 260)
+vlab = QtGui.QLabel("clear above to go one direction", qw)
+vlab.move(20+260, 15+35*3+5)
+qsideslip = freecadutils.qrow(qw, "Side slip: ", 15+35*4, "0", 260)
 
 qoutputfilament = freecadutils.qrow(qw, "Output name: ", 15+35*4, "w1")
 okButton = QtGui.QPushButton("Drive", qw)
