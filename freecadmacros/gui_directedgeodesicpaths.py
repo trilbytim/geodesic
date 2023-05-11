@@ -162,7 +162,7 @@ def okaypressed():
         alongwireI = (alongwire + alongwireadvanceI) % 1.0
     else:
         alongwireI = None
-    sideslipturningfactor = float(qsideslip.text())
+    sideslipturningfactorZ = float(qsideslip.text())
 
     if not (sketchplane and meshobject):
         print("Need to select a Sketch and a Mesh object in the UI to make this work")
@@ -185,7 +185,7 @@ def okaypressed():
 
     ds = Along(alongwire, dptcls[0], dptcls[-1])
     gbStart = drivesetBFstartfromangle(drivebars, dpts, dptcls, ds, dsangle)
-    gbs = drivegeodesicRI(gbStart, drivebars, tridrivebarsmap, sideslipturningfactor=sideslipturningfactor)
+    gbs = drivegeodesicRI(gbStart, drivebars, tridrivebarsmap, sideslipturningfactor=sideslipturningfactorZ)
     if gbs[-1] == None:
         Part.show(Part.makePolygon([Vector(*gb.pt)  for gb in gbs[:-1]]), qoutputfilament.text())
         print("Collided with open edge")
@@ -196,21 +196,19 @@ def okaypressed():
     if alongwireI is None:
         Part.show(Part.makePolygon([Vector(*gb.pt)  for gb in gbs[:-1]]), qoutputfilament.text())
         print("alongwirelanded", alongwirelanded)
-        qalongwireadvanceI.setText("%.3f" % alongwirelanded)
+        qalongwireadvanceI.setText("%.3f" % ((alongwirelanded - alongwire + 1)%1))
         return
     
     gbsS = [ gbs[0].gbBackbarC ] + gbs[1:-1] + [ gbs[-1].gbForebarC ]
     drivebarsB = [ (gb.bar, gb.lam)  for gb in gbsS ]
-    print("trimming off half the drive bars so we don't collide too early!")
-    drivebarsB = drivebarsB[:len(drivebarsB)//2]  
     tridrivebarsmapB = dict((facetbetweenbars(drivebarsB[dseg][0], drivebarsB[dseg+1][0]).i, dseg)  for dseg in range(len(drivebarsB)-1))
 
     alongwireI1 = min([alongwireI, alongwireI+1], key=lambda X: abs(X - alongwirelanded))
-    LRdirectionI = -1 if (alongwireI1 > alongwirelanded) else 1
+    LRdirectionI = 1 if (alongwireI1 > alongwirelanded) else -1
     sideslipturningfactor = Maxsideslipturningfactor*LRdirectionI
     
     dsI = Along(alongwireI, dptcls[0], dptcls[-1])
-    gbStartI = drivesetBFstartfromangle(drivebars, dpts, dptcls, dsI, dsangle+180)
+    gbStartI = drivesetBFstartfromangle(drivebars, dpts, dptcls, dsI, dsangle+180.0)
     gbsI = drivegeodesicRI(gbStartI, drivebarsB, tridrivebarsmapB, sideslipturningfactor=sideslipturningfactor, LRdirection=LRdirectionI, MAX_SEGMENTS=len(gbs))
 
     if gbsI[-1] == None:
@@ -221,7 +219,7 @@ def okaypressed():
 
     for j in range(2):
         sideslipturningfactor *= 0.75
-        gbStartIN = drivesetBFstartfromangle(drivebars, dpts, dptcls, dsI, dsangle+180)
+        gbStartIN = drivesetBFstartfromangle(drivebars, dpts, dptcls, dsI, dsangle+180.0)
         gbsIN = drivegeodesicRI(gbStartIN, drivebarsB, tridrivebarsmapB, sideslipturningfactor=sideslipturningfactor, LRdirection=LRdirectionI, MAX_SEGMENTS=len(gbs))
         if gbsIN[-1] != None:
             gbsI = gbsIN
