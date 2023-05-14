@@ -149,45 +149,47 @@ def okaypressed():
         vecNout = P3.ZNorm(tapecurve[max(i,1)] - tapecurve[max(i,1)-1])
         ptR = tapecurve[i]
         tcpR = projectToXvalplane(ptR, vecNout, abs(tcpconstXval))
-        tcp = TCPplusfibre(tcpR, ptR, tcps[-1] if len(tcps) != 0 else None)
-        tcps.append(tcp)
-        if i != 1 and textlen is not None:
+        prevtcp = tcps[-1] if len(tcps) != 0 else None
+        tcp = TCPplusfibre(tcpR, ptR, prevtcp)
+        tgcpmov = (prevtcp.GetTCP(True) - tcp.GetTCP(True)).Len() if prevtcp != None else 1000
+        if tgcpmov < 0.05:
+            print("Skipping trivial aligned tcp motion", i, tgcpmov)
+        else:
+            tcps.append(tcp)
+        if i != 0 and textlen is not None:
             textlen -= (tapecurve[i] - tapecurve[i-1]).Len()
             if textlen <= 0:
                 break
     
-
     foutputsrc = qoutputsrcfile.text()
     headersrc = os.path.join(os.path.split(__file__)[0], "header.src")
     print("outputting src toolpath ", os.path.abspath(foutputsrc))
 
-    tcpblocks = [ ]
-    
+    tcpblocks = [ [ tcps[0] ] ]
     for itcp in range(1, len(tcps)):
         tcp = tcps[itcp]
-# trying to find problem with switchback
-#        print(tcp.GetTCP(False), tcp.GetTCP(False) + tcp.GetVecR(False))
-        if len(tcpblocks) == 0:
-            tcpblocks.append([ ])
-        elif len(tcpblocks[-1]) >= 2 and ((tcpblocks[-1][-2].Y < tcpblocks[-1][-1].Y) != (tcpblocks[-1][-1].Y < tcp.Y)):
-            tcpblocks.append([ tcpblocks[-1][-1] ])
-#            print("New block")
+        tcpprev = tcpblocks[-1][-1]
+        Ydirectionchange = (len(tcpblocks[-1]) >= 2 and ((tcpblocks[-1][-2].Y < tcpblocks[-1][-1].Y) != (tcpblocks[-1][-1].Y < tcp.Y)))
+        Yhardswitchback = P3.Dot(P3.ZNorm(tcpprev.GetVecR(True)), P3.ZNorm(tcp.GetVecR(True))) < -0.5
+        if Yhardswitchback:
+            print("Yhardswitchback", itcp, Ydirectionchange)
+            assert Ydirectionchange, "hardswitchback should coincide with a Ydirection change"
+        if Ydirectionchange:
+            tcpblocks.append([ tcpprev ])
         tcpblocks[-1].append(tcp)
-#        if len(tcpblocks) >= 2 and len(tcpblocks[-1]) > 5 and len(tcpblocks[-2]) == 2:
-#            print("quitting at switchback")
-#            break
             
     if len(qoutputsweepmesh.text()) != 0 and qoutputsweepmesh.text()[-1] != "*":
         facets = [ ]
         for i in range(itcp-1):
             tcp0, tcp1 = tcps[i].GetTCP(True), tcps[i+1].GetTCP(True)
             vecr0, vecr1 = tcps[i].GetVecR(True), tcps[i+1].GetVecR(True)
-            #vecr0, vecr1 = tcps[i].DvecR, tcps[i+1].DvecR
             fp0, fp1 = tcp0 + vecr0, tcp1 + vecr1
+            if (fp0 - P3(-108.77,750,61.57)).Len() > 6:  continue
             facets.append([Vector(*tcp0), Vector(*fp0), Vector(*tcp1)])
             facets.append([Vector(*tcp1), Vector(*fp0), Vector(*fp1)])
         mesh = freecadutils.doc.addObject("Mesh::Feature", qoutputsweepmesh.text())
         mesh.ViewObject.Lighting = "Two side"
+        mesh.ViewObject.DisplayMode = "Flat Lines"
         mesh.Mesh = Mesh.Mesh(facets)
 
     print("blocks ", list(map(len, tcpblocks)))
@@ -209,9 +211,13 @@ def okaypressed():
         if i == 0:
             fout.write("\nSLIN %s\n" % srctcp(tcpblock[0]))
             fout.write("HALT\n")
-            tcpblock = tcpblock[1:]
+        else:
+            Yhardswitchback = P3.Dot(P3.ZNorm(tcpblock[0].GetVecR(True)), P3.ZNorm(tcpblock[1].GetVecR(True))) < -0.5
+            if Yhardswitchback:
+                fout.write("HALT  ; switchback \n")
+                fout.write("SLIN %s\n\n" % srctcp(tcpblock[1]))
         fout.write("SPLINE\n")
-        for tcp in tcpblock:
+        for tcp in tcpblock[2 if Yhardswitchback else 1:]:
             fout.write("SPL %s\n" % srctcp(tcp))
         fout.write("ENDSPLINE\n\n")
     fout.write("SLIN %s\n" % srcpt({"X":-200, "Y":Ymid, "E1":0}))
