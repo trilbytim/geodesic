@@ -31,18 +31,36 @@ freecadutils.init(App)
 
 def okaypressed():
     print("Okay Pressed") 
-    singlewindobject = freecadutils.findobjectbylabel(qsinglewindpath.text())
+    singlewindobjects = [ freecadutils.findobjectbylabel(singlewindname)  for singlewindname in qsinglewindpath.text().split(",") ]
+
     mandrelwindings = int(qmandrelwindings.text())
     mandrelwindingsmultiples = int(qmandrelwindingsmultiples.text())
     thintol = float(qthintol.text())
     
-    singlewindpts = [ P3(p.X, p.Y, p.Z)  for p in singlewindobject.Shape.Vertexes ]
-    fvec0 = P2(singlewindpts[0].x, singlewindpts[0].z)
-    fvec1 = P2(singlewindpts[-1].x, singlewindpts[-1].z)
-    print(singlewindpts[0].y, singlewindpts[-1].y, fvec0.Len(), fvec1.Len())
+    Ssinglewindpts = [ ]
+    for singlewindobject in singlewindobjects:
+        singlewindpts = [ P3(p.X, p.Y, p.Z)  for p in singlewindobject.Shape.Vertexes ]
+        tsinglewindpts = thinptstotolerance(singlewindpts, tol=thintol)
+        print("Thinned", len(singlewindpts), "points to", len(tsinglewindpts), "at tol", thintol)
+        if len(Ssinglewindpts) != 0:
+            sgapleng = (Ssinglewindpts[-1][-1] - tsinglewindpts[0]).Len()
+            print("sgapleng", sgapleng)
+            assert sgapleng < 0.01
+            ptjoin = (Ssinglewindpts[-1][-1] + tsinglewindpts[0])*0.5
+            Ssinglewindpts[-1][-1] = ptjoin
+            tsinglewindpts[0] = ptjoin
+        Ssinglewindpts.append(tsinglewindpts)
+        
+    ptfront, ptback = Ssinglewindpts[0][0], Ssinglewindpts[-1][-1]
+    fvec0 = P2(ptfront.x, ptfront.z)
+    fvec1 = P2(ptback.x, ptback.z)
+    print("drive curve y-vals", ptfront.y, ptback.y, "rads", fvec0.Len(), fvec1.Len())
     angadvance = P2(P2.Dot(fvec0, fvec1), P2.Dot(fvec0, P2.APerp(fvec1))).Arg()
 
-    tpt0 = thinptstotolerance(singlewindpts, tol=thintol)
+    tpt0 = Ssinglewindpts[0][:]
+    for singlewindpts in Ssinglewindpts[1:]:
+        tpt0.extend(singlewindpts[1:])
+        
     tpt = tpt0[:]
     for i in range(1, mandrelwindings*mandrelwindingsmultiples):
         rotcos = math.cos(math.radians(i*angadvance))
@@ -71,7 +89,7 @@ okButton = QtGui.QPushButton("Repeat", qw)
 okButton.move(180, 15+35*7)
 QtCore.QObject.connect(okButton, QtCore.SIGNAL("pressed()"), okaypressed)  
 
-qsinglewindpath.setText(freecadutils.getlabelofselectedwire())
+qsinglewindpath.setText(freecadutils.getlabelofselectedwire(multiples=True))
 
 qw.show()
 

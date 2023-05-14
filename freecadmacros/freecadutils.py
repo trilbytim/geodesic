@@ -19,11 +19,14 @@ def qrow(qw, slab, yval, txt="", xposoffs=0):
     v.setText(txt)
     return v
 
-def getlabelofselectedwire():
+def getlabelofselectedwire(multiples=False):
+    labels = [ ]
     for s in sel:
         if hasattr(s, "Shape") and isinstance(s.Shape, Part.Wire):
-            return s.Label
-    return ""
+            labels.append(s.Label)
+            if not multiples:
+                break
+    return ",".join(labels)
     
 def getlabelofselectedmesh():
     for s in sel:

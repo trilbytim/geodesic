@@ -140,7 +140,7 @@ def drivegeodesicRI(gbStart, drivebars, tridrivebarsmap, LRdirection=1, sideslip
     while True:
         gbFore = GBCrossBarRS(gbs[-1], gbs[-2].pt, sideslipturningfactor)
         if not gbFore or len(gbs) > MAX_SEGMENTS:
-            print("exceeded MAX_SEGMENTS or off edge", MAX_SEGMENTS)
+            print("exceeded MAX_SEGMENTS or off edge", MAX_SEGMENTS, "sideslip", sideslipturningfactor)
             gbs.append(None)
             break
         gbEnd = drivecurveintersectionfinder(drivebars, tridrivebarsmap, gbs[-1], gbFore, LRdirection=LRdirection)
@@ -150,9 +150,10 @@ def drivegeodesicRI(gbStart, drivebars, tridrivebarsmap, LRdirection=1, sideslip
         gbs.append(gbFore)
     return gbs
 
-def makebicolouredwire(gbs, name, colfront=(1.0,0.0,0.0), colback=(0.0,0.3,0.0)):
+def makebicolouredwire(gbs, name, colfront=(1.0,0.0,0.0), colback=(0.0,0.3,0.0), leadcolornodes=-1):
     wire = Part.show(Part.makePolygon([Vector(*gb.pt)  for gb in gbs]), qoutputfilament.text())
-    leadcolornodes = min(len(gbs)//2, 40)
+    if leadcolornodes == -1:
+        leadcolornodes = min(len(gbs)//2, 40)
     wire.ViewObject.LineColorArray= [colfront]*leadcolornodes + [colback]*(len(gbs) - leadcolornodes)
     print("supposed to colour", wire.ViewObject)
     return wire
@@ -193,9 +194,10 @@ def okaypressed():
 
     ds = Along(alongwire, dptcls[0], dptcls[-1])
     gbStart = drivesetBFstartfromangle(drivebars, dpts, dptcls, ds, dsangle)
-    fLRdirection = 1 if dsangle > 0.0 else -1
+    fLRdirection = 1 if ((dsangle + 360)%360) < 180.0 else -1
     if combomode != 0:
         fLRdirection = -fLRdirection
+    print("doing alongwire", alongwire, ds, fLRdirection, "alongwireI", alongwireI)
     gbs = drivegeodesicRI(gbStart, drivebars, tridrivebarsmap, LRdirection=fLRdirection, sideslipturningfactor=sideslipturningfactorZ)
     if gbs[-1] == None:
         Part.show(Part.makePolygon([Vector(*gb.pt)  for gb in gbs[:-1]]), qoutputfilament.text())
@@ -224,7 +226,7 @@ def okaypressed():
     print("dsangleI", dsangleI, dsangle, combomode)
     gbStartI = drivesetBFstartfromangle(drivebars, dpts, dptcls, dsI, dsangleI)
     gbsI = drivegeodesicRI(gbStartI, drivebarsB, tridrivebarsmapB, sideslipturningfactor=sideslipturningfactor, LRdirection=LRdirectionI, MAX_SEGMENTS=len(gbs))
-
+    
     if gbsI[-1] == None:
         print("Reversed path did not intersect")
         Part.show(Part.makePolygon([Vector(*gb.pt)  for gb in gbs]), qoutputfilament.text())
@@ -249,7 +251,8 @@ def okaypressed():
     
     #Part.show(Part.makePolygon([Vector(*gb.pt)  for gb in gbs[:dseg]]), qoutputfilament.text())
     #Part.show(Part.makePolygon([Vector(*gb.pt)  for gb in gbsI]), qoutputfilament.text())
-    Part.show(Part.makePolygon([Vector(*gb.pt)  for gb in gbsjoined]), qoutputfilament.text())
+    makebicolouredwire(gbsjoined, qoutputfilament.text(), colfront=(1.0,0.0,0.0) if fLRdirection == -1 else (0.0,0.0,1.0), 
+                                                          colback=(0.7,0.7,0.0), leadcolornodes=dseg+1)
     
 
 
@@ -307,4 +310,6 @@ qmeshobject.setText(freecadutils.getlabelofselectedmesh())
 
 qw.show()
 
-
+# ang=-30 pos=0.51  adv=0.57
+# ang=-145 pos=0.08  adv=0.46 (actually -0.54)
+# we have now advanced to 0.54, or 0.03* 2*pi*125 = 23.5mm
