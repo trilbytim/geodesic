@@ -184,7 +184,7 @@ def okaypressed():
             tcp0, tcp1 = tcps[i].GetTCP(True), tcps[i+1].GetTCP(True)
             vecr0, vecr1 = tcps[i].GetVecR(True), tcps[i+1].GetVecR(True)
             fp0, fp1 = tcp0 + vecr0, tcp1 + vecr1
-            if (fp0 - P3(-108.77,750,61.57)).Len() > 6:  continue
+            #if (fp0 - P3(-108.77,750,61.57)).Len() > 6:  continue
             facets.append([Vector(*tcp0), Vector(*fp0), Vector(*tcp1)])
             facets.append([Vector(*tcp1), Vector(*fp0), Vector(*fp1)])
         mesh = freecadutils.doc.addObject("Mesh::Feature", qoutputsweepmesh.text())
