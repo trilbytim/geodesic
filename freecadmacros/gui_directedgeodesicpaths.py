@@ -150,9 +150,17 @@ def drivegeodesicRI(gbStart, drivebars, tridrivebarsmap, LRdirection=1, sideslip
         gbs.append(gbFore)
     return gbs
 
+def makebicolouredwire(gbs, name, colfront=(1.0,0.0,0.0), colback=(0.0,0.3,0.0)):
+    wire = Part.show(Part.makePolygon([Vector(*gb.pt)  for gb in gbs]), qoutputfilament.text())
+    leadcolornodes = min(len(gbs)//2, 40)
+    wire.ViewObject.LineColorArray= [colfront]*leadcolornodes + [colback]*(len(gbs) - leadcolornodes)
+    print("supposed to colour", wire.ViewObject)
+    return wire
+   
 
 def okaypressed():
-    print("Okay Pressed") 
+    print("Okay Pressed ", qcombomode.currentIndex())
+    combomode = qcombomode.currentIndex()
     sketchplane = freecadutils.findobjectbylabel(qsketchplane.text())
     meshobject = freecadutils.findobjectbylabel(qmeshobject.text())
     alongwire = float(qalongwire.text())
@@ -185,7 +193,10 @@ def okaypressed():
 
     ds = Along(alongwire, dptcls[0], dptcls[-1])
     gbStart = drivesetBFstartfromangle(drivebars, dpts, dptcls, ds, dsangle)
-    gbs = drivegeodesicRI(gbStart, drivebars, tridrivebarsmap, sideslipturningfactor=sideslipturningfactorZ)
+    fLRdirection = 1 if dsangle > 0.0 else -1
+    if combomode != 0:
+        fLRdirection = -fLRdirection
+    gbs = drivegeodesicRI(gbStart, drivebars, tridrivebarsmap, LRdirection=fLRdirection, sideslipturningfactor=sideslipturningfactorZ)
     if gbs[-1] == None:
         Part.show(Part.makePolygon([Vector(*gb.pt)  for gb in gbs[:-1]]), qoutputfilament.text())
         print("Collided with open edge")
@@ -194,7 +205,8 @@ def okaypressed():
     dslanded = Along(gbs[-1].dclam, dptcls[gbs[-1].dcseg], dptcls[gbs[-1].dcseg + 1])
     alongwirelanded = InvAlong(dslanded, dptcls[0], dptcls[-1])
     if alongwireI is None:
-        Part.show(Part.makePolygon([Vector(*gb.pt)  for gb in gbs[:-1]]), qoutputfilament.text())
+        makebicolouredwire(gbs, qoutputfilament.text(), colfront=(1.0,0.0,0.0), 
+                                                        colback=(0.0,0.6,0.0) if abs(dsangle) < 90 else (0.0,0.0,0.9))
         print("alongwirelanded", alongwirelanded)
         qalongwireadvanceI.setText("%.3f" % ((alongwirelanded - alongwire + 1)%1))
         return
@@ -208,7 +220,9 @@ def okaypressed():
     sideslipturningfactor = Maxsideslipturningfactor*LRdirectionI
     
     dsI = Along(alongwireI, dptcls[0], dptcls[-1])
-    gbStartI = drivesetBFstartfromangle(drivebars, dpts, dptcls, dsI, dsangle+180.0)
+    dsangleI = dsangle+180.0 if combomode == 0 else 180.0-dsangle
+    print("dsangleI", dsangleI, dsangle, combomode)
+    gbStartI = drivesetBFstartfromangle(drivebars, dpts, dptcls, dsI, dsangleI)
     gbsI = drivegeodesicRI(gbStartI, drivebarsB, tridrivebarsmapB, sideslipturningfactor=sideslipturningfactor, LRdirection=LRdirectionI, MAX_SEGMENTS=len(gbs))
 
     if gbsI[-1] == None:
@@ -256,7 +270,7 @@ mandrelgirth = 2*math.pi*mandrelradius
 mandrelwindings = 10
 mandrelrotations = 7
 filamentoverlapadvance = 20/mandrelgirth
-anglefilament = 30
+anglefilament = -30
 mandreladvanceperwind = (filamentoverlapadvance/math.sin(math.radians(anglefilament)) + mandrelrotations)/mandrelwindings
 TOL_ZERO(mandrelwindings*mandreladvanceperwind - mandrelrotations - filamentoverlapadvance/math.sin(math.radians(anglefilament)))
 
@@ -270,10 +284,18 @@ qmeshobject = freecadutils.qrow(qw, "Meshobject: ", 15+35*1 )
 qalongwire = freecadutils.qrow(qw, "Along wire: ", 15+35*2, "0.51")
 qanglefilament = freecadutils.qrow(qw, "Angle filament: ", 15+35*3, "%.1f" % anglefilament)
 
-qalongwireadvanceI = freecadutils.qrow(qw, "Along wire adv.: ", 15+35*2, "%.2f" % mandreladvanceperwind, 260)
+#qalongwireadvanceI = freecadutils.qrow(qw, "Along wire adv.: ", 15+35*2, "%.2f" % mandreladvanceperwind, 260)
+qalongwireadvanceI = freecadutils.qrow(qw, "Along wire adv.: ", 15+35*2, "", 260)
+
 vlab = QtGui.QLabel("clear above to go one direction", qw)
 vlab.move(20+260, 15+35*3+5)
 qsideslip = freecadutils.qrow(qw, "Side slip: ", 15+35*4, "0", 260)
+qcombomode = QtGui.QComboBox(qw)
+qcombomode.move(120+260, 15+35*5)
+qcombomode.addItem("Mode0 normal")
+qcombomode.addItem("Mode1 foldback")
+#qcombomode.addItem("Mode2 reflect")
+qcombomode.setCurrentIndex(1)
 
 qoutputfilament = freecadutils.qrow(qw, "Output name: ", 15+35*4, "w1")
 okButton = QtGui.QPushButton("Drive", qw)
