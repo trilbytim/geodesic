@@ -176,18 +176,25 @@ def okaypressed():
                 print("Yhardswitchback block", i, "to Y direction", tcpblockYdirection[i], "spin", tcpblockE3direction[i])
                 Yhardswitchback = 1 if tcpblockE3direction[i] else -1
         tcpblockstartwithswitchback.append(Yhardswitchback)
-
-    print(tcpblockYdirection)
-    print(tcpblockE3direction)
-    print(tcpblockstartwithswitchback)
     
     tcpblockslinked = [ ]
     tcpblockslinkedstarthalt = [ ]
     for i in range(len(tcpblocks)):
         tcpblock = tcpblocks[i]
         if tcpblockstartwithswitchback[i] != 0:
-            tcpblockslinked.append([ tcpblocks[i-1][-1], tcpblock[0] ])
-            print("This should be the linking motion put in here")
+            tcp0, tcp1 = tcpblocks[i-1][-1], tcpblock[0]
+            tcp0p, tcp1p = tcp0.GetTCP(True), tcp1.GetTCP(True)
+            vecr0, vecr1 = tcp0.GetVecR(True), tcp1.GetVecR(True)
+            fp0, fp1 = tcp0p + vecr0, tcp1p + vecr1
+            print("switchback from to", fp0, fp1, tcp0.freefibrelength, tcp1.freefibrelength)
+            ptrmid = (fp0 + fp1)*0.5
+            fflengmid = (tcp0.freefibrelength + tcp1.freefibrelength)*0.5
+            vecmid = P3.ZNorm(P3(ptrmid.x, 0, ptrmid.z))*fflengmid
+            tcpmid = TCPplusfibre(ptrmid + vecmid, ptrmid)
+            tcpmid.applyE3Winding(tcp0.E3)
+            tcpmid.applyE1Winding(tcp0.E1)
+            tcplink = [ tcp0, tcpmid, tcp1 ]
+            tcpblockslinked.append(tcplink)
             tcpblockslinkedstarthalt.append(tcpblockstartwithswitchback[i])
         tcpblockslinked.append(tcpblock)
         tcpblockslinkedstarthalt.append(0)
@@ -200,7 +207,7 @@ def okaypressed():
         facets = [ ]
         for i in range(len(tcpblockslinked)):
             tcpblock = tcpblockslinked[i]
-            if not tcpblockslinkedstarthalt[i]:  continue
+            #if not tcpblockslinkedstarthalt[i]:  continue
             for j in range(len(tcpblock)-1):
                 tcp0, tcp1 = tcpblock[j].GetTCP(True), tcpblock[j+1].GetTCP(True)
                 vecr0, vecr1 = tcpblock[j].GetVecR(True), tcpblock[j+1].GetVecR(True)
@@ -238,7 +245,7 @@ def okaypressed():
     fout.write("SLIN %s\n" % srcpt({"X":-200, "Y":Ymid, "E1":0}))
     fout.write("HALT\nEND\n")
     fout.close()
-
+    qw.hide()
     
 qw = QtGui.QWidget()
 qw.setWindowFlag(QtCore.Qt.WindowStaysOnTopHint)
