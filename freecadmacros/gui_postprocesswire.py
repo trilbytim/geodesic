@@ -76,7 +76,9 @@ class TCPplusfibre:
         TOL_ZERO((self.RotByE3(vec) - vecR).Len(), ("rotByE3vec failed"))
 
         self.E1 = P2(vec.z, vec.y).Arg()
-        self.E2 = math.degrees(math.acos(vec.x/self.freefibrelength))
+        cE2 = vec.x/self.freefibrelength
+        assert abs(cE2) < 1.0001, cE2
+        self.E2 = math.degrees(math.acos(min(1.0, max(-1.0, cE2))))
         if vec.z < 0.0:
             self.E1 = 180 + self.E1
             self.E2 = -self.E2

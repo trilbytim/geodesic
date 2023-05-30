@@ -209,7 +209,7 @@ def okaypressed():
     if alongwireI is None:
         makebicolouredwire(gbs, qoutputfilament.text(), colfront=(1.0,0.0,0.0), 
                                                         colback=(0.0,0.6,0.0) if abs(dsangle) < 90 else (0.0,0.0,0.9))
-        print("alongwirelanded", alongwirelanded)
+        print("alongwirelanded", alongwirelanded, " ** setting AlngWre advance to the difference")
         qalongwireadvanceI.setText("%.3f" % ((alongwirelanded - alongwire + 1)%1))
         return
     
@@ -235,7 +235,7 @@ def okaypressed():
 
     for j in range(2):
         sideslipturningfactor *= 0.75
-        gbStartIN = drivesetBFstartfromangle(drivebars, dpts, dptcls, dsI, dsangle+180.0)
+        gbStartIN = drivesetBFstartfromangle(drivebars, dpts, dptcls, dsI, dsangleI)
         gbsIN = drivegeodesicRI(gbStartIN, drivebarsB, tridrivebarsmapB, sideslipturningfactor=sideslipturningfactor, LRdirection=LRdirectionI, MAX_SEGMENTS=len(gbs))
         if gbsIN[-1] != None:
             gbsI = gbsIN
@@ -288,7 +288,7 @@ qalongwire = freecadutils.qrow(qw, "Along wire: ", 15+35*2, "0.51")
 qanglefilament = freecadutils.qrow(qw, "Angle filament: ", 15+35*3, "%.1f" % anglefilament)
 
 #qalongwireadvanceI = freecadutils.qrow(qw, "Along wire adv.: ", 15+35*2, "%.2f" % mandreladvanceperwind, 260)
-qalongwireadvanceI = freecadutils.qrow(qw, "Along wire adv.: ", 15+35*2, "", 260)
+qalongwireadvanceI = freecadutils.qrow(qw, "AlngWre adv(+!): ", 15+35*2, "", 260)
 
 vlab = QtGui.QLabel("clear above to go one direction", qw)
 vlab.move(20+260, 15+35*3+5)
