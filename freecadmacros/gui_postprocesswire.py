@@ -27,8 +27,6 @@ from geodesicutils import drivegeodesic, InvAlong, GBarT, GBarC, drivecurveinter
 
 import freecadutils
 freecadutils.init(App)
-
-    
     
 # X - moves towards/away from the tool (perpendicular to the carriage).
 # Y - moves along the carriage axis
@@ -39,51 +37,67 @@ freecadutils.init(App)
 # E3 - Rotation both chucks (headstock and tailstock)
 # E4 - Rotation of tailstock relative to headstock (rarely used)
 
-
-def projectToXvalplane(pt, vec, cx):
+def projectToRvalcylinder(pt, vec, cr):
     qa = P2(vec.x, vec.z).Lensq()
     qb2 = pt.x*vec.x + pt.z*vec.z
-    qc = P2(pt.x, pt.z).Lensq() - cx*cx
+    qc = P2(pt.x, pt.z).Lensq() - cr*cr
     qdq = qb2*qb2 - qa*qc
     qs = math.sqrt(qdq) / qa
     qm = -qb2 / qa
     q = qm + qs
     TOL_ZERO(qa*q*q + qb2*2*q + qc)
     res = pt + vec*q
-    TOL_ZERO(P2(res.x, res.z).Len() - cx)
+    TOL_ZERO(P2(res.x, res.z).Len() - cr)
     return res
 
+def sRotByE3(sE3, pt):
+    rvX = P3(math.cos(math.radians(sE3)), 0, math.sin(math.radians(sE3)))
+    rvZ = P3(-rvX.z, 0, rvX.x)
+    return rvX*pt.x + P3(0, pt.y, 0) + rvZ*pt.z
+
 class TCPplusfibre:
-    def __init__(self, tcpR, ptR):
+    def __init__(self, tcpR, ptR, tcpE2offset):
         vecR = ptR - tcpR
         self.freefibrelength = vecR.Len()
         self.DvecR = vecR
         
-        self.E3 = P2(-tcpR.x, -tcpR.z).Arg()
-        
-        tcpRd = P2(tcpR.x, tcpR.z).Len()
-        rvX = P3(-tcpR.x/tcpRd, 0, -tcpR.z/tcpRd)
-        rvY = P3(0, 1, 0)
-        rvZ = P3(-rvX.z, 0, rvX.x)
-        self.X = -tcpRd
-        self.Y = tcpR.y
-        self.Z = 0
-        
-        DtcpR = rvX*self.X + rvY*self.Y + rvZ*self.Z
-        TOL_ZERO((DtcpR - tcpR).Len())
-        vec = P3(P3.Dot(rvX, vecR), P3.Dot(rvY, vecR), P3.Dot(rvZ, vecR))
-        TOL_ZERO(self.freefibrelength - vec.Len())
+        if tcpE2offset == 0:
+            self.E3 = P2(-tcpR.x, -tcpR.z).Arg()
+            
+            tcpRd = P2(tcpR.x, tcpR.z).Len()
+            rvX = P3(-tcpR.x/tcpRd, 0, -tcpR.z/tcpRd)
+            rvY = P3(0, 1, 0)
+            rvZ = P3(-rvX.z, 0, rvX.x)
+            
+            self.X = -tcpRd
+            self.Y = tcpR.y
+            self.Z = 0
+            
+            DtcpR = rvX*self.X + rvY*self.Y + rvZ*self.Z
+            TOL_ZERO((DtcpR - tcpR).Len())
+            vec = P3(P3.Dot(rvX, vecR), P3.Dot(rvY, vecR), P3.Dot(rvZ, vecR))
+        else:
+            self.E3 = P2(-tcpR.x, -tcpR.z).Arg() + tcpE2offset
+            vec = sRotByE3(-self.E3, vecR)
+            tcp = sRotByE3(-self.E3, tcpR)
+            print("vvv", vec)
+            self.X = tcp.x
+            self.Y = tcp.y
+            self.Z = tcp.z
+            
+        TOL_ZERO(self.freefibrelength - vec.Len(), "freefibrewrong")
         TOL_ZERO((self.RotByE3(vec) - vecR).Len(), ("rotByE3vec failed"))
 
         self.E1 = P2(vec.z, vec.y).Arg()
         cE2 = vec.x/self.freefibrelength
         assert abs(cE2) < 1.0001, cE2
         self.E2 = math.degrees(math.acos(min(1.0, max(-1.0, cE2))))
+        
         if vec.z < 0.0:
             self.E1 = 180 + self.E1
             self.E2 = -self.E2
             
-        TOL_ZERO((tcpR - self.GetTCP(True)).Len())
+        TOL_ZERO((tcpR - self.GetTCP(True)).Len(), "tcpmismatch")
         TOL_ZERO((vecR - self.GetVecR(True)).Len(), (vecR, self.GetVecR(True)))
 
     def RotByE3(self, pt):
@@ -122,16 +136,17 @@ def okaypressed():
     
     toolpathobject = freecadutils.findobjectbylabel(qtoolpath.text())
     tcpconstXval = float(qxconst.text())
+    tcpE2offset = float(qE2offset.text())
+    cr = abs(tcpconstXval)
     textlen = float(qtoolpathlength.text()) if len(qtoolpathlength.text()) != 0 and qtoolpathlength.text()[-1] != " " else None
-
     tapecurve = [ P3(p.X, p.Y, p.Z)  for p in toolpathobject.Shape.Vertexes ]
     
     tcps = [ ]
     for i in range(len(tapecurve)):
         vecNout = P3.ZNorm(tapecurve[max(i,1)] - tapecurve[max(i,1)-1])
         ptR = tapecurve[i]
-        tcpR = projectToXvalplane(ptR, vecNout, abs(tcpconstXval))
-        tcp = TCPplusfibre(tcpR, ptR)
+        tcpR = projectToRvalcylinder(ptR, vecNout, cr)
+        tcp = TCPplusfibre(tcpR, ptR, tcpE2offset)
         tcps.append(tcp)
         if len(tcps) >= 2:
             prevtcp = tcps[-2]
@@ -192,7 +207,7 @@ def okaypressed():
             ptrmid = (fp0 + fp1)*0.5
             fflengmid = (tcp0.freefibrelength + tcp1.freefibrelength)*0.5
             vecmid = P3.ZNorm(P3(ptrmid.x, 0, ptrmid.z))*fflengmid
-            tcpmid = TCPplusfibre(ptrmid + vecmid, ptrmid)
+            tcpmid = TCPplusfibre(ptrmid + vecmid, ptrmid, tcpE2offset)
             tcpmid.applyE3Winding(tcp0.E3)
             tcpmid.applyE1Winding(tcp0.E1)
             tcplink = [ tcp0, tcpmid, tcp1 ]
@@ -264,17 +279,20 @@ QtCore.QObject.connect(okButton, QtCore.SIGNAL("pressed()"), okaypressed)
 
 qtoolpath.setText(freecadutils.getlabelofselectedwire())
 qxconst = freecadutils.qrow(qw, "xconst: ", 15+35*2, "-115")
+qE2offset = freecadutils.qrow(qw, "E2offset: ", 15+35*3, "45")
 qtoolpathlength = freecadutils.qrow(qw, "(Length): ", 15+35*1, "0 ", 260)
 
 qoptionsrcdebug = QtGui.QCheckBox("Dbg SRC params", qw)
 qoptionsrcdebug.move(80+260, 15+35*3)
-#qoptionsrcdebug.setChecked(True)
+qoptionsrcdebug.setChecked(True)
 
 
 toolpathobject = freecadutils.findobjectbylabel(qtoolpath.text())
 if toolpathobject:
     qtoolpathlength.setText("%.0f " % toolpathobject.Shape.Length)
-    qxconst.setText("%.1f" % (toolpathobject.Shape.BoundBox.XMin - 5.0))
+    print("xmax", toolpathobject.Shape.BoundBox.XMax, "zmax", toolpathobject.Shape.BoundBox.ZMax)
+    boxdiagrad = toolpathobject.Shape.BoundBox.XMax*math.sqrt(2)  # 45 degree diagonal puts us above the mandrel
+    qxconst.setText("%.1f" % (-(boxdiagrad + 5.0)))
 
 qw.show()
 
