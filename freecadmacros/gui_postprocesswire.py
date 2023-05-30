@@ -80,7 +80,6 @@ class TCPplusfibre:
             self.E3 = P2(-tcpR.x, -tcpR.z).Arg() + tcpE2offset
             vec = sRotByE3(-self.E3, vecR)
             tcp = sRotByE3(-self.E3, tcpR)
-            print("vvv", vec)
             self.X = tcp.x
             self.Y = tcp.y
             self.Z = tcp.z
