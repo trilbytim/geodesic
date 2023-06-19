@@ -131,16 +131,24 @@ def drivesetBFstartfromangle(drivebars, dpts, dptcls, ds, dsangle):
     gb, gbbackbar = gbStart.drivepointstartfromangle(dsangle, getbackbar=True)
     gbStart.gbBackbarC = gbbackbar
     gbStart.gbForebarC = gb
+    gbStart.dcseg = dsseg
+    gbStart.dclam = dslam
     return gbStart
 
 
-def drivegeodesicRI(gbStart, drivebars, tridrivebarsmap, LRdirection=1, sideslipturningfactor=0.0, MAX_SEGMENTS=2000):
+def drivegeodesicRI(gbStart, drivebars, tridrivebarsmap, LRdirection=1, sideslipturningfactor=0.0, MAX_SEGMENTS=2000, maxlength=-1):
     gbs = [ gbStart, gbStart.gbForebarC ]
+    dlength = (gbs[1].pt - gbs[0].pt).Len()
     Nconcavefolds = 0
     while True:
         gbFore = GBCrossBarRS(gbs[-1], gbs[-2].pt, sideslipturningfactor)
-        if not gbFore or len(gbs) > MAX_SEGMENTS:
-            print("exceeded MAX_SEGMENTS or off edge", MAX_SEGMENTS, "sideslip", sideslipturningfactor)
+        if not gbFore:
+            print("gone off edge")
+            gbs.append(None)
+            break
+        dlength += (gbFore.pt - gbs[-1].pt).Len()
+        if len(gbs) > MAX_SEGMENTS or (maxlength != -1 and dlength > maxlength):
+            print("exceeded MAX_SEGMENTS or length")
             gbs.append(None)
             break
         gbEnd = drivecurveintersectionfinder(drivebars, tridrivebarsmap, gbs[-1], gbFore, LRdirection=LRdirection)
@@ -161,7 +169,7 @@ def makebicolouredwire(gbs, name, colfront=(1.0,0.0,0.0), colback=(0.0,0.3,0.0),
 
 def okaypressed():
     print("Okay Pressed ", qcombomode.currentIndex())
-    combomode = qcombomode.currentIndex()
+    combofoldbackmode = qcombomode.currentIndex()
     sketchplane = freecadutils.findobjectbylabel(qsketchplane.text())
     meshobject = freecadutils.findobjectbylabel(qmeshobject.text())
     alongwire = float(qalongwire.text())
@@ -172,6 +180,7 @@ def okaypressed():
     else:
         alongwireI = None
     sideslipturningfactorZ = float(qsideslip.text())
+    maxlength = float(qmaxlength.text())
 
     if not (sketchplane and meshobject):
         print("Need to select a Sketch and a Mesh object in the UI to make this work")
@@ -194,22 +203,27 @@ def okaypressed():
 
     ds = Along(alongwire, dptcls[0], dptcls[-1])
     gbStart = drivesetBFstartfromangle(drivebars, dpts, dptcls, ds, dsangle)
+
+    Dds = Along(gbStart.dclam, dptcls[gbStart.dcseg], dptcls[gbStart.dcseg + 1])
+    Dalongwire = InvAlong(Dds, dptcls[0], dptcls[-1])
+    TOL_ZERO(alongwire - Dalongwire)
+    
     fLRdirection = 1 if ((dsangle + 360)%360) < 180.0 else -1
-    if combomode != 0:
+    if combofoldbackmode != 0:
         fLRdirection = -fLRdirection
-    print("doing alongwire", alongwire, ds, fLRdirection, "alongwireI", alongwireI)
-    gbs = drivegeodesicRI(gbStart, drivebars, tridrivebarsmap, LRdirection=fLRdirection, sideslipturningfactor=sideslipturningfactorZ)
+    print("doing alongwire %.2f %.3f  foldback=%d  alongwireI %.2f" % (alongwire, ds, fLRdirection, alongwireI or 0))
+    gbs = drivegeodesicRI(gbStart, drivebars, tridrivebarsmap, LRdirection=fLRdirection, sideslipturningfactor=sideslipturningfactorZ, maxlength=maxlength)
     if gbs[-1] == None:
         Part.show(Part.makePolygon([Vector(*gb.pt)  for gb in gbs[:-1]]), qoutputfilament.text())
-        print("Collided with open edge")
         return
         
     dslanded = Along(gbs[-1].dclam, dptcls[gbs[-1].dcseg], dptcls[gbs[-1].dcseg + 1])
     alongwirelanded = InvAlong(dslanded, dptcls[0], dptcls[-1])
     if alongwireI is None:
+        wirelength = sum((gb2.pt - gb1.pt).Len()  for gb1, gb2 in zip(gbs, gbs[1:]))
         makebicolouredwire(gbs, qoutputfilament.text(), colfront=(1.0,0.0,0.0), 
                                                         colback=(0.0,0.6,0.0) if abs(dsangle) < 90 else (0.0,0.0,0.9))
-        print("alongwirelanded", alongwirelanded, " ** setting AlngWre advance to the difference")
+        print("alongwirelanded %3f  leng=%.2f   ** setting AlngWre advance to the difference" % (alongwirelanded, wirelength))
         qalongwireadvanceI.setText("%.3f" % ((alongwirelanded - alongwire + 1)%1))
         return
     
@@ -222,8 +236,8 @@ def okaypressed():
     sideslipturningfactor = Maxsideslipturningfactor*LRdirectionI
     
     dsI = Along(alongwireI, dptcls[0], dptcls[-1])
-    dsangleI = dsangle+180.0 if combomode == 0 else 180.0-dsangle
-    print("dsangleI", dsangleI, dsangle, combomode)
+    dsangleI = dsangle+180.0 if combofoldbackmode == 0 else 180.0-dsangle
+    print("dsangleI", dsangleI, dsangle, combofoldbackmode)
     gbStartI = drivesetBFstartfromangle(drivebars, dpts, dptcls, dsI, dsangleI)
     gbsI = drivegeodesicRI(gbStartI, drivebarsB, tridrivebarsmapB, sideslipturningfactor=sideslipturningfactor, LRdirection=LRdirectionI, MAX_SEGMENTS=len(gbs))
     
@@ -276,6 +290,7 @@ filamentoverlapadvance = 20/mandrelgirth
 anglefilament = -30
 mandreladvanceperwind = (filamentoverlapadvance/math.sin(math.radians(anglefilament)) + mandrelrotations)/mandrelwindings
 TOL_ZERO(mandrelwindings*mandreladvanceperwind - mandrelrotations - filamentoverlapadvance/math.sin(math.radians(anglefilament)))
+maxlength = 6000
 
 qw = QtGui.QWidget()
 qw.setWindowFlag(QtCore.Qt.WindowStaysOnTopHint)
@@ -287,7 +302,7 @@ qmeshobject = freecadutils.qrow(qw, "Meshobject: ", 15+35*1 )
 qalongwire = freecadutils.qrow(qw, "Along wire: ", 15+35*2, "0.51")
 qanglefilament = freecadutils.qrow(qw, "Angle filament: ", 15+35*3, "%.1f" % anglefilament)
 
-#qalongwireadvanceI = freecadutils.qrow(qw, "Along wire adv.: ", 15+35*2, "%.2f" % mandreladvanceperwind, 260)
+qmaxlength = freecadutils.qrow(qw, "maxlength: ", 15+35*1, "%.2f" % maxlength, 260)
 qalongwireadvanceI = freecadutils.qrow(qw, "AlngWre adv(+!): ", 15+35*2, "", 260)
 
 vlab = QtGui.QLabel("clear above to go one direction", qw)

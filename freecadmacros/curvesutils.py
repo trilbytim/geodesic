@@ -52,7 +52,7 @@ def thinptstotolerance(pts, tol):
 
 def cumlengthlist(pts):
     ptcls = [ 0.0 ]
-    for i in range(len(pts)):
+    for i in range(1, len(pts)):
         ptcls.append(ptcls[-1] + (pts[i] - pts[i-1]).Len())
     return ptcls
 
