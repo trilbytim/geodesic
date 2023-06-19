@@ -81,7 +81,7 @@ mandrelwindings = 10
 
 
 qmandrelwindings = freecadutils.qrow(qw, "Windings adv: ", 15+35*2, "%d" % mandrelwindings)
-qmandrelwindingsmultiples = freecadutils.qrow(qw, "Windings mult: ", 15+35*3, "2")
+qmandrelwindingsmultiples = freecadutils.qrow(qw, "Windings mult: ", 15+35*3, "1")
 qoutputfilament = freecadutils.qrow(qw, "Output name: ", 15+35*4, "t1")
 qthintol = freecadutils.qrow(qw, "Thinning tol: ", 15+35*5, "0.2")
 

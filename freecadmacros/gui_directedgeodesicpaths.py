@@ -165,7 +165,33 @@ def makebicolouredwire(gbs, name, colfront=(1.0,0.0,0.0), colback=(0.0,0.3,0.0),
     wire.ViewObject.LineColorArray= [colfront]*leadcolornodes + [colback]*(len(gbs) - leadcolornodes)
     print("supposed to colour", wire.ViewObject)
     return wire
-   
+
+
+class DriveCurve:
+    def __init__(self, drivebars):
+        self.drivebars = drivebars
+        self.tridrivebarsmap = dict((facetbetweenbars(drivebars[dseg][0], drivebars[dseg+1][0]).i, dseg)  for dseg in range(len(drivebars)-1))
+        self.dpts = [ Along(lam, bar.nodeback.p, bar.nodefore.p)  for bar, lam in drivebars ]
+        self.dptcls = cumlengthlist(self.dpts)
+
+    def startalongangle(self, alongwire, dsangle):
+        ds = Along(alongwire, self.dptcls[0], self.dptcls[-1])
+        gbStart = drivesetBFstartfromangle(self.drivebars, self.dpts, self.dptcls, ds, dsangle)
+        Dds = Along(gbStart.dclam, self.dptcls[gbStart.dcseg], self.dptcls[gbStart.dcseg + 1])
+        Dalongwire = InvAlong(Dds, self.dptcls[0], self.dptcls[-1])
+        TOL_ZERO(alongwire - Dalongwire)
+        Ddsangle = 180 + gbStart.drivecurveanglefromvec(gbStart.gbBackbarC.pt - gbStart.gbForebarC.pt)
+        TOL_ZERO(((dsangle - Ddsangle + 180)%360) - 180)
+        return gbStart
+
+    def endalongposition(self, gbEnd):
+        dslanded = Along(gbEnd.dclam, self.dptcls[gbEnd.dcseg], self.dptcls[gbEnd.dcseg + 1])
+        alongwirelanded = InvAlong(dslanded, self.dptcls[0], self.dptcls[-1])
+        angcross = gbEnd.drivecurveanglefromvec(gbEnd.gbForebarC.pt - gbEnd.gbBackbarC.pt)
+        print("angcross", angcross)
+        return alongwirelanded
+
+
 
 def okaypressed():
     print("Okay Pressed ", qcombomode.currentIndex())
@@ -196,33 +222,26 @@ def okaypressed():
 
     startbar, startlam = planecutbars(utbm.tbarmesh, driveperpvec, driveperpvecDot)
     drivebars = planecutembeddedcurve(startbar, startlam, driveperpvec)
-    tridrivebarsmap = dict((facetbetweenbars(drivebars[dseg][0], drivebars[dseg+1][0]).i, dseg)  for dseg in range(len(drivebars)-1))
-    dpts = [ Along(lam, bar.nodeback.p, bar.nodefore.p)  for bar, lam in drivebars ]
-    dptcls = cumlengthlist(dpts)
-    print("girth comparison", mandrelgirth, dptcls[-1])
+    drivecurve = DriveCurve(drivebars)
+    print("girth comparison", mandrelgirth, drivecurve.dptcls[-1])
 
-    ds = Along(alongwire, dptcls[0], dptcls[-1])
-    gbStart = drivesetBFstartfromangle(drivebars, dpts, dptcls, ds, dsangle)
+    gbStart = drivecurve.startalongangle(alongwire, dsangle)
 
-    Dds = Along(gbStart.dclam, dptcls[gbStart.dcseg], dptcls[gbStart.dcseg + 1])
-    Dalongwire = InvAlong(Dds, dptcls[0], dptcls[-1])
-    TOL_ZERO(alongwire - Dalongwire)
-    
     fLRdirection = 1 if ((dsangle + 360)%360) < 180.0 else -1
     if combofoldbackmode != 0:
         fLRdirection = -fLRdirection
-    print("doing alongwire %.2f %.3f  foldback=%d  alongwireI %.2f" % (alongwire, ds, fLRdirection, alongwireI or 0))
-    gbs = drivegeodesicRI(gbStart, drivebars, tridrivebarsmap, LRdirection=fLRdirection, sideslipturningfactor=sideslipturningfactorZ, maxlength=maxlength)
+        
+    print("doing alongwire %.2f foldback=%d  alongwireI %.2f" % (alongwire, fLRdirection, alongwireI or 0))
+    gbs = drivegeodesicRI(gbStart, drivecurve.drivebars, drivecurve.tridrivebarsmap, LRdirection=fLRdirection, sideslipturningfactor=sideslipturningfactorZ, maxlength=maxlength)
     if gbs[-1] == None:
         Part.show(Part.makePolygon([Vector(*gb.pt)  for gb in gbs[:-1]]), qoutputfilament.text())
         return
         
-    dslanded = Along(gbs[-1].dclam, dptcls[gbs[-1].dcseg], dptcls[gbs[-1].dcseg + 1])
-    alongwirelanded = InvAlong(dslanded, dptcls[0], dptcls[-1])
+    alongwirelanded = drivecurve.endalongposition(gbs[-1])
     if alongwireI is None:
         wirelength = sum((gb2.pt - gb1.pt).Len()  for gb1, gb2 in zip(gbs, gbs[1:]))
         makebicolouredwire(gbs, qoutputfilament.text(), colfront=(1.0,0.0,0.0), 
-                                                        colback=(0.0,0.6,0.0) if abs(dsangle) < 90 else (0.0,0.0,0.9))
+                                                        colback =(0.0,0.6,0.0) if abs(dsangle) < 90 else (0.0,0.0,0.9))
         print("alongwirelanded %3f  leng=%.2f   ** setting AlngWre advance to the difference" % (alongwirelanded, wirelength))
         qalongwireadvanceI.setText("%.3f" % ((alongwirelanded - alongwire + 1)%1))
         return
@@ -235,10 +254,9 @@ def okaypressed():
     LRdirectionI = 1 if (alongwireI1 > alongwirelanded) else -1
     sideslipturningfactor = Maxsideslipturningfactor*LRdirectionI
     
-    dsI = Along(alongwireI, dptcls[0], dptcls[-1])
     dsangleI = dsangle+180.0 if combofoldbackmode == 0 else 180.0-dsangle
     print("dsangleI", dsangleI, dsangle, combofoldbackmode)
-    gbStartI = drivesetBFstartfromangle(drivebars, dpts, dptcls, dsI, dsangleI)
+    gbStartI = drivecurve.startalongangle(alongwireI, dsangleI)
     gbsI = drivegeodesicRI(gbStartI, drivebarsB, tridrivebarsmapB, sideslipturningfactor=sideslipturningfactor, LRdirection=LRdirectionI, MAX_SEGMENTS=len(gbs))
     
     if gbsI[-1] == None:
@@ -249,8 +267,7 @@ def okaypressed():
 
     for j in range(2):
         sideslipturningfactor *= 0.75
-        gbStartIN = drivesetBFstartfromangle(drivebars, dpts, dptcls, dsI, dsangleI)
-        gbsIN = drivegeodesicRI(gbStartIN, drivebarsB, tridrivebarsmapB, sideslipturningfactor=sideslipturningfactor, LRdirection=LRdirectionI, MAX_SEGMENTS=len(gbs))
+        gbsIN = drivegeodesicRI(gbStartI, drivebarsB, tridrivebarsmapB, sideslipturningfactor=sideslipturningfactor, LRdirection=LRdirectionI, MAX_SEGMENTS=len(gbs))
         if gbsIN[-1] != None:
             gbsI = gbsIN
             print("smaller sideslipturningfactor", sideslipturningfactor, "worked")
@@ -263,12 +280,9 @@ def okaypressed():
     gbarT1.gbBackbarC, gbarT1.gbForebarC = gbarT1.gbForebarC, gbarT1.gbBackbarC
     gbsjoined = gbs[:dseg+1] + [ GBarC(gb.bar, gb.lam, not gb.bGoRight)  for gb in gbsI[-2:0:-1] ] + [ gbarT1 ]
     
-    #Part.show(Part.makePolygon([Vector(*gb.pt)  for gb in gbs[:dseg]]), qoutputfilament.text())
-    #Part.show(Part.makePolygon([Vector(*gb.pt)  for gb in gbsI]), qoutputfilament.text())
     makebicolouredwire(gbsjoined, qoutputfilament.text(), colfront=(1.0,0.0,0.0) if fLRdirection == -1 else (0.0,0.0,1.0), 
                                                           colback=(0.7,0.7,0.0), leadcolornodes=dseg+1)
     
-
 
 def windingangle(gbs, rotplanevecX, rotplanevecY):
     prevFV = None
@@ -281,8 +295,14 @@ def windingangle(gbs, rotplanevecX, rotplanevecY):
         prevFV = FV
     return sumA
 
+
+
 Maxsideslipturningfactor = 0.26
-mandrelradius = 110
+
+mandrelradius = 110  # fc6 file
+mandrelradius = 125  # PV file
+
+
 mandrelgirth = 2*math.pi*mandrelradius
 mandrelwindings = 10
 mandrelrotations = 7
@@ -325,6 +345,27 @@ qmeshobject.setText(freecadutils.getlabelofselectedmesh())
 
 qw.show()
 
+# When running on PV.Fcad
 # ang=-30 pos=0.51  adv=0.57
 # ang=-145 pos=0.08  adv=0.46 (actually -0.54)
 # we have now advanced to 0.54, or 0.03* 2*pi*125 = 23.5mm
+
+
+# Suppose we want to advance one tape width per switchback
+# tapewidth = 10, tiltedtapewidth = 10/abs(sin(ang)) = 20
+# advance = 20/girth = 0.0254
+# equalize this advance between the two steps
+
+# ang=-30 pos=0.51  adv=0.564 + 0.0254/2 = 0.5767
+# return is 
+#  ang=-(180-30) = -150
+#  pos=0.51 + 0.5767 = 0.0867
+#  adv=0.51 + 0.0254 - 0.0867 = 0.4487
+
+#   this should be 0.017 instead of 0.0254 because of the tilt
+# ang=-50 pos=0.51  adv=0.488 + 0.0254/2 = 0.5007
+# return is 
+#  ang=-(180-50) = -130
+#  pos=0.51 + 0.5007 = 0.0107
+#  adv=0.51 + 0.0254 - 0.0107 = 0.5247
+
