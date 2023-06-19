@@ -136,6 +136,8 @@ def okaypressed():
     toolpathobject = freecadutils.findobjectbylabel(qtoolpath.text())
     tcpconstXval = float(qxconst.text())
     tcpE3offset = float(qE3offset.text())
+    Ymid = float(qyoffset.text())
+
     cr = abs(tcpconstXval)
     textlen = float(qtoolpathlength.text()) if len(qtoolpathlength.text()) != 0 and qtoolpathlength.text()[-1] != " " else None
     tapecurve = [ P3(p.X, p.Y, p.Z)  for p in toolpathobject.Shape.Vertexes ]
@@ -238,7 +240,6 @@ def okaypressed():
 
     print("blocks ", list(map(len, tcpblockslinked)))
 
-    Ymid = 1000
     def srctcp(tcp):
         return srcpt({"X":tcp.X, "Y":tcp.Y + Ymid, "Z":tcp.Z, "E1":tcp.E1, "E1a":tcp.E1a, "E3":tcp.E3*1000/360, "fleng":tcp.freefibrelength})
 
@@ -268,17 +269,18 @@ qw.setWindowFlag(QtCore.Qt.WindowStaysOnTopHint)
 qw.setGeometry(700, 500, 570, 350)
 qw.setWindowTitle('Post process toolpath')
 qtoolpath = freecadutils.qrow(qw, "Toolpath: ", 15+35*1)
-qoutputsrcfile = freecadutils.qrow(qw, "Output file: ", 15+35*4, os.path.abspath("filwin10.src"))
-qthintol = freecadutils.qrow(qw, "Thinning tol: ", 15+35*5, "0.2")
-qoutputsweepmesh = freecadutils.qrow(qw, "sweepmesh: ", 15+35*6, "m1*")
+qyoffset = freecadutils.qrow(qw, "Yoffset: ", 15+35*4, "1000")
+qoutputsrcfile = freecadutils.qrow(qw, "Output file: ", 15+35*5, os.path.abspath("filwin10.src"))
+qthintol = freecadutils.qrow(qw, "Thinning tol: ", 15+35*6, "0.2")
+qoutputsweepmesh = freecadutils.qrow(qw, "sweepmesh: ", 15+35*7, "m1*")
 
 okButton = QtGui.QPushButton("Post", qw)
-okButton.move(180, 15+35*7)
+okButton.move(180, 15+35*8)
 QtCore.QObject.connect(okButton, QtCore.SIGNAL("pressed()"), okaypressed)  
 
 qtoolpath.setText(freecadutils.getlabelofselectedwire())
 qxconst = freecadutils.qrow(qw, "xconst: ", 15+35*2, "-115")
-qE3offset = freecadutils.qrow(qw, "E3offset: ", 15+35*3, "-45")
+qE3offset = freecadutils.qrow(qw, "E3offset ang: ", 15+35*3, "-45")   # in the XZ from the horizontal plane
 qtoolpathlength = freecadutils.qrow(qw, "(Length): ", 15+35*1, "0 ", 260)
 
 qoptionsrcdebug = QtGui.QCheckBox("Dbg SRC params", qw)
