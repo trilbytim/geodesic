@@ -4,7 +4,7 @@
 
 # Embed a curve into a mesh so we can head off in different directions and tell when it is crossed
 
-import Draft, Part, Mesh, MeshPart
+import Draft, Part, Mesh, MeshPart, Path
 from FreeCAD import Vector, Rotation 
 from PySide import QtGui, QtCore
 
@@ -204,7 +204,7 @@ def okaypressed():
             #print("backvecdot", backvecdot, tcpprev.Y, tcpcurr.Y)
             if backvecdot < -0.5:
                 print("Yhardswitchback block", i, "to Y direction", tcpblockYdirection[i], "spin", tcpblockE3direction[i])
-                Yhardswitchback = 1 if tcpblockE3direction[i] else -1
+                Yhardswitchback = 1 if tcpblockE3direction[i]==1 else -1
         tcpblockstartwithswitchback.append(Yhardswitchback)
     
     tcpblockslinked = [ ]
@@ -232,9 +232,9 @@ def okaypressed():
                 tcp = TCPplusfibre(pt + vec, pt, tcpE3offset)
                 tcplink.append(tcp)
             tcplink.append(tcp1)
-            for i in range(1, len(tcplink)-1):
-                tcplink[i].applyE3Winding(tcp0.E3)
-                tcplink[i].applyE1Winding(tcp0.E1)
+            for j in range(1, len(tcplink)-1):
+                tcplink[j].applyE3Winding(tcp0.E3)
+                tcplink[j].applyE1Winding(tcp0.E1)
 
             tcpblockslinked.append(tcplink)
             tcpblockslinkedstarthalt.append(tcpblockstartwithswitchback[i])
@@ -262,10 +262,23 @@ def okaypressed():
         mesh.ViewObject.Lighting = "Two side"
         mesh.ViewObject.DisplayMode = "Flat Lines"
         mesh.Mesh = Mesh.Mesh(facets)
+        
     if sweeppath:
+        pp = Path.Path()
         for i in range(len(tcpblockslinked)):
             tcpblock = tcpblockslinked[i]
+            pp.addCommands(Path.Command(["Msdown", "Ms", "Msup"][tcpblockslinkedstarthalt[i]+1]))
+            for tcp in tcpblock:
+                # the ABC settings cause it to be drawn with splines going everywhere they don't belong because 
+                # the plotting of the orientation is not done properly
+                #c = Path.Command("G1", {"X":tcp.X, "Y":tcp.Y, "Z":tcp.Z, "E3":tcp.E3*1000/360, "B":tcp.E1, "C":tcp.E1a, "L":tcp.freefibrelength})
+                c = Path.Command("G1", {"X":tcp.X, "Y":tcp.Y, "Z":tcp.Z, "E3":tcp.E3*1000/360})  
+                pp.addCommands(c)
             Part.show(Part.makePolygon([Vector(*tcp.GetTCP(True))  for tcp in tcpblock]), sweeppath)
+        o = freecadutils.doc.addObject("Path::Feature","mypath")
+        o.Path = pp
+        o.ViewObject.StartPosition = Vector(tcpblockslinked[0][0].X, tcpblockslinked[0][0].Y, tcpblockslinked[0][0].Z)
+
     print("blocks ", list(map(len, tcpblockslinked)))
 
     def srctcp(tcp):
