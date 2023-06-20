@@ -128,6 +128,17 @@ SRCparameters = ["X", "Y", "Z", "A", "E1", "E3", "E4"]
 def srcpt(ps):
     return "{%s}" % ", ".join("%s %+9.3f" % (c, ps[c])  for c in SRCparameters  if c in ps)
 
+
+def slerp(vec1, vec2, nsplit, pt1, pt2, fleng1, fleng2):
+    res = [ ]
+    for i in range(1, nsplit):
+        lam = i*1.0/nsplit
+        fleng = Along(lam, fleng1, fleng2)
+        vec = P3.ZNorm(Along(lam, vec1, vec2))*fleng
+        pt = Along(lam, pt1, pt2)
+        res.append((vec, pt))
+    return res
+
 def okaypressed():
     print("Okay Pressed") 
     if qoptionsrcdebug.isChecked():
@@ -137,6 +148,7 @@ def okaypressed():
     tcpconstXval = float(qxconst.text())
     tcpE3offset = float(qE3offset.text())
     Ymid = float(qyoffset.text())
+    nswitcheroosplit = max(1, int(qswitchsplit.text()))
 
     cr = abs(tcpconstXval)
     textlen = float(qtoolpathlength.text()) if len(qtoolpathlength.text()) != 0 and qtoolpathlength.text()[-1] != " " else None
@@ -204,14 +216,26 @@ def okaypressed():
             tcp0p, tcp1p = tcp0.GetTCP(True), tcp1.GetTCP(True)
             vecr0, vecr1 = tcp0.GetVecR(True), tcp1.GetVecR(True)
             fp0, fp1 = tcp0p + vecr0, tcp1p + vecr1
+            
             print("switchback from to", fp0, fp1, tcp0.freefibrelength, tcp1.freefibrelength)
             ptrmid = (fp0 + fp1)*0.5
             fflengmid = (tcp0.freefibrelength + tcp1.freefibrelength)*0.5
             vecmid = P3.ZNorm(P3(ptrmid.x, 0, ptrmid.z))*fflengmid
             tcpmid = TCPplusfibre(ptrmid + vecmid, ptrmid, tcpE3offset)
-            tcpmid.applyE3Winding(tcp0.E3)
-            tcpmid.applyE1Winding(tcp0.E1)
-            tcplink = [ tcp0, tcpmid, tcp1 ]
+
+            tcplink = [ tcp0 ]
+            for vec, pt in slerp(-P3.ZNorm(vecr0), P3.ZNorm(vecmid), nswitcheroosplit, fp0, ptrmid, tcp0.freefibrelength, fflengmid):
+                tcp = TCPplusfibre(pt + vec, pt, tcpE3offset)
+                tcplink.append(tcp)
+            tcplink.append(tcpmid)
+            for vec, pt in slerp(P3.ZNorm(vecmid), -P3.ZNorm(vecr1), nswitcheroosplit, ptrmid, fp1, fflengmid, tcp1.freefibrelength):
+                tcp = TCPplusfibre(pt + vec, pt, tcpE3offset)
+                tcplink.append(tcp)
+            tcplink.append(tcp1)
+            for i in range(1, len(tcplink)-1):
+                tcplink[i].applyE3Winding(tcp0.E3)
+                tcplink[i].applyE1Winding(tcp0.E1)
+
             tcpblockslinked.append(tcplink)
             tcpblockslinkedstarthalt.append(tcpblockstartwithswitchback[i])
         tcpblockslinked.append(tcpblock)
@@ -221,7 +245,9 @@ def okaypressed():
     headersrc = os.path.join(os.path.split(__file__)[0], "header.src")
     print("outputting src toolpath ", os.path.abspath(foutputsrc))
 
-    if len(qoutputsweepmesh.text()) != 0 and qoutputsweepmesh.text()[-1] != "*":
+    sweepmesh = qoutputsweepmesh.text() if len(qoutputsweepmesh.text()) != 0 and qoutputsweepmesh.text()[-1] != "*" else None
+    sweeppath = qoutputsweeppath.text() if len(qoutputsweeppath.text()) != 0 and qoutputsweeppath.text()[-1] != "*" else None
+    if sweepmesh:
         facets = [ ]
         for i in range(len(tcpblockslinked)):
             tcpblock = tcpblockslinked[i]
@@ -230,14 +256,16 @@ def okaypressed():
                 tcp0, tcp1 = tcpblock[j].GetTCP(True), tcpblock[j+1].GetTCP(True)
                 vecr0, vecr1 = tcpblock[j].GetVecR(True), tcpblock[j+1].GetVecR(True)
                 fp0, fp1 = tcp0 + vecr0, tcp1 + vecr1
-                #if (fp0 - P3(-108.77,750,61.57)).Len() > 6:  continue
                 facets.append([Vector(*tcp0), Vector(*fp0), Vector(*tcp1)])
                 facets.append([Vector(*tcp1), Vector(*fp0), Vector(*fp1)])
         mesh = freecadutils.doc.addObject("Mesh::Feature", qoutputsweepmesh.text())
         mesh.ViewObject.Lighting = "Two side"
         mesh.ViewObject.DisplayMode = "Flat Lines"
         mesh.Mesh = Mesh.Mesh(facets)
-
+    if sweeppath:
+        for i in range(len(tcpblockslinked)):
+            tcpblock = tcpblockslinked[i]
+            Part.show(Part.makePolygon([Vector(*tcp.GetTCP(True))  for tcp in tcpblock]), sweeppath)
     print("blocks ", list(map(len, tcpblockslinked)))
 
     def srctcp(tcp):
@@ -273,6 +301,7 @@ qyoffset = freecadutils.qrow(qw, "Yoffset: ", 15+35*4, "1000")
 qoutputsrcfile = freecadutils.qrow(qw, "Output file: ", 15+35*5, os.path.abspath("filwin10.src"))
 qthintol = freecadutils.qrow(qw, "Thinning tol: ", 15+35*6, "0.2")
 qoutputsweepmesh = freecadutils.qrow(qw, "sweepmesh: ", 15+35*7, "m1*")
+qoutputsweeppath = freecadutils.qrow(qw, "sweeppath: ", 15+35*7, "h1*", 260)
 
 okButton = QtGui.QPushButton("Post", qw)
 okButton.move(180, 15+35*8)
@@ -282,10 +311,11 @@ qtoolpath.setText(freecadutils.getlabelofselectedwire())
 qxconst = freecadutils.qrow(qw, "xconst: ", 15+35*2, "-115")
 qE3offset = freecadutils.qrow(qw, "E3offset ang: ", 15+35*3, "-45")   # in the XZ from the horizontal plane
 qtoolpathlength = freecadutils.qrow(qw, "(Length): ", 15+35*1, "0 ", 260)
+qswitchsplit = freecadutils.qrow(qw, "switchsplit: ", 15+35*2, "3", 260)
 
 qoptionsrcdebug = QtGui.QCheckBox("Dbg SRC params", qw)
 qoptionsrcdebug.move(80+260, 15+35*3)
-qoptionsrcdebug.setChecked(True)
+qoptionsrcdebug.setChecked(False)
 
 
 toolpathobject = freecadutils.findobjectbylabel(qtoolpath.text())
