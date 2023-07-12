@@ -7,12 +7,11 @@
 import Draft, Part, Mesh, MeshPart
 from FreeCAD import Vector, Rotation 
 from PySide import QtGui, QtCore
-from barmesh.basicgeo import P2
 
 import os, sys, math, time
 sys.path.append(os.path.join(os.path.split(__file__)[0]))
 print(sys.path[-1])
-
+from barmesh.basicgeo import P2
 
 import curvesutils;  import sys;  sys.modules.pop("curvesutils")
 import trianglemeshutils;  import sys;  sys.modules.pop("trianglemeshutils")
