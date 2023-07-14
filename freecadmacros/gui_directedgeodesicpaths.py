@@ -241,8 +241,8 @@ def okaypressed():
         wirelength = sum((gb2.pt - gb1.pt).Len()  for gb1, gb2 in zip(gbs, gbs[1:]))
         makebicolouredwire(gbs, qoutputfilament.text(), colfront=(1.0,0.0,0.0), 
                                                         colback =(0.0,0.6,0.0) if abs(dsangle) < 90 else (0.0,0.0,0.9))
-        print("alongwirelanded %3f  leng=%.2f   ** setting AlngWre advance to the difference" % (alongwirelanded, wirelength))
-        qalongwireadvanceI.setText("%.3f" % ((alongwirelanded - alongwire + 1)%1))
+        print("alongwirelanded %4f  leng=%.2f   ** setting AlngWre advance to the difference" % (alongwirelanded, wirelength))
+        qalongwireadvanceI.setText("%.4f" % ((alongwirelanded - alongwire + 1)%1))
         return
     
     gbsS = [ gbs[0].gbBackbarC ] + gbs[1:-1] + [ gbs[-1].gbForebarC ]

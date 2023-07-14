@@ -267,7 +267,7 @@ def okaypressed():
         pp = Path.Path()
         for i in range(len(tcpblockslinked)):
             tcpblock = tcpblockslinked[i]
-            pp.addCommands(Path.Command(["Msdown", "Ms", "Msup"][tcpblockslinkedstarthalt[i]+1]))
+            pp.addCommands(Path.Command(["K01", "K00", "K99"][tcpblockslinkedstarthalt[i]+1]))
             for tcp in tcpblock:
                 # the ABC settings cause it to be drawn with splines going everywhere they don't belong because 
                 # the plotting of the orientation is not done properly
@@ -310,7 +310,7 @@ qw.setWindowFlag(QtCore.Qt.WindowStaysOnTopHint)
 qw.setGeometry(700, 500, 570, 350)
 qw.setWindowTitle('Post process toolpath')
 qtoolpath = freecadutils.qrow(qw, "Toolpath: ", 15+35*1)
-qyoffset = freecadutils.qrow(qw, "Yoffset: ", 15+35*4, "1000")
+qyoffset = freecadutils.qrow(qw, "Yoffset: ", 15+35*4, "301.64")
 qoutputsrcfile = freecadutils.qrow(qw, "Output file: ", 15+35*5, os.path.abspath("filwin10.src"))
 qthintol = freecadutils.qrow(qw, "Thinning tol: ", 15+35*6, "0.2")
 qoutputsweepmesh = freecadutils.qrow(qw, "sweepmesh: ", 15+35*7, "m1*")
