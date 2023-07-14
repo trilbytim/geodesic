@@ -4,7 +4,7 @@
 
 # Embed a curve into a mesh so we can head off in different directions and tell when it is crossed
 
-import Draft, Part, Mesh, MeshPart
+import Draft, Part, Mesh, MeshPart, Fem
 from FreeCAD import Vector, Rotation 
 from PySide import QtGui, QtCore
 
@@ -132,12 +132,29 @@ class MandrelPaths:
             ld += prop*vlen
         return ld
 
+def MakeFEAcoloredmesh(mesh, nodecolours):
+    tria3 = Fem.FemMesh()
+    for p in mesh.Mesh.Points:
+        tria3.addNode(p.x, p.y, p.z, p.Index+1)
+    for f in mesh.Mesh.Facets:
+        tria3.addFace([i+1  for i in f.PointIndices])
+    obj = freecadutils.doc.addObject("Fem::FemMeshObject", mesh.Label+"_TH")
+    obj.FemMesh = tria3
+    obj.Placement = mesh.Placement
+    obj.ViewObject.DisplayMode = "Faces, Wireframe & Nodes"
+    obj.ViewObject.BackfaceCulling = False
+    obj.ViewObject.PointSize = 1
+    obj.ViewObject.NodeColor = dict((i+1, col)  for i, col in enumerate(nodecolours))
+
 
 def okaypressed():
     print("Okay Pressed") 
     mandrelpaths = [ freecadutils.findobjectbylabel(mandrelpathname)  for mandrelpathname in qmandrelpaths.text().split(",") ]
     towwidth = float(qtowwidth.text())
     measuremesh = freecadutils.findobjectbylabel(qmeshpointstomeasure.text())
+    col0 = P3(*[float(x.strip())  for x in qcol0.text().split(",") ])
+    col1 = P3(*[float(x.strip())  for x in qcol1.text().split(",") ])
+    colv0, colv1 = [float(x.strip())  for x in qcolrange.text().split(",") ]
     
     mandrelptpaths = [ ]
     for mandrelpath in mandrelpaths:
@@ -165,22 +182,31 @@ def okaypressed():
                     bpcr.DistEdge(mandpaths.getpt(i), mandpaths.getpt(i+1), i)
                     mandpaths.hitreg[i] = mandpaths.nhitreg
         bpcr.mergeranges()
-        ss = len(bpcr.ranges)
-        bpcr.mergegaps(0.1, mandpaths)
-        if ss != len(bpcr.ranges):
-            print("Gap actuially merged")
+        #ss = len(bpcr.ranges)
+        #bpcr.mergegaps(0.1, mandpaths)
+        #if ss != len(bpcr.ranges):
+        #    print("Gap actually merged")
         thickcount.append(len(bpcr.ranges))
-    print(thickcount)
+
+    print(col0, col1, colv0, colv1)
+    nodecolours = [ ]
+    for c in thickcount:
+        l = (c - colv0)/(colv1 - colv0)
+        nodecolours.append(tuple(Along(max(0, min(1, l)), col0, col1)))
+    MakeFEAcoloredmesh(measuremesh, nodecolours)
     qw.hide()
 
 qw = QtGui.QWidget()
 qw.setWindowFlag(QtCore.Qt.WindowStaysOnTopHint)
-qw.setGeometry(700, 500, 570, 350)
+qw.setGeometry(700, 500, 300, 350)
 qw.setWindowTitle('Measure thickness')
 qmeshpointstomeasure = freecadutils.qrow(qw, "Mesh: ", 15+35*1)
 
 qmandrelpaths = freecadutils.qrow(qw, "Winding paths ", 15+35*2, "")
 qtowwidth = freecadutils.qrow(qw, "Tow width: ", 15+35*3, "6")
+qcol0 = freecadutils.qrow(qw, "Colour0: ", 15+35*4, "0,0,1")
+qcol1 = freecadutils.qrow(qw, "Colour1: ", 15+35*5, "1,0,0")
+qcolrange = freecadutils.qrow(qw, "Colrange: ", 15+35*6, "0,5")
 
 okButton = QtGui.QPushButton("Measure", qw)
 okButton.move(180, 15+35*7)
@@ -189,6 +215,15 @@ QtCore.QObject.connect(okButton, QtCore.SIGNAL("pressed()"), okaypressed)
 qmandrelpaths.setText(freecadutils.getlabelofselectedwire(multiples=True))
 qmeshpointstomeasure.setText(freecadutils.getlabelofselectedmesh())
 
+
 qw.show()
 
 
+#obj.ViewObject.HighlightedNodes = [1, 2, 3]
+#The individual elements of a mesh can be modified by passing a dictionary with the appropriate key:value pairs.
+#Set volume 1 to red
+#obj.ViewObject.ElementColor = {1:(1,0,0)}
+#Set nodes 1, 2 and 3 to a certain color; the faces between the nodes acquire an interpolated color.
+#obj.ViewObject.NodeColor = {1:(1,0,0), 2:(0,1,0), 3:(0,0,1)}
+#Displace the nodes 1 and 2 by the magnitude and direction defined by a vector.
+#obj.ViewObject.NodeDisplacement = {1:FreeCAD.Vector(0,1,0), 2:FreeCAD.Vector(1,0,0)}
