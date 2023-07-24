@@ -137,11 +137,14 @@ def drivegeodesicRI(gbStart, drivebars, tridrivebarsmap, LRdirection=1, sideslip
     return gbs
 
 def makebicolouredwire(gbs, name, colfront=(1.0,0.0,0.0), colback=(0.0,0.3,0.0), leadcolornodes=-1):
-    wire = Part.show(Part.makePolygon([Vector(*gb.pt)  for gb in gbs]), name)
+    if gbs[-1]: # Deal with last point being None type
+    	wire = Part.show(Part.makePolygon([Vector(*gb.pt)  for gb in gbs]), name)
+    else:
+    	wire = Part.show(Part.makePolygon([Vector(*gb.pt)  for gb in gbs[:-1]]), name)
     if leadcolornodes == -1:
         leadcolornodes = min(len(gbs)//2, 40)
     wire.ViewObject.LineColorArray= [colfront]*leadcolornodes + [colback]*(len(gbs) - leadcolornodes)
-    print("supposed to colour", wire.ViewObject)
+    #print("supposed to colour", wire.ViewObject)
     return wire
 
 
@@ -191,17 +194,17 @@ def directedgeodesic(combofoldbackmode,sketchplane,meshobject,alongwire,alongwir
     if combofoldbackmode != 0:
         fLRdirection = -fLRdirection
         
-    print("doing alongwire %.2f foldback=%d  alongwireI %.2f" % (alongwire, fLRdirection, alongwireI or 0))
+    #print("doing alongwire %.2f foldback=%d  alongwireI %.2f" % (alongwire, fLRdirection, alongwireI or 0))
     gbs = drivegeodesicRI(gbStart, drivecurve.drivebars, drivecurve.tridrivebarsmap, LRdirection=fLRdirection, sideslipturningfactor=sideslipturningfactorZ, maxlength=maxlength)
     if gbs[-1] == None:
-        Part.show(Part.makePolygon([Vector(*gb.pt)  for gb in gbs[:-1]]), outputfilament)
-        return
+        #Part.show(Part.makePolygon([Vector(*gb.pt)  for gb in gbs[:-1]]), outputfilament)
+        return gbs, 0, -1, None
         
     alongwirelanded = drivecurve.endalongposition(gbs[-1])
     if alongwireI is None:
         wirelength = sum((gb2.pt - gb1.pt).Len()  for gb1, gb2 in zip(gbs, gbs[1:]))
         #makebicolouredwire(gbs, outputfilament, colfront=(1.0,0.0,0.0), colback =(0.0,0.6,0.0) if abs(dsangle) < 90 else (0.0,0.0,0.9))
-        print("alongwirelanded %4f  leng=%.2f   ** setting AlngWre advance to the difference" % (alongwirelanded, wirelength))
+        #print("alongwirelanded %4f  leng=%.2f   ** setting AlngWre advance to the difference" % (alongwirelanded, wirelength))
         return gbs, 0, -1, alongwirelanded
     
     gbsS = [ gbs[0].gbBackbarC ] + gbs[1:-1] + [ gbs[-1].gbForebarC ]
@@ -213,7 +216,7 @@ def directedgeodesic(combofoldbackmode,sketchplane,meshobject,alongwire,alongwir
     sideslipturningfactor = Maxsideslipturningfactor*LRdirectionI
     
     dsangleI = dsangle+180.0 if combofoldbackmode == 0 else 180.0-dsangle
-    print("dsangleI", dsangleI, dsangle, combofoldbackmode)
+    #print("dsangleI", dsangleI, dsangle, combofoldbackmode)
     gbStartI = drivecurve.startalongangle(alongwireI, dsangleI)
     gbsI = drivegeodesicRI(gbStartI, drivebarsB, tridrivebarsmapB, sideslipturningfactor=sideslipturningfactor, LRdirection=LRdirectionI, MAX_SEGMENTS=len(gbs))
     
@@ -232,7 +235,7 @@ def directedgeodesic(combofoldbackmode,sketchplane,meshobject,alongwire,alongwir
         else:
             break
             
-    print("making join bit")
+    #print("making join bit")
     dseg = tridrivebarsmapB[gbsI[-1].tbar.i]
     gbarT1 = gbsI[0]
     gbarT1.gbBackbarC, gbarT1.gbForebarC = gbarT1.gbForebarC, gbarT1.gbBackbarC
