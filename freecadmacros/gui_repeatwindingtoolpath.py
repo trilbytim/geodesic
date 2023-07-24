@@ -32,6 +32,10 @@ freecadutils.init(App)
 def okaypressed():
     print("Okay Pressed") 
     singlewindobjects = [ freecadutils.findobjectbylabel(singlewindname)  for singlewindname in qsinglewindpath.text().split(",") ]
+    if qoutputfilament.text():
+    	outputfilament = qoutputfilament.text()
+    else:
+    	outputfilament = qsinglewindpath.text() + 'x' + qmandrelwindings.text()
 
     mandrelwindings = int(qmandrelwindings.text())
     mandrelwindingsmultiples = int(qmandrelwindingsmultiples.text())
@@ -67,7 +71,7 @@ def okaypressed():
         rotsin = math.sin(math.radians(i*angadvance))
         for pt in tpt0[1:]:
             tpt.append(P3(pt.x*rotcos + pt.z*rotsin, pt.y, pt.z*rotcos - pt.x*rotsin))
-    Part.show(Part.makePolygon([Vector(pt)  for pt in tpt]), qoutputfilament.text())
+    Part.show(Part.makePolygon([Vector(pt)  for pt in tpt]), outputfilament)
     qw.hide()
 
 mandrelwindings = 10
@@ -82,7 +86,7 @@ mandrelwindings = 10
 
 qmandrelwindings = freecadutils.qrow(qw, "Windings adv: ", 15+35*2, "%d" % mandrelwindings)
 qmandrelwindingsmultiples = freecadutils.qrow(qw, "Windings mult: ", 15+35*3, "1")
-qoutputfilament = freecadutils.qrow(qw, "Output name: ", 15+35*4, "t1")
+qoutputfilament = freecadutils.qrow(qw, "Output name: ", 15+35*4)
 qthintol = freecadutils.qrow(qw, "Thinning tol: ", 15+35*5, "0.2")
 
 okButton = QtGui.QPushButton("Repeat", qw)
