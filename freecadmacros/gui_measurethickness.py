@@ -12,13 +12,12 @@ import os, sys, math, time
 sys.path.append(os.path.join(os.path.split(__file__)[0]))
 print(sys.path[-1])
 
-import freecadutils;  import sys;  sys.modules.pop("freecadutils")
 
 from barmesh.basicgeo import I1, Partition1, P3, P2, Along, lI1
 from barmesh.tribarmes.triangleboxing import TriangleBoxing
 from utils.pathutils import BallPathCloseRegions, MandrelPaths, MakeFEAcoloredmesh
 
-import freecadutils
+import utils.freecadutils as freecadutils
 freecadutils.init(App)
 
 

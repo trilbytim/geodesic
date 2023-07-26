@@ -1,4 +1,4 @@
-import freecadutils
+import utils.freecadutils as freecadutils
 import numpy as np
 from PySide import QtGui, QtCore
 import sys
@@ -7,7 +7,6 @@ import Draft
 freecadutils.init(App)
 sys.path.append(os.path.split(__file__)[0])
 
-from utils.fcutils import getemptyfolder
 from barmesh.basicgeo import I1, Partition1, P3, P2, Along, lI1
 from barmesh.tribarmes.triangleboxing import TriangleBoxing
 from utils.pathutils import BallPathCloseRegions, MandrelPaths
@@ -17,8 +16,8 @@ from utils.pathutils import BallPathCloseRegions, MandrelPaths
 def okaypressed():
     r = float(qr.text())
     yo = float(qy.text())
-    towwidth = float(qtowwidth.text())/2
-    towthick = float(qtowthick.text())/2
+    towwidth = float(qtowwidth.text())
+    towthick = float(qtowthick.text())
     mandrelpaths = [ freecadutils.findobjectbylabel(mandrelpathname)  for mandrelpathname in qmandrelpaths.text().split(",") ]
     pts=[]
     for a in np.linspace(0,2*np.pi,20):
@@ -34,8 +33,8 @@ def okaypressed():
         mandrelwindpts = [ P3(p.X, p.Y, p.Z)  for p in mandrelpath.Shape.Vertexes ]
         mandrelptpaths.append(mandrelwindpts)
     mandpaths = MandrelPaths(mandrelptpaths)
-    xrg = mandpaths.xrg.Inflate(towwidth*2)
-    yrg = mandpaths.yrg.Inflate(towwidth*2)
+    xrg = mandpaths.xrg.Inflate(towwidth)
+    yrg = mandpaths.yrg.Inflate(towwidth)
     boxwidth = max(towwidth, xrg.Leng()/30, yrg.Leng()/30)
     tbs = TriangleBoxing(None, xrg.lo, xrg.hi, yrg.lo, yrg.hi, boxwidth)
     print("Creating box set boxwidth=", boxwidth, mandpaths.Nm)
@@ -67,7 +66,7 @@ def okaypressed():
     print(thickcount)
     
 doc = App.ActiveDocument    
-ringsgroup = getemptyfolder(doc, "Rings")
+ringsgroup = freecadutils.getemptyfolder(doc, "Rings")
 
 
 w = freecadutils.findobjectbylabel(freecadutils.getlabelofselectedwire())
@@ -100,8 +99,8 @@ qtowthick = freecadutils.qrow(qw, "Tow thickness: ", 15+35*4, "0.18")
 okButton = QtGui.QPushButton("Evaluate", qw)
 okButton.move(180, 15+35*7)
 qmandrelpaths.setText(freecadutils.getlabelofselectedwire(multiples=True))
-qy.setText(str(passY.Y))
-qr.setText(str(XZmin))
+qy.setText("%.3f" % passY.Y)
+qr.setText("%.3f" % XZmin)
 QtCore.QObject.connect(okButton, QtCore.SIGNAL("pressed()"), okaypressed)
 qw.show()
 

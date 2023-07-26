@@ -12,20 +12,19 @@ import os, sys, math, time
 sys.path.append(os.path.join(os.path.split(__file__)[0]))
 print(sys.path[-1])
 
-import curvesutils;  import sys;  sys.modules.pop("curvesutils")
-import trianglemeshutils;  import sys;  sys.modules.pop("trianglemeshutils")
-import geodesicutils;  import sys;  sys.modules.pop("geodesicutils")
-import freecadutils;  import sys;  sys.modules.pop("freecadutils")
+#import curvesutils;  import sys;  sys.modules.pop("curvesutils")
+#import trianglemeshutils;  import sys;  sys.modules.pop("trianglemeshutils")
+#import geodesicutils;  import sys;  sys.modules.pop("geodesicutils")
+#import freecadutils;  import sys;  sys.modules.pop("freecadutils")
 
 from barmesh.basicgeo import I1, Partition1, P3, P2, Along
-from curvesutils import isdiscretizableobject, discretizeobject, thinptstotolerance
-from curvesutils import cumlengthlist, seglampos
-from trianglemeshutils import UsefulBoxedTriangleMesh, facetbetweenbars
-from wireembeddingutils import planecutembeddedcurve, planecutbars
+from utils.curvesutils import isdiscretizableobject, discretizeobject, thinptstotolerance, cumlengthlist, seglampos
+from utils.trianglemeshutils import UsefulBoxedTriangleMesh, facetbetweenbars
+from utils.wireembeddingutils import planecutembeddedcurve, planecutbars
 
-from geodesicutils import drivegeodesic, InvAlong, GBarT, GBarC, drivecurveintersectionfinder, trilinecrossing, TOL_ZERO
+from utils.geodesicutils import drivegeodesic, InvAlong, GBarT, GBarC, drivecurveintersectionfinder, trilinecrossing, TOL_ZERO
 
-import freecadutils
+import utils.freecadutils as freecadutils
 freecadutils.init(App)
 
 

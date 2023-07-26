@@ -11,6 +11,7 @@ def init(App):
     global doc, sel
     doc = App.ActiveDocument
     sel = App.Gui.Selection.getSelection()
+    return doc, sel
 
 def qrow(qw, slab, yval, txt="", xposoffs=0):
     v = QtGui.QLineEdit(qw); 
@@ -69,3 +70,15 @@ def showdrivebarsmesh(drivebars, lab):
     mesh = doc.addObject("Mesh::Feature", lab)
     mesh.Mesh = Mesh.Mesh(facets)
     return mesh
+
+def removeObjectRecurse(doc, objname):
+	for o in doc.findObjects(Name=objname)[0].OutList:
+		removeObjectRecurse(doc, o.Name)
+	doc.removeObject(objname)
+    
+def getemptyfolder(doc, foldername):
+	objs = doc.findObjects(Label=foldername)
+	folder = objs[0] if objs else doc.addObject("App::DocumentObjectGroup", foldername)
+	for o in folder.OutList:
+		removeObjectRecurse(doc, o.Name)
+	return folder

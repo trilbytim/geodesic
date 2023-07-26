@@ -1,5 +1,6 @@
 import numpy as np
-import Fem, freecadutils
+import Fem
+import utils.freecadutils as freecadutils
 from barmesh.basicgeo import I1, P3
 
 def TOL_ZERO(X, msg=""):
