@@ -10,9 +10,9 @@ import os, sys, math, time
 sys.path.append(os.path.join(os.path.split(__file__)[0]))
 print(sys.path[-1])
 
-import trianglemeshutils;  import sys;  sys.modules.pop("trianglemeshutils")
-import freecadutils
-from trianglemeshutils import UsefulBoxedTriangleMesh
+#import utils.trianglemeshutils;  import sys;  sys.modules.pop("trianglemeshutils")
+import utils.freecadutils as freecadutils 
+from utils.trianglemeshutils import UsefulBoxedTriangleMesh
 
 freecadutils.init(App)
 

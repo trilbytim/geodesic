@@ -186,7 +186,7 @@ def directedgeodesic(combofoldbackmode,sketchplane,meshobject,alongwire,alongwir
     startbar, startlam = planecutbars(utbm.tbarmesh, driveperpvec, driveperpvecDot)
     drivebars = planecutembeddedcurve(startbar, startlam, driveperpvec)
     drivecurve = DriveCurve(drivebars)
-    print("girth comparison", mandrelgirth, drivecurve.dptcls[-1])
+    print("girth comparison", 'Nominal:',mandrelgirth, 'Drivecurve length:',drivecurve.dptcls[-1])
 
     gbStart = drivecurve.startalongangle(alongwire, dsangle)
 

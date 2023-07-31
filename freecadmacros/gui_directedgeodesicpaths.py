@@ -24,7 +24,7 @@ def okaypressed():
 		qw.hide()
 		return
 	alongwire = float(qalongwire.text())
-	dsangle = 90-float(qanglefilament.text())
+	dsangle = 270-float(qanglefilament.text())
 	sideslipturningfactorZ = float(qsideslip.text())
 	maxlength = float(qmaxlength.text())
 	if len(qalongwireadvanceI.text()) != 0:

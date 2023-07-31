@@ -184,13 +184,13 @@ combofoldbackmode = 0
 mandrelradius = 110  # fc6 file
 
 AngLo = 10
-AngHi = 60
+AngHi = 90
 maxlength = 6000
 
 alongwire = 0.51
 tw = 6.35
 tth = 0.18
-tolPO = tw/4
+tolPO = tw/8
 targetPO = 35+ 0.5 * tw
 
 qw = QtGui.QWidget()
