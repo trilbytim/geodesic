@@ -25,6 +25,7 @@ def okaypressed():
     print("Okay Pressed") 
     mandrelpaths = [ freecadutils.findobjectbylabel(mandrelpathname)  for mandrelpathname in qmandrelpaths.text().split(",") ]
     towwidth = float(qtowwidth.text())/2
+    towthick = float(qtowthick.text())
     measuremesh = freecadutils.findobjectbylabel(qmeshpointstomeasure.text())
     col0 = P3(*[float(x.strip())  for x in qcol0.text().split(",") ])
     col1 = P3(*[float(x.strip())  for x in qcol1.text().split(",") ])
@@ -72,7 +73,8 @@ def okaypressed():
     print('Maximum thickness of:', maxthickcount,'at', thickpoint)
     nodecolours = [ ]
     for c in thickcount:
-        l = (c - colv0)/(colv1 - colv0)
+        t = c * 0.18
+        l = (t - colv0)/(colv1 - colv0)
         nodecolours.append(tuple(Along(max(0, min(1, l)), col0, col1)))
     MakeFEAcoloredmesh(measuremesh, nodecolours)
     qw.hide()
@@ -84,13 +86,14 @@ qw.setWindowTitle('Measure thickness')
 qmeshpointstomeasure = freecadutils.qrow(qw, "Mesh: ", 15+35*1)
 
 qmandrelpaths = freecadutils.qrow(qw, "Winding paths ", 15+35*2, "")
-qtowwidth = freecadutils.qrow(qw, "Tow width: ", 15+35*3, "6")
-qcol0 = freecadutils.qrow(qw, "Colour0: ", 15+35*4, "0,0,1")
-qcol1 = freecadutils.qrow(qw, "Colour1: ", 15+35*5, "1,0,0")
-qcolrange = freecadutils.qrow(qw, "Colrange: ", 15+35*6, "0,5")
+qtowwidth = freecadutils.qrow(qw, "Tow width: ", 15+35*3, "6.35")
+qtowthick = freecadutils.qrow(qw, "Tow thick: ", 15+35*4, "0.18")
+qcol0 = freecadutils.qrow(qw, "Colour0: ", 15+35*5, "0,0,1")
+qcol1 = freecadutils.qrow(qw, "Colour1: ", 15+35*6, "1,0,0")
+qcolrange = freecadutils.qrow(qw, "Colrange: ", 15+35*7, "0,5")
 
 okButton = QtGui.QPushButton("Measure", qw)
-okButton.move(180, 15+35*7)
+okButton.move(180, 15+35*8)
 QtCore.QObject.connect(okButton, QtCore.SIGNAL("pressed()"), okaypressed)  
 
 qmandrelpaths.setText(freecadutils.getlabelofselectedwire(multiples=True))

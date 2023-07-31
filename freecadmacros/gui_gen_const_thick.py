@@ -27,14 +27,18 @@ sideslipturningfactorZ = None
 outputfilament = None
 thintol = 0.2
 
-def evalrepthick(landed,totrpt, XZmin, passY):
-	#print('LANDED AT', landed)
-	alongwireadv =  (round(totrpt * (landed))+landed) / totrpt
-	#print('FORCE TO', alongwireadv)
+#Function that repeats a path and evaluates the thickness on a ring at coord yo and radius r
+def evalrepthick(landed,totrpt, r, yo):
+	print('Tot rep', totrpt)
+	print('LANDED AT', landed)
+	alongwireadv =  (round(totrpt * (landed))) / totrpt
+	print('FORCE TO', alongwireadv)
 	alongwireI = alongwire + alongwireadv
 	gbs, fLRdirection, dseg, alongwirelanded100 = directedgeodesic(combofoldbackmode, sketchplane, meshobject, alongwire, alongwireI, dsangle, Maxsideslipturningfactor, mandrelradius, sideslipturningfactorZ, maxlength, outputfilament)
+	#name = 'w'+str(int(dsangle-90))+'forced'
+	#makebicolouredwire(gbs, name, colfront=(1.0,0.0,0.0) if fLRdirection == -1 else (0.0,0.0,1.0), colback=(0.7,0.7,0.0), leadcolornodes=dseg+1)
 	rpts = repeatwindingpath([P3(*gb.pt)  for gb in gbs], totrpt,thintol)
-	meanthick = evalthick(XZmin, passY.y, [rpts],tw,tth)
+	meanthick = evalthick(r, yo, [rpts],tw,tth)
 	return rpts, meanthick
 	
 def repeatwindingpath(rpts, repeats,thintol):
@@ -101,6 +105,12 @@ def okaypressed():
 	AngLo = float(qAngLo.text())
 	AngHi = float(qAngHi.text())
 	thintol = float(qthintol.text())
+	tw = float(qtowwidth.text())
+	tth = float(qtowthick.text())
+	if len(qbasewire.text()) != 0:
+		basewire = freecadutils.findobjectbylabel(qbasewire.text())
+	else:
+		basewire = None
 	if not (sketchplane and meshobject):
 		print("Need to select a Sketch and a Mesh object in the UI to make this work")
 		qw.hide()
@@ -108,11 +118,6 @@ def okaypressed():
 	
 	sideslipturningfactorZ = float(qsideslip.text())
 	
-#	if len(qalongwireadvanceI.text()) != 0:
-#		alongwireadvanceI = float(qalongwireadvanceI.text())
-#		alongwireI = (alongwire + alongwireadvanceI) % 1.0
-#	else:
-#		alongwireI = None
 	alongwireI = None
 	finished = False
 	attempts = 5
@@ -139,6 +144,7 @@ def okaypressed():
 		else:
 			AngHi = 90-dsangle
 		if i > attempts:
+			print('**** WARNING *****')
 			print('Failed to find path to satisfy')
 			finished = True
 		elif abs(XZmin-targetPO) < tolPO and gbs[-1]:
@@ -146,36 +152,31 @@ def okaypressed():
 			finished = True
 		i+=1
 	name = 'w'+str(int(dsangle-90))
-	makebicolouredwire(gbs, name, colfront=(1.0,0.0,0.0) if fLRdirection == -1 else (0.0,0.0,1.0), colback=(0.7,0.7,0.0), leadcolornodes=dseg+1)
+	#makebicolouredwire(gbs, name, colfront=(1.0,0.0,0.0) if fLRdirection == -1 else (0.0,0.0,1.0), colback=(0.7,0.7,0.0), leadcolornodes=dseg+1)
 	doc.recompute()
 	
 	#REPEAT 100 times
 	totrpt = 100
 	landed = alongwirelanded - alongwire
-	rpts, meanthick = evalrepthick(landed, totrpt, XZmin, passY)
-	
-	Part.show(Part.makePolygon([Vector(pt)  for pt in rpts]), name+'x'+str(totrpt))
-	
-	#Work out total number of repeats required to achieve correct total thickness
-	totrpt = int(100*totthick/meanthick)
+	rpts, meanthick = evalrepthick(landed, totrpt, XZmin, passY.y)
 	#Create wire forced to an intersection point that gives an integer number of repeat)
-	
-	
-	#print(totrpt,alongwirelanded,alongwire)
-	#alongwireadv =  (round(totrpt * (landed))+landed) / totrpt
-	#print('FORCE TO', alongwireadv)
-	#alongwireI = alongwire + alongwireadv
-	#gbs, fLRdirection, dseg, alongwirelanded = directedgeodesic(combofoldbackmode, sketchplane, meshobject, alongwire, alongwireI, dsangle, Maxsideslipturningfactor, mandrelradius, sideslipturningfactorZ, maxlength, outputfilament)
-	#name = 'w'+str(int(dsangle-90))+'forced'
-	#makebicolouredwire(gbs, name, colfront=(1.0,0.0,0.0) if fLRdirection == -1 else (0.0,0.0,1.0), colback=(0.7,0.7,0.0), leadcolornodes=dseg+1)
-	#doc.recompute()
+	if basewire:
+		basethick = evalthick(XZmin, passY.y, [[P3(v.X,v.Y,v.Z)  for v in basewire.Shape.Vertexes]], tw, tth)
+		print('basethickness', basethick)
+		totrpt = int(100*(totthick-basethick)/meanthick)-1
+	else:
+		totrpt = int(100*totthick/meanthick)-1
 	
 	#Repeat that wire to create final ply
-	#rpts = repeatwindingpath([P3(*gb.pt)  for gb in gbs], totrpt,thintol)
-	rpts, meanthick = evalrepthick(landed, totrpt, XZmin, passY)
+	rpts, meanthick = evalrepthick(landed, totrpt, XZmin, passY.y)
 	print('First:', rpts[0], 'Last', rpts[-1] , 'thick', meanthick)
-	ply = Part.show(Part.makePolygon([Vector(pt)  for pt in rpts]), name+'x'+str(totrpt))
-	Part.show(Part.makePolygon([rpts[0],rpts[-1]]), 'grrr')
+	if basewire:
+		ply = Part.show(Part.makePolygon([Vector(v.X,v.Y,v.Z) for v in basewire.Shape.Vertexes]+[Vector(pt)  for pt in rpts]), basewire.Name+'_'+str(int(dsangle-90))+'x'+str(totrpt))
+	else:
+		ply = Part.show(Part.makePolygon([Vector(pt)  for pt in rpts]), name+'x'+str(totrpt))
+	#Part.show(Part.makePolygon([rpts[0],rpts[-1]]), 'grrr')
+	qbasewire.setText(ply.Name)
+	qtargetPO.setText(str(targetPO+tw))
 
 
 Maxsideslipturningfactor = 0.26
@@ -201,8 +202,11 @@ qmeshobject = freecadutils.qrow(qw, "Meshobject: ", 15+35*1 )
 
 qAngLo = freecadutils.qrow(qw, "Min angle: ", 15+35*2, "%.1f" % AngLo)
 qAngHi = freecadutils.qrow(qw, "Max angle: ", 15+35*3, "%.1f" % AngHi)
+qoutputfilament = freecadutils.qrow(qw, "Output name: ", 15+35*4, "w1")
+qthintol = freecadutils.qrow(qw, "Thinning tol: ", 15+35*5, "0.2")
+qbasewire = freecadutils.qrow(qw, "Base wire: ", 15+35*6)
 
-qtargetPO = freecadutils.qrow(qw, "Polar opening: ", 15+35*0, "%.2f" % targetPO, 260)
+qtargetPO = freecadutils.qrow(qw, "Polar opening r: ", 15+35*0, "%.2f" % targetPO, 260)
 qtolPO = freecadutils.qrow(qw, "PO tolerance: ", 15+35*1, "%.2f" % tolPO, 260)
 qtowwidth = freecadutils.qrow(qw, "Tow width: ", 15+35*2, "%.2f" % tw,260)
 qtowthick = freecadutils.qrow(qw, "Tow thickness: ", 15+35*3, "%.2f" % tth,260)
@@ -210,8 +214,8 @@ qtowthick = freecadutils.qrow(qw, "Tow thickness: ", 15+35*3, "%.2f" % tth,260)
 #vlab.move(20+260, 15+35*3+5)
 qtotthick = freecadutils.qrow(qw, "Desired thick: ", 15+35*4, "6.7", 260)
 qsideslip = freecadutils.qrow(qw, "Side slip: ", 15+35*5, "0", 260)
-qoutputfilament = freecadutils.qrow(qw, "Output name: ", 15+35*4, "w1")
-qthintol = freecadutils.qrow(qw, "Thinning tol: ", 15+35*5, "0.2")
+
+
 okButton = QtGui.QPushButton("Drive", qw)
 okButton.move(180, 15+35*7)
 QtCore.QObject.connect(okButton, QtCore.SIGNAL("pressed()"), okaypressed)  
