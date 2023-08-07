@@ -34,6 +34,12 @@ def getlabelofselectedmesh():
     for s in sel:
         if hasattr(s, "Mesh") and isinstance(s.Mesh, Mesh.Mesh):
             return s.Label
+        if s.TypeId == "Mesh::Curvature":
+            if "ValueAtIndex" in s.PropertiesList:
+                return s.Label
+            else:
+                print("***  Wrong version of FreeCAD, \n\nMeshCurvature object missing ValueAtIndex hack.")
+                return "**WrongFCversion"
     return ""
 
 def getlabelofselectedsketch():

@@ -8,6 +8,7 @@ import Draft, Part, Mesh, MeshPart, Fem
 from FreeCAD import Vector, Rotation 
 from PySide import QtGui, QtCore
 
+
 import os, sys, math, time
 sys.path.append(os.path.join(os.path.split(__file__)[0]))
 print(sys.path[-1])
@@ -21,12 +22,20 @@ import utils.freecadutils as freecadutils
 freecadutils.init(App)
 
 
+
 def okaypressed():
     print("Okay Pressed") 
     mandrelpaths = [ freecadutils.findobjectbylabel(mandrelpathname)  for mandrelpathname in qmandrelpaths.text().split(",") ]
     towwidth = float(qtowwidth.text())/2
     towthick = float(qtowthick.text())
+    
     measuremesh = freecadutils.findobjectbylabel(qmeshpointstomeasure.text())
+    if measuremesh.TypeId == "Mesh::Curvature":
+        meshcurvature = measuremesh
+        measuremesh = meshcurvature.Source
+    else:
+        meshcurvature = None
+    
     col0 = P3(*[float(x.strip())  for x in qcol0.text().split(",") ])
     col1 = P3(*[float(x.strip())  for x in qcol1.text().split(",") ])
     colv0, colv1 = [float(x.strip())  for x in qcolrange.text().split(",") ]
@@ -65,18 +74,23 @@ def okaypressed():
         #    print("Gap actually merged")
         thickcount.append(len(bpcr.ranges))
         if thickcount[-1] > maxthickcount:
-        	maxthickcount = thickcount[-1]
-        	thickpoint = mp
+            maxthickcount = thickcount[-1]
+            thickpoint = mp
         
-
-    print(col0, col1, colv0, colv1)
-    print('Maximum thickness of:', maxthickcount,'at', thickpoint)
-    nodecolours = [ ]
-    for c in thickcount:
-        t = c * 0.18
-        l = (t - colv0)/(colv1 - colv0)
-        nodecolours.append(tuple(Along(max(0, min(1, l)), col0, col1)))
-    MakeFEAcoloredmesh(measuremesh, nodecolours)
+    if meshcurvature != None:
+        for i, c in enumerate(thickcount):
+            meshcurvature.ValueAtIndex = (i, c, c)
+            meshcurvature.recompute()
+        print(" Setting of Min/Max curvatures to filament crossings")
+    else:
+        print(col0, col1, colv0, colv1)
+        print('Maximum thickness of:', maxthickcount,'at', thickpoint)
+        nodecolours = [ ]
+        for c in thickcount:
+            t = c * 0.18
+            l = (t - colv0)/(colv1 - colv0)
+            nodecolours.append(tuple(Along(max(0, min(1, l)), col0, col1)))
+        MakeFEAcoloredmesh(measuremesh, nodecolours)
     qw.hide()
 
 qw = QtGui.QWidget()
