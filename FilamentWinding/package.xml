@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="utf-8" standalone="no" ?>
+<package format="1">
+  <name>FilamentWinding</name>
+  <description>Workbench for carbon fibre filament winding and mesh embedded curves</description>
+  <version>1.0</version>
+  <date>2023.08.10</date> <!-- YYYY.MM.DD of new release goes here -->
+  <maintainer email="julian@goatchurch.org.uk">Goatchurch</maintainer>
+  <license file="LICENSE">LGPL-2.1</license>
+  <url type="repository" branch="master">https://github.com/goatchurchprime/FilamentWinding</url>
+  <url type="documentation">https://github.com/goatchurchprime/FilamentWinding</url>
+
+  <content>
+    <workbench>
+      <name>FilamentWinding</name>
+      <classname>FilamentWindingWorkbench</classname>
+      <description>Workbench for carbon fibre filament winding and mesh embedded curves</description>
+      <version>1.0</version>
+      <subdirectory>./</subdirectory>
+      <icon>Resources/icons/MeshRemodel_workbench_icon.svg</icon>
+      <freecadmin>0.20.0</freecadmin>
+      <tag>cam</tag>
+    </workbench>
+  </content>
+
+</package>

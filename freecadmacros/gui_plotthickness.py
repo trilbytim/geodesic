@@ -68,7 +68,6 @@ if meshobject:
     
 qw.show()
 
-
 #obj.ViewObject.HighlightedNodes = [1, 2, 3]
 #The individual elements of a mesh can be modified by passing a dictionary with the appropriate key:value pairs.
 #Set volume 1 to red
