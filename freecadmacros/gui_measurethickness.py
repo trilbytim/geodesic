@@ -36,10 +36,6 @@ def okaypressed():
     else:
         meshcurvature = None
     
-    col0 = P3(*[float(x.strip())  for x in qcol0.text().split(",") ])
-    col1 = P3(*[float(x.strip())  for x in qcol1.text().split(",") ])
-    colv0, colv1 = [float(x.strip())  for x in qcolrange.text().split(",") ]
-    
     mandrelptpaths = [ ]
     for mandrelpath in mandrelpaths:
         mandrelwindpts = [ P3(p.X, p.Y, p.Z)  for p in mandrelpath.Shape.Vertexes ]
@@ -77,20 +73,16 @@ def okaypressed():
             maxthickcount = thickcount[-1]
             thickpoint = mp
         
+    print("Max thick count", maxthickcount, "thickness", maxthickcount*towthick, "at point", thickpoint)
     if meshcurvature != None:
         for i, c in enumerate(thickcount):
-            meshcurvature.ValueAtIndex = (i, c, c)
+            meshcurvature.ValueAtIndex = (i, c*towthick, c)
             meshcurvature.recompute()
         print(" Setting of Min/Max curvatures to filament crossings")
     else:
-        print(col0, col1, colv0, colv1)
-        print('Maximum thickness of:', maxthickcount,'at', thickpoint)
-        nodecolours = [ ]
-        for c in thickcount:
-            t = c * 0.18
-            l = (t - colv0)/(colv1 - colv0)
-            nodecolours.append(tuple(Along(max(0, min(1, l)), col0, col1)))
-        MakeFEAcoloredmesh(measuremesh, nodecolours)
+        if "VertexThicknesses" not in measuremesh.PropertiesList:
+            measuremesh.addProperty("App::PropertyFloatList", "VertexThicknesses")
+        measuremesh.VertexThicknesses = [ c*towthick  for c in thickcount ]
     qw.hide()
 
 qw = QtGui.QWidget()
@@ -102,9 +94,6 @@ qmeshpointstomeasure = freecadutils.qrow(qw, "Mesh: ", 15+35*1)
 qmandrelpaths = freecadutils.qrow(qw, "Winding paths ", 15+35*2, "")
 qtowwidth = freecadutils.qrow(qw, "Tow width: ", 15+35*3, "6.35")
 qtowthick = freecadutils.qrow(qw, "Tow thick: ", 15+35*4, "0.18")
-qcol0 = freecadutils.qrow(qw, "Colour0: ", 15+35*5, "0,0,1")
-qcol1 = freecadutils.qrow(qw, "Colour1: ", 15+35*6, "1,0,0")
-qcolrange = freecadutils.qrow(qw, "Colrange: ", 15+35*7, "0,5")
 
 okButton = QtGui.QPushButton("Measure", qw)
 okButton.move(180, 15+35*8)
@@ -113,15 +102,4 @@ QtCore.QObject.connect(okButton, QtCore.SIGNAL("pressed()"), okaypressed)
 qmandrelpaths.setText(freecadutils.getlabelofselectedwire(multiples=True))
 qmeshpointstomeasure.setText(freecadutils.getlabelofselectedmesh())
 
-
 qw.show()
-
-
-#obj.ViewObject.HighlightedNodes = [1, 2, 3]
-#The individual elements of a mesh can be modified by passing a dictionary with the appropriate key:value pairs.
-#Set volume 1 to red
-#obj.ViewObject.ElementColor = {1:(1,0,0)}
-#Set nodes 1, 2 and 3 to a certain color; the faces between the nodes acquire an interpolated color.
-#obj.ViewObject.NodeColor = {1:(1,0,0), 2:(0,1,0), 3:(0,0,1)}
-#Displace the nodes 1 and 2 by the magnitude and direction defined by a vector.
-#obj.ViewObject.NodeDisplacement = {1:FreeCAD.Vector(0,1,0), 2:FreeCAD.Vector(1,0,0)}
