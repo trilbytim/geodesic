@@ -32,7 +32,7 @@ freecadutils.init(App)
 # E3 - Rotation both chucks (headstock and tailstock)
 # E4 - Rotation of tailstock relative to headstock (rarely used)
 
-def projectToRvalcylinder(pt, vec, cr):
+def projectToRvalcylinderRoundEnds(pt, vec, cr, crylo, cryhi):
     qa = P2(vec.x, vec.z).Lensq()
     qb2 = pt.x*vec.x + pt.z*vec.z
     qc = P2(pt.x, pt.z).Lensq() - cr*cr
@@ -43,6 +43,22 @@ def projectToRvalcylinder(pt, vec, cr):
     TOL_ZERO(qa*q*q + qb2*2*q + qc)
     res = pt + vec*q
     TOL_ZERO(P2(res.x, res.z).Len() - cr)
+    if not crylo < res.y < cryhi:
+        dc = -1 if res.y <= crylo else +1
+        assert vec.y < 0 if dc == -1 else vec.y > 0
+        cry = crylo if dc == -1 else cryhi
+        ha = qa + vec.y*vec.y
+        hb2 = qb2 + (pt.y - cry)*vec.y
+        hc = qc + (pt.y - cry)*(pt.y - cry)
+        hdh = hb2*hb2 - ha*hc
+        hs = math.sqrt(hdh) / ha
+        hm = -hb2 / ha
+        h = hm + hs
+        TOL_ZERO(ha*h*h + hb2*2*h + hc)
+        assert (h <= q)
+        res = pt + vec*h
+        assert res.y*dc >= cry*dc, (res.y, cry, dc, (h, q))
+        TOL_ZERO((res - P3(0, cry, 0)).Len() - cr)
     return res
 
 def sRotByE3(sE3, pt):
@@ -141,19 +157,24 @@ def okaypressed():
     
     toolpathobject = freecadutils.findobjectbylabel(qtoolpath.text())
     tcpconstXval = float(qxconst.text())
+    tcpconstXarcYs = sorted([float(x.strip())  for x in qxconstarcys.text().split(",")])
+
     tcpE3offset = float(qE3offset.text())
     Ymid = float(qyoffset.text())
     nswitcheroosplit = max(1, int(qswitchsplit.text()))
 
     cr = abs(tcpconstXval)
+    crylohi = tcpconstXarcYs if tcpconstXarcYs else [ -1e5, 1e5 ]
     textlen = float(qtoolpathlength.text()) if len(qtoolpathlength.text()) != 0 and qtoolpathlength.text()[-1] != " " else None
     tapecurve = [ P3(p.X, p.Y, p.Z)  for p in toolpathobject.Shape.Vertexes ]
+    
+    tapecurve = tapecurve[:80]
     
     tcps = [ ]
     for i in range(len(tapecurve)):
         vecNout = P3.ZNorm(tapecurve[max(i,1)] - tapecurve[max(i,1)-1])
         ptR = tapecurve[i]
-        tcpR = projectToRvalcylinder(ptR, vecNout, cr)
+        tcpR = projectToRvalcylinderRoundEnds(ptR, vecNout, cr, crylohi[0], crylohi[1])
         tcp = TCPplusfibre(tcpR, ptR, tcpE3offset)
         tcps.append(tcp)
         if len(tcps) >= 2:
@@ -305,10 +326,10 @@ qw.setWindowFlag(QtCore.Qt.WindowStaysOnTopHint)
 qw.setGeometry(700, 500, 570, 350)
 qw.setWindowTitle('Post process toolpath')
 qtoolpath = freecadutils.qrow(qw, "Toolpath: ", 15+35*1)
-qyoffset = freecadutils.qrow(qw, "Yoffset: ", 15+35*4, "307.5")
-qoutputsrcfile = freecadutils.qrow(qw, "Output file: ", 15+35*5, os.path.abspath("filwin10.src"))
-qthintol = freecadutils.qrow(qw, "Thinning tol: ", 15+35*6, "0.2")
-qoutputsweepmesh = freecadutils.qrow(qw, "sweepmesh: ", 15+35*7, "m1*")
+qyoffset = freecadutils.qrow(qw, "Yoffset: ", 15+35*5, "307.5")
+qoutputsrcfile = freecadutils.qrow(qw, "Output file: ", 15+35*6, os.path.abspath("filwin10.src"))
+qthintol = freecadutils.qrow(qw, "Thinning tol: ", 15+35*7, "0.2")
+qoutputsweepmesh = freecadutils.qrow(qw, "sweepmesh: ", 15+35*6, "m1*", 260)
 qoutputsweeppath = freecadutils.qrow(qw, "sweeppath: ", 15+35*7, "h1*", 260)
 
 okButton = QtGui.QPushButton("Post", qw)
@@ -317,7 +338,9 @@ QtCore.QObject.connect(okButton, QtCore.SIGNAL("pressed()"), okaypressed)
 
 qtoolpath.setText(freecadutils.getlabelofselectedwire())
 qxconst = freecadutils.qrow(qw, "xconst: ", 15+35*2, "-115")
-qE3offset = freecadutils.qrow(qw, "E3offset ang: ", 15+35*3, "-45")   # in the XZ from the horizontal plane
+qxconstarcys = freecadutils.qrow(qw, "xconst-arcys: ", 15+35*3, "-140,140")
+
+qE3offset = freecadutils.qrow(qw, "E3offset ang: ", 15+35*4, "-45")   # in the XZ from the horizontal plane
 qtoolpathlength = freecadutils.qrow(qw, "(Length): ", 15+35*1, "0 ", 260)
 qswitchsplit = freecadutils.qrow(qw, "switchsplit: ", 15+35*2, "3", 260)
 
@@ -332,6 +355,7 @@ if toolpathobject:
     print("xmax", toolpathobject.Shape.BoundBox.XMax, "zmax", toolpathobject.Shape.BoundBox.ZMax)
     boxdiagrad = toolpathobject.Shape.BoundBox.XMax*math.sqrt(2)  # 45 degree diagonal puts us above the mandrel
     qxconst.setText("%.1f" % (-(boxdiagrad + 5.0)))
+    qxconstarcys.setText("%.1f,%.1f" % (toolpathobject.Shape.BoundBox.YMin-2, toolpathobject.Shape.BoundBox.YMax+2))
 
 qw.show()
 
