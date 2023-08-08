@@ -167,9 +167,6 @@ def okaypressed():
     crylohi = tcpconstXarcYs if tcpconstXarcYs else [ -1e5, 1e5 ]
     textlen = float(qtoolpathlength.text()) if len(qtoolpathlength.text()) != 0 and qtoolpathlength.text()[-1] != " " else None
     tapecurve = [ P3(p.X, p.Y, p.Z)  for p in toolpathobject.Shape.Vertexes ]
-    
-    tapecurve = tapecurve[:80]
-    
     tcps = [ ]
     for i in range(len(tapecurve)):
         vecNout = P3.ZNorm(tapecurve[max(i,1)] - tapecurve[max(i,1)-1])
