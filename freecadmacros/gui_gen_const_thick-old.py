@@ -33,7 +33,6 @@ def evalrepthick(landed,totrpt, r, yo):
 	print('LANDED AT', landed)
 	#Check that the pattern won't repeat until it reaches the end
 	turns = round(totrpt * (landed))
-	if not turns: turns = 1
 	for i in range(1,-turns):
 		if not totrpt%(turns*1):
 			print('WARNING: Ideal number or repeats to build required thickness would produce gappy winding pattern. Adding 1 repeat')
@@ -224,7 +223,7 @@ qtowwidth = freecadutils.qrow(qw, "Tow width: ", 15+35*2, "%.2f" % tw,260)
 qtowthick = freecadutils.qrow(qw, "Tow thickness: ", 15+35*3, "%.2f" % tth,260)
 #vlab = QtGui.QLabel("clear above to go one direction", qw)
 #vlab.move(20+260, 15+35*3+5)
-qtotthick = freecadutils.qrow(qw, "Desired thick: ", 15+35*4, "6.0", 260)
+qtotthick = freecadutils.qrow(qw, "Desired thick: ", 15+35*4, "6.7", 260)
 qsideslip = freecadutils.qrow(qw, "Side slip: ", 15+35*5, "0", 260)
 
 
