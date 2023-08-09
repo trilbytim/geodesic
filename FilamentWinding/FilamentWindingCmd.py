@@ -3,7 +3,7 @@
 #
 #  MeshRemodelCmd.py
 #  
-#  Copyright 2019 Mark Ganson <TheMarkster> mwganson at gmail
+#  Copyright 2023 Julian Todd <julian@goatchurch.org.uk>
 #
 #  This program is free software; you can redistribute it and/or modify
 #  it under the terms of the GNU General Public License as published by
@@ -24,8 +24,8 @@
 ###################################################################################
 
 __title__   = "MeshRemodel"
-__author__  = "Mark Ganson <TheMarkster>"
-__url__     = "https://github.com/mwganson/MeshRemodel"
+__author__  = ""
+__url__     = ""
 __date__    = "2023.08.10"
 __version__ = "1.0"
 version = 1.0
@@ -426,7 +426,45 @@ Enter new sketch radius precision", prec, -1,12,1,flags=windowFlags)
         return True
 
 #end settings class
+#
+#
+#fffff
 
+import FreeCAD,FreeCADGui,Part
+import os
+currentpath = os.path.dirname(os.path.realpath(__file__))
+ 
+class BoxTaskPanelClass(object):
+    def __init__(self):
+        # this will create a Qt widget from our ui file
+        path_to_ui = os.path.join(currentpath, "Resources", "UI", "test.ui")
+        print(path_to_ui)
+        self.form = FreeCADGui.PySideUic.loadUi(path_to_ui)
+ 
+    def GetResources(self):
+        path_to_icon = os.path.join(currentpath, "Resources", "Icons", "CreateCrossSections.svg")
+        return {'Pixmap'  : path_to_icon , 
+            'MenuText': "Create Box test" ,
+            'ToolTip' : "A Thing here"}
+ 
+    def Activated(self):
+        print(self.form)
+        print(self.form.__dict__)
+        length = self.form.boxlength.value()
+        width = self.form.boxwidth.value()
+        height = self.form.boxheight.value()
+        if (length == 0) or (width == 0) or (height == 0):
+            print("Error! None of the values can be 0!")
+            # we bail out without doing anything
+            return
+        box = Part.makeBox(length,width,height)
+        Part.show(box)
+        FreeCADGui.Control.closeDialog()
+        
+    def IsActive(self):
+        print("IsActive BoxTask called")
+        return True
+        
 
 ####################################################################################
 # Create the Mesh Remodel Points Object
@@ -496,5 +534,6 @@ Non-selectability can be reversed in the mesh object's view tab in the property 
 def initialize():
     if FreeCAD.GuiUp:
         Gui.addCommand("MeshRemodelCreatePointsObject", MeshRemodelCreatePointsObjectCommandClass())
+        Gui.addCommand("BoxTaskObject", BoxTaskPanelClass())
 
 initialize()
