@@ -154,8 +154,8 @@ def okaypressed():
     print("Okay Pressed") 
     if qoptionsrcdebug.isChecked():
         SRCparameters.extend(["E1a", "fleng"])
-    
-    toolpathobject = freecadutils.findobjectbylabel(qtoolpath.text())
+    toolpaths = [ freecadutils.findobjectbylabel(toolpathname)  for toolpathname in qtoolpath.text().split(",") ]
+    #toolpathobject = freecadutils.findobjectbylabel(qtoolpath.text())
     tcpconstXval = float(qxconst.text())
     tcpconstXarcYs = sorted([float(x.strip())  for x in qxconstarcys.text().split(",")])
 
@@ -166,7 +166,10 @@ def okaypressed():
     cr = abs(tcpconstXval)
     crylohi = tcpconstXarcYs if tcpconstXarcYs else [ -1e5, 1e5 ]
     textlen = float(qtoolpathlength.text()) if len(qtoolpathlength.text()) != 0 and qtoolpathlength.text()[-1] != " " else None
-    tapecurve = [ P3(p.X, p.Y, p.Z)  for p in toolpathobject.Shape.Vertexes ]
+    tapecurve = []
+    for toolpath in toolpaths:
+    	print(toolpath.Name)
+    	tapecurve += [ P3(p.X, p.Y, p.Z)  for p in toolpath.Shape.Vertexes ]
     tcps = [ ]
     for i in range(len(tapecurve)):
         vecNout = P3.ZNorm(tapecurve[max(i,1)] - tapecurve[max(i,1)-1])
@@ -295,7 +298,6 @@ def okaypressed():
     print("blocks ", list(map(len, tcpblockslinked)))
 
     def srctcp(tcp):
-    ## SORRY JULIAN FOR HACKING THE E1 value!
         return srcpt({"X":tcp.X, "Y":tcp.Y + Ymid, "Z":tcp.Z, "E1":tcp.E1, "E1a":tcp.E1a, "E3":tcp.E3*1000/360, "fleng":tcp.freefibrelength})
 
     headersrc = os.path.join(os.path.split(__file__)[0], "header.src")
@@ -334,7 +336,7 @@ okButton = QtGui.QPushButton("Post", qw)
 okButton.move(180, 15+35*8)
 QtCore.QObject.connect(okButton, QtCore.SIGNAL("pressed()"), okaypressed)  
 
-qtoolpath.setText(freecadutils.getlabelofselectedwire())
+qtoolpath.setText(freecadutils.getlabelofselectedwire(multiples=True))
 qxconst = freecadutils.qrow(qw, "xconst: ", 15+35*2, "-115")
 qxconstarcys = freecadutils.qrow(qw, "xconst-arcys: ", 15+35*3, "-140,140")
 
@@ -345,10 +347,11 @@ qswitchsplit = freecadutils.qrow(qw, "switchsplit: ", 15+35*2, "3", 260)
 qoptionsrcdebug = QtGui.QCheckBox("Dbg SRC params", qw)
 qoptionsrcdebug.move(80+260, 15+35*3)
 qoptionsrcdebug.setChecked(False)
+#qtoolpathlength.setText("%.0f " % toolpathobject.Shape.Length)
 
-
-toolpathobject = freecadutils.findobjectbylabel(qtoolpath.text())
-if toolpathobject:
+#toolpathobject = freecadutils.findobjectbylabel(qtoolpath.text())
+toolpaths = [ freecadutils.findobjectbylabel(toolpathname)  for toolpathname in qtoolpath.text().split(",") ]
+for toolpathobject in toolpaths:
     qtoolpathlength.setText("%.0f " % toolpathobject.Shape.Length)
     print("xmax", toolpathobject.Shape.BoundBox.XMax, "zmax", toolpathobject.Shape.BoundBox.ZMax)
     boxdiagrad = toolpathobject.Shape.BoundBox.XMax*math.sqrt(2)  # 45 degree diagonal puts us above the mandrel

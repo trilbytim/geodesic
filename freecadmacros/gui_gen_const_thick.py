@@ -53,13 +53,14 @@ def repeatwindingpath(rpts, repeats,thintol):
 	fvec0 = P2(ptfront.x, ptfront.z)
 	fvec1 = P2(ptback.x, ptback.z)
 	angadvance = P2(P2.Dot(fvec0, fvec1), P2.Dot(fvec0, P2.APerp(fvec1))).Arg()
-	rpts = thinptstotolerance(rpts, tol=thintol)
+	rpts = thinptstotolerance(rpts, tol=thintol*2)
 	ptsout = rpts[:]
 	for i in range(1, repeats):
 		rotcos = math.cos(math.radians(i*angadvance))
 		rotsin = math.sin(math.radians(i*angadvance))
 		for pt in rpts:
 			ptsout.append(P3(pt.x*rotcos + pt.z*rotsin, pt.y, pt.z*rotcos - pt.x*rotsin))
+	ptsout = thinptstotolerance(ptsout, tol=thintol)
 	return ptsout
 
 def evalthick(r, yo, tpt, towwidth, towthick,evalpts=50):
@@ -203,7 +204,7 @@ alongwire = 0.51
 tw = 6.35
 tth = 0.18
 tolPO = tw/8
-targetPO = 42
+targetPO = 43
 
 qw = QtGui.QWidget()
 qw.setWindowFlag(QtCore.Qt.WindowStaysOnTopHint)
