@@ -76,6 +76,7 @@ def okaypressed():
     print("Max thick count", maxthickcount, "thickness", maxthickcount*towthick, "at point", thickpoint)
     if meshcurvature != None:
         for i, c in enumerate(thickcount):
+<<<<<<< Updated upstream
             meshcurvature.ValueAtIndex = (i, c*towthick, c)
             meshcurvature.recompute()
         print(" Setting of Min/Max curvatures to filament crossings")
@@ -83,6 +84,20 @@ def okaypressed():
         if "VertexThicknesses" not in measuremesh.PropertiesList:
             measuremesh.addProperty("App::PropertyFloatList", "VertexThicknesses")
         measuremesh.VertexThicknesses = [ c*towthick  for c in thickcount ]
+=======
+            meshcurvature.ValueAtIndex = (i, c* towthick, c* towthick)
+            meshcurvature.recompute()
+        print(" Setting of Min/Max curvatures to filament crossings")
+    else:
+        print(col0, col1, colv0, colv1)
+        print('Maximum thickness of:', maxthickcount,'at', thickpoint)
+        nodecolours = [ ]
+        for c in thickcount:
+            t = c * towthick
+            l = (t - colv0)/(colv1 - colv0)
+            nodecolours.append(tuple(Along(max(0, min(1, l)), col0, col1)))
+        MakeFEAcoloredmesh(measuremesh, nodecolours)
+>>>>>>> Stashed changes
     qw.hide()
 
 qw = QtGui.QWidget()

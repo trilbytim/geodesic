@@ -31,7 +31,13 @@ thintol = 0.2
 def evalrepthick(landed,totrpt, r, yo):
 	print('Tot rep', totrpt)
 	print('LANDED AT', landed)
-	alongwireadv =  (round(totrpt * (landed))) / totrpt
+	#Check that the pattern won't repeat until it reaches the end
+	turns = round(totrpt * (landed))
+	for i in range(1,turns):
+		if not totrpt%(turns*1):
+			print('WARNING: Ideal number or repeats to build required thickness would produce gappy winding pattern. Adding 1 repeat')
+			totrpt+=1
+	alongwireadv =  turns / totrpt
 	print('FORCE TO', alongwireadv)
 	alongwireI = alongwire + alongwireadv
 	gbs, fLRdirection, dseg, alongwirelanded100 = directedgeodesic(combofoldbackmode, sketchplane, meshobject, alongwire, alongwireI, dsangle, Maxsideslipturningfactor, mandrelradius, sideslipturningfactorZ, maxlength, outputfilament)
@@ -39,7 +45,7 @@ def evalrepthick(landed,totrpt, r, yo):
 	#makebicolouredwire(gbs, name, colfront=(1.0,0.0,0.0) if fLRdirection == -1 else (0.0,0.0,1.0), colback=(0.7,0.7,0.0), leadcolornodes=dseg+1)
 	rpts = repeatwindingpath([P3(*gb.pt)  for gb in gbs], totrpt,thintol)
 	meanthick = evalthick(r, yo, [rpts],tw,tth)
-	return rpts, meanthick
+	return rpts, meanthick,totrpt
 	
 def repeatwindingpath(rpts, repeats,thintol):
 	ptfront, ptback = rpts[0], rpts[-1]
@@ -55,10 +61,10 @@ def repeatwindingpath(rpts, repeats,thintol):
 			ptsout.append(P3(pt.x*rotcos + pt.z*rotsin, pt.y, pt.z*rotcos - pt.x*rotsin))
 	return ptsout
 
-def evalthick(r, yo, tpt, towwidth, towthick):
+def evalthick(r, yo, tpt, towwidth, towthick,evalpts=50):
 	towwidth /= 2
 	POpts=[]
-	for a in np.linspace(0,2*np.pi,20):
+	for a in np.linspace(0,2*np.pi,evalpts):
 		POpts.append(App.Vector(r*np.sin(a),yo,r*np.cos(a)))
 	
 	mandpaths = MandrelPaths(tpt)
@@ -108,7 +114,7 @@ def okaypressed():
 	tw = float(qtowwidth.text())
 	tth = float(qtowthick.text())
 	if len(qbasewire.text()) != 0:
-		basewire = freecadutils.findobjectbylabel(qbasewire.text())
+		basewire = [freecadutils.findobjectbylabel(singlewirename)  for singlewirename in qbasewire.text().split(",") ]
 	else:
 		basewire = None
 	if not (sketchplane and meshobject):
@@ -120,7 +126,7 @@ def okaypressed():
 	
 	alongwireI = None
 	finished = False
-	attempts = 5
+	attempts = 10
 	i = 0
 	while not finished:
 		dsangle = 90-(AngHi+AngLo)/2
@@ -155,30 +161,32 @@ def okaypressed():
 	#makebicolouredwire(gbs, name, colfront=(1.0,0.0,0.0) if fLRdirection == -1 else (0.0,0.0,1.0), colback=(0.7,0.7,0.0), leadcolornodes=dseg+1)
 	doc.recompute()
 	
-	#REPEAT 100 times
-	totrpt = 100
+	#REPEAT 101 times
+	totrpt = 101
 	landed = alongwirelanded - alongwire
-	rpts, meanthick = evalrepthick(landed, totrpt, XZmin, passY.y)
+	rpts, meanthick,totrpt = evalrepthick(landed, totrpt, XZmin, passY.y)
 	#Create wire forced to an intersection point that gives an integer number of repeat)
 	if basewire:
 		basethick = evalthick(XZmin, passY.y, [[P3(v.X,v.Y,v.Z)  for v in basewire.Shape.Vertexes]], tw, tth)
 		print('basethickness', basethick)
-		totrpt = int(100*(totthick-basethick)/meanthick)-1
+		totrpt = int(totrpt*(totthick-basethick)/meanthick)-1
 	else:
-		totrpt = int(100*totthick/meanthick)-1
+		totrpt = int(totrpt*totthick/meanthick)-1
 	
 	#Repeat that wire to create final ply
-	rpts, meanthick = evalrepthick(landed, totrpt, XZmin, passY.y)
+	rpts, meanthick,totrpt = evalrepthick(landed, totrpt, XZmin, passY.y)
 	print('First:', rpts[0], 'Last', rpts[-1] , 'thick', meanthick)
-	if basewire:
-		ply = Part.show(Part.makePolygon([Vector(v.X,v.Y,v.Z) for v in basewire.Shape.Vertexes]+[Vector(pt)  for pt in rpts]), basewire.Name+'_'+str(int(dsangle-90))+'x'+str(totrpt))
-	else:
-		ply = Part.show(Part.makePolygon([Vector(pt)  for pt in rpts]), name+'x'+str(totrpt))
+	ply = Part.show(Part.makePolygon([Vector(pt)  for pt in rpts]), name+'x'+str(totrpt))
+	thickgroup.addObject(ply)
 	#Part.show(Part.makePolygon([rpts[0],rpts[-1]]), 'grrr')
-	qbasewire.setText(ply.Name)
-	qtargetPO.setText(str(targetPO+tw))
+	basename = thickgroup.OutList[0].Name
+	for i in range(1,len(thickgroup.OutList)):
+		basename += ','
+		basename += thickgroup.OutList[i].Name
+	qbasewire.setText(basename)
+	qtargetPO.setText(str(targetPO+tw*0.75))
 
-
+thickgroup = freecadutils.getemptyfolder(doc, "Constant thickness")
 Maxsideslipturningfactor = 0.26
 combofoldbackmode = 0
 mandrelradius = 110  # fc6 file

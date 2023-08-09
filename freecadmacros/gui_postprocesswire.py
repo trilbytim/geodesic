@@ -295,6 +295,7 @@ def okaypressed():
     print("blocks ", list(map(len, tcpblockslinked)))
 
     def srctcp(tcp):
+    ## SORRY JULIAN FOR HACKING THE E1 value!
         return srcpt({"X":tcp.X, "Y":tcp.Y + Ymid, "Z":tcp.Z, "E1":tcp.E1, "E1a":tcp.E1a, "E3":tcp.E3*1000/360, "fleng":tcp.freefibrelength})
 
     headersrc = os.path.join(os.path.split(__file__)[0], "header.src")
