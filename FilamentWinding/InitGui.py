@@ -56,7 +56,8 @@ class FilamentWindingWorkbench(Workbench):
     def Initialize(self):
         "This function is executed when FreeCAD starts"
         import FilamentWindingCmd #needed files for FreeCAD commands
-        self.list = ["MeshRemodelCreatePointsObject"
+        self.list = ["MeshRemodelCreatePointsObject",
+                     "BoxTaskObject"
                     ] # A list of command names created in the line above
         self.appendToolbar("FilamentWinding Commands",self.list[:-3]) # leave settings, validate sketch and merge sketch off toolbar
         self.appendMenu("FilamentWind",self.list) # creates a new menu

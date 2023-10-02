@@ -168,8 +168,17 @@ def okaypressed():
     textlen = float(qtoolpathlength.text()) if len(qtoolpathlength.text()) != 0 and qtoolpathlength.text()[-1] != " " else None
     tapecurve = []
     for toolpath in toolpaths:
-    	print(toolpath.Name)
-    	tapecurve += [ P3(p.X, p.Y, p.Z)  for p in toolpath.Shape.Vertexes ]
+        print("toolpath", toolpath.Name)
+        tapecurvesingle = [ P3(p.X, p.Y, p.Z)  for p in toolpath.Shape.Vertexes ]
+        if tapecurve:
+            gapv = tapecurvesingle[0] - tapecurve[-1]
+            print("gap length to previous %.3f" % gapv.Len())
+            tapecurvesingle = tapecurvesingle[1:]
+        tapecurve += tapecurvesingle
+        
+    #Dn = len(toolpaths[0].Shape.Vertexes)
+    #tapecurve = tapecurve[Dn-5:Dn+5]
+        
     tcps = [ ]
     for i in range(len(tapecurve)):
         vecNout = P3.ZNorm(tapecurve[max(i,1)] - tapecurve[max(i,1)-1])
