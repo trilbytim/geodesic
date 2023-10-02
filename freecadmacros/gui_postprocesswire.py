@@ -173,6 +173,7 @@ def okaypressed():
         if tapecurve:
             gapv = tapecurvesingle[0] - tapecurve[-1]
             print("gap length to previous %.3f" % gapv.Len())
+            print(" norms", P3.ZNorm(gapv), P3.ZNorm(tapecurvesingle[0]))
             tapecurvesingle = tapecurvesingle[1:]
         tapecurve += tapecurvesingle
         
