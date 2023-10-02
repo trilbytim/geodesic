@@ -460,6 +460,16 @@ class BoxTaskPanelClass(object):
         box = Part.makeBox(length,width,height)
         Part.show(box)
         FreeCADGui.Control.closeDialog()
+ 
+# From the Rocket workbench, which has persistent dialog boxes here
+#    def Activated(self):
+#        FreeCAD.ActiveDocument.openTransaction("Create nose cone")
+#        FreeCADGui.addModule("Ui.Commands.CmdNoseCone")
+#        FreeCADGui.doCommand("obj=Ui.Commands.CmdNoseCone.makeNoseCone('NoseCone')")
+#        FreeCADGui.doCommand("Ui.Commands.CmdStage.addToStage(obj)")
+#        FreeCADGui.doCommand("FreeCADGui.activeDocument().setEdit(FreeCAD.ActiveDocument.ActiveObject.Name,0)")
+        
+        
         
     def IsActive(self):
         print("IsActive BoxTask called")
