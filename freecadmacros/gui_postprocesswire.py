@@ -59,10 +59,6 @@ def projectToRvalcylinderRoundEnds(pt, vec, cr, crylo, cryhi):
         res = pt + vec*h
         assert res.y*dc >= cry*dc, (res.y, cry, dc, (h, q))
         TOL_ZERO((res - P3(0, cry, 0)).Len() - cr)
-#    print(q)
-#    q = 20.0
-#    res = pt + vec*q
-    
     return res
 
 def sRotByE3(sE3, pt):
@@ -158,8 +154,8 @@ def okaypressed():
     print("Okay Pressed") 
     if qoptionsrcdebug.isChecked():
         SRCparameters.extend(["E1a", "fleng"])
-    
-    toolpathobject = freecadutils.findobjectbylabel(qtoolpath.text())
+    toolpaths = [ freecadutils.findobjectbylabel(toolpathname)  for toolpathname in qtoolpath.text().split(",") ]
+    #toolpathobject = freecadutils.findobjectbylabel(qtoolpath.text())
     tcpconstXval = float(qxconst.text())
     tcpconstXarcYs = sorted([float(x.strip())  for x in qxconstarcys.text().split(",")])
 
@@ -170,16 +166,24 @@ def okaypressed():
     cr = abs(tcpconstXval)
     crylohi = tcpconstXarcYs if tcpconstXarcYs else [ -1e5, 1e5 ]
     textlen = float(qtoolpathlength.text()) if len(qtoolpathlength.text()) != 0 and qtoolpathlength.text()[-1] != " " else None
-    tapecurve = [ P3(p.X, p.Y, p.Z)  for p in toolpathobject.Shape.Vertexes ]
-    
-    tapecurve = tapecurve[34:47]
-    
+    tapecurve = []
+    for toolpath in toolpaths:
+        print("toolpath", toolpath.Name)
+        tapecurvesingle = [ P3(p.X, p.Y, p.Z)  for p in toolpath.Shape.Vertexes ]
+        if tapecurve:
+            gapv = tapecurvesingle[0] - tapecurve[-1]
+            print("gap length to previous %.3f" % gapv.Len())
+            tapecurvesingle = tapecurvesingle[1:]
+        tapecurve += tapecurvesingle
+        
+    #Dn = len(toolpaths[0].Shape.Vertexes)
+    #tapecurve = tapecurve[Dn-5:Dn+5]
+        
     tcps = [ ]
     for i in range(len(tapecurve)):
         vecNout = P3.ZNorm(tapecurve[max(i,1)] - tapecurve[max(i,1)-1])
         ptR = tapecurve[i]
         tcpR = projectToRvalcylinderRoundEnds(ptR, vecNout, cr, crylohi[0], crylohi[1])
-        print(i, ptR)
         tcp = TCPplusfibre(tcpR, ptR, tcpE3offset)
         tcps.append(tcp)
         if len(tcps) >= 2:
@@ -277,7 +281,6 @@ def okaypressed():
                 tcp0, tcp1 = tcpblock[j].GetTCP(True), tcpblock[j+1].GetTCP(True)
                 vecr0, vecr1 = tcpblock[j].GetVecR(True), tcpblock[j+1].GetVecR(True)
                 fp0, fp1 = tcp0 + vecr0, tcp1 + vecr1
-                #tcp0, tcp1 = tcp0 + P3(-10,15,0), tcp1 + P3(-10,15,0)
                 facets.append([Vector(*tcp0), Vector(*fp0), Vector(*tcp1)])
                 facets.append([Vector(*tcp1), Vector(*fp0), Vector(*fp1)])
         mesh = freecadutils.doc.addObject("Mesh::Feature", qoutputsweepmesh.text())
@@ -304,7 +307,6 @@ def okaypressed():
     print("blocks ", list(map(len, tcpblockslinked)))
 
     def srctcp(tcp):
-    ## SORRY JULIAN FOR HACKING THE E1 value!
         return srcpt({"X":tcp.X, "Y":tcp.Y + Ymid, "Z":tcp.Z, "E1":tcp.E1, "E1a":tcp.E1a, "E3":tcp.E3*1000/360, "fleng":tcp.freefibrelength})
 
     headersrc = os.path.join(os.path.split(__file__)[0], "header.src")
@@ -336,14 +338,14 @@ qtoolpath = freecadutils.qrow(qw, "Toolpath: ", 15+35*1)
 qyoffset = freecadutils.qrow(qw, "Yoffset: ", 15+35*5, "307.5")
 qoutputsrcfile = freecadutils.qrow(qw, "Output file: ", 15+35*6, os.path.abspath("filwin10.src"))
 qthintol = freecadutils.qrow(qw, "Thinning tol: ", 15+35*7, "0.2")
-qoutputsweepmesh = freecadutils.qrow(qw, "sweepmesh: ", 15+35*6, "m1", 260)
+qoutputsweepmesh = freecadutils.qrow(qw, "sweepmesh: ", 15+35*6, "m1*", 260)
 qoutputsweeppath = freecadutils.qrow(qw, "sweeppath: ", 15+35*7, "h1*", 260)
 
 okButton = QtGui.QPushButton("Post", qw)
 okButton.move(180, 15+35*8)
 QtCore.QObject.connect(okButton, QtCore.SIGNAL("pressed()"), okaypressed)  
 
-qtoolpath.setText(freecadutils.getlabelofselectedwire())
+qtoolpath.setText(freecadutils.getlabelofselectedwire(multiples=True))
 qxconst = freecadutils.qrow(qw, "xconst: ", 15+35*2, "-115")
 qxconstarcys = freecadutils.qrow(qw, "xconst-arcys: ", 15+35*3, "-140,140")
 
@@ -354,10 +356,11 @@ qswitchsplit = freecadutils.qrow(qw, "switchsplit: ", 15+35*2, "3", 260)
 qoptionsrcdebug = QtGui.QCheckBox("Dbg SRC params", qw)
 qoptionsrcdebug.move(80+260, 15+35*3)
 qoptionsrcdebug.setChecked(False)
+#qtoolpathlength.setText("%.0f " % toolpathobject.Shape.Length)
 
-
-toolpathobject = freecadutils.findobjectbylabel(qtoolpath.text())
-if toolpathobject:
+#toolpathobject = freecadutils.findobjectbylabel(qtoolpath.text())
+toolpaths = [ freecadutils.findobjectbylabel(toolpathname)  for toolpathname in qtoolpath.text().split(",") ]
+for toolpathobject in toolpaths:
     qtoolpathlength.setText("%.0f " % toolpathobject.Shape.Length)
     print("xmax", toolpathobject.Shape.BoundBox.XMax, "zmax", toolpathobject.Shape.BoundBox.ZMax)
     boxdiagrad = toolpathobject.Shape.BoundBox.XMax*math.sqrt(2)  # 45 degree diagonal puts us above the mandrel
