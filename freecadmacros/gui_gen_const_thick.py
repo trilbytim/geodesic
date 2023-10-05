@@ -23,11 +23,10 @@ doc, sel = freecadutils.init(App)
 sketchplane = None
 meshobject = None
 sideslipturningfactorZ = None
-outputfilament = None
 thintol = 0.2
 
 #Function that repeats a path and evaluates the thickness on a ring at coord yo and radius r
-def evalrepthick(landed, totrpt, r, yo, dsangle):
+def evalrepthick(landed, totrpt, r, yo, dsangle, tw):
 	print('Tot rep', totrpt)
 	print('LANDED AT', landed)
 	#Check that the pattern won't repeat until it reaches the end
@@ -102,11 +101,11 @@ def evalthick(r, yo, tpt, towwidth, towthick,evalpts=50):
 	return meanthick
 
 def drivepressed():
+	aimpressed()
 	preppressed()
 	actpressed()
 
-	
-def preppressed():
+def aimpressed():
 	global sketchplane, meshobject, sideslipturningfactorZ, outputfilament , thintol
 	dsangle = None
 	sketchplane = freecadutils.findobjectbylabel(qsketchplane.text())
@@ -118,17 +117,7 @@ def preppressed():
 	AngLo = 90+float(qAngLo.text())
 	AngHi = 90+float(qAngHi.text())
 	thintol = float(qthintol.text())
-	tw = float(qtowwidth.text())
 	tth = float(qtowthick.text())
-	if len(qbasewire.text()) != 0:
-		basewire = [freecadutils.findobjectbylabel(singlewirename)  for singlewirename in qbasewire.text().split(",") ]
-	else:
-		basewire = None
-	if not (sketchplane and meshobject):
-		print("Need to select a Sketch and a Mesh object in the UI to make this work")
-		qw.hide()
-		return
-	
 	sideslipturningfactorZ = float(qsideslip.text())
 	
 	alongwireI = None
@@ -164,6 +153,41 @@ def preppressed():
 			print('Angle of',dsangle-90, 'deg found to give Polar Opening of', XZmin, 'at Y of', passY.y)
 			finished = True
 		i+=1
+	qalongwire.setText("%.6f" % alongwire)
+	qdsangle.setText("%.6f" % dsangle)
+	qXZmin.setText("%.6f" % XZmin)
+	qpassYy.setText("%.6f" % passY.y)
+	qalongwirelanded.setText("%.6f" % alongwirelanded)
+	
+def preppressed():
+	global sketchplane, meshobject, sideslipturningfactorZ, outputfilament , thintol
+	dsangle = None
+	sketchplane = freecadutils.findobjectbylabel(qsketchplane.text())
+	meshobject = freecadutils.findobjectbylabel(qmeshobject.text())
+	outputfilament = qoutputfilament.text()
+	totthick = float(qtotthick.text())
+	thintol = float(qthintol.text())
+	tw = float(qtowwidth.text())
+	tth = float(qtowthick.text())
+	
+	alongwire = float(qalongwire.text())
+	alongwirelanded = float(qalongwirelanded.text())
+	dsangle = float(qdsangle.text())
+	XZmin = float(qXZmin.text())
+	passYy = float(qpassYy.text())
+	
+	if len(qbasewire.text()) != 0:
+		basewire = [freecadutils.findobjectbylabel(singlewirename)  for singlewirename in qbasewire.text().split(",") ]
+	else:
+		basewire = None
+	if not (sketchplane and meshobject):
+		print("Need to select a Sketch and a Mesh object in the UI to make this work")
+		qw.hide()
+		return
+
+	# Insert another separation point here.
+	# XZmin, dsangle, passYy
+	
 	name = 'w'+str(int(dsangle-90))
 	#makebicolouredwire(gbs, name, colfront=(1.0,0.0,0.0) if fLRdirection == -1 else (0.0,0.0,1.0), colback=(0.7,0.7,0.0), leadcolornodes=dseg+1)
 	doc.recompute()
@@ -171,39 +195,31 @@ def preppressed():
 	#REPEAT 101 times
 	totrpt = 101
 	landed = alongwirelanded - alongwire
-	rpts, meanthick, totrpt = evalrepthick(landed, totrpt, XZmin, passY.y, dsangle)
+	rpts, meanthick, totrpt = evalrepthick(landed, totrpt, XZmin, passYy, dsangle, tw)
 	#Create wire forced to an intersection point that gives an integer number of repeat)
 	if basewire:
 		basepts = []
 		for bw in basewire:
 			basepts.append([P3(v.X,v.Y,v.Z)  for v in bw.Shape.Vertexes])
-		basethick = evalthick(XZmin, passY.y, basepts, tw, tth)
+		basethick = evalthick(XZmin, passYy, basepts, tw, tth)
 		print('basethickness', basethick)
 		totrpt = int(totrpt*(totthick-basethick)/meanthick)-1
 	else:
 		totrpt = int(totrpt*totthick/meanthick)-1
 	
-	qalongwire.setText("%.6f" % alongwire)
-	qdsangle.setText("%.6f" % dsangle)
 	qtotrpt.setText("%d" % totrpt)
 	qlanded.setText("%.6f" % landed)
-	qXZmin.setText("%.6f" % XZmin)
-	qpassYy.setText("%.6f" % passY.y)
-	
+
 	
 def actpressed():
 	global sketchplane, meshobject, sideslipturningfactorZ, outputfilament , thintol
 	sketchplane = freecadutils.findobjectbylabel(qsketchplane.text())
 	meshobject = freecadutils.findobjectbylabel(qmeshobject.text())
 	outputfilament = qoutputfilament.text()
-	targetPO = float(qtargetPO.text())
 	totthick = float(qtotthick.text())
-	tolPO = float(qtolPO.text())
-	AngLo = 90+float(qAngLo.text())
-	AngHi = 90+float(qAngHi.text())
 	thintol = float(qthintol.text())
-	tw = float(qtowwidth.text())
 	tth = float(qtowthick.text())
+	tw = float(qtowwidth.text())
 
 	alongwire = float(qalongwire.text())
 	dsangle = float(qdsangle.text())
@@ -213,8 +229,14 @@ def actpressed():
 	passYy = float(qpassYy.text())
 	name = 'w'+str(int(dsangle-90))
 
+	if qthickgroup.text() != "":
+		thickgroup = freecadutils.findobjectbylabel(qthickgroup.text())
+	else:
+		thickgroup = freecadutils.getemptyfolder(doc, "Constant thickness")
+		qthickgroup.setText(thickgroup.Name)
+		
 	#Repeat that wire to create final ply
-	rpts, meanthick,totrpt = evalrepthick(landed, totrpt, XZmin, passYy, dsangle)
+	rpts, meanthick,totrpt = evalrepthick(landed, totrpt, XZmin, passYy, dsangle, tw)
 	print('First:', rpts[0], 'Last', rpts[-1] , 'thick', meanthick)
 	ply = Part.show(Part.makePolygon([Vector(pt)  for pt in rpts]), name+'x'+str(totrpt))
 	thickgroup.addObject(ply)
@@ -224,42 +246,50 @@ def actpressed():
 		basename += ','
 		basename += thickgroup.OutList[i].Name
 	qbasewire.setText(basename)
+	
+	# advancing in prep for next cycle
+	targetPO = float(qtargetPO.text())
+	tw = float(qtowwidth.text())
 	qtargetPO.setText(str(targetPO+tw*0.75))
 
-thickgroup = freecadutils.getemptyfolder(doc, "Constant thickness")
+
+
 Maxsideslipturningfactor = 0.26
 combofoldbackmode = 0
 mandrelradius = 110  # fc6 file
 
-AngLo = 10
-AngHi = 90
+
 maxlength = 6000
 
 alongwire = 0.51
-tw = 6.35
 tth = 0.18
-tolPO = tw/8
-targetPO = 43
 
 qw = QtGui.QWidget()
 qw.setWindowFlag(QtCore.Qt.WindowStaysOnTopHint)
-qw.setGeometry(700, 500, 570, 450)
+qw.setGeometry(700, 500, 570, 490)
 qw.setWindowTitle('Generate constant thickness wind')
 qsketchplane = freecadutils.qrow(qw, "Sketchplane: ", 15+35*0)
 qmeshobject = freecadutils.qrow(qw, "Meshobject: ", 15+35*1 )
 
-qAngLo = freecadutils.qrow(qw, "Min angle: ", 15+35*2, "%.1f" % AngLo)
-qAngHi = freecadutils.qrow(qw, "Max angle: ", 15+35*3, "%.1f" % AngHi)
-qoutputfilament = freecadutils.qrow(qw, "Output name: ", 15+35*4, "w1")
+qAngLo = freecadutils.qrow(qw, "Min angle: ", 15+35*2, "%.1f" % 10)
+qAngHi = freecadutils.qrow(qw, "Max angle: ", 15+35*3, "%.1f" % 90)
+qoutputfilament = freecadutils.qrow(qw, "Output name: ", 15+35*10, "w1", 260)
 qthintol = freecadutils.qrow(qw, "Thinning tol: ", 15+35*5, "0.2")
 qbasewire = freecadutils.qrow(qw, "Base wire: ", 15+35*6)
+qthickgroup = freecadutils.qrow(qw, "Thick group: ", 15+35*6, "", 260)
 
-qtargetPO = freecadutils.qrow(qw, "Polar opening r: ", 15+35*0, "%.2f" % targetPO, 260)
-qtolPO = freecadutils.qrow(qw, "PO tolerance: ", 15+35*1, "%.2f" % tolPO, 260)
-qtowwidth = freecadutils.qrow(qw, "Tow width: ", 15+35*2, "%.2f" % tw,260)
-qtowthick = freecadutils.qrow(qw, "Tow thickness: ", 15+35*3, "%.2f" % tth,260)
+qtargetPO = freecadutils.qrow(qw, "Polar opening r: ", 15+35*0, "%.2f" % 43.0, 260)
+qtowwidth = freecadutils.qrow(qw, "Tow width: ", 15+35*2, "%.2f" % 6.35, 260)
+qtolPO = freecadutils.qrow(qw, "PO tolerance: ", 15+35*1, "%.2f" % (6.35/8), 260)
+qtowthick = freecadutils.qrow(qw, "Tow thickness: ", 15+35*3, "%.2f" % tth, 260)
 #vlab = QtGui.QLabel("clear above to go one direction", qw)
 #vlab.move(20+260, 15+35*3+5)
+qoutputfilament
+
+aimButton = QtGui.QPushButton("Aim", qw)
+aimButton.move(90, 15+35*4)
+QtCore.QObject.connect(aimButton, QtCore.SIGNAL("pressed()"), aimpressed)  
+
 qtotthick = freecadutils.qrow(qw, "Desired thick: ", 15+35*4, "6.0", 260)
 qsideslip = freecadutils.qrow(qw, "Side slip: ", 15+35*5, "0", 260)
 
@@ -274,14 +304,15 @@ qlanded = freecadutils.qrow(qw, "landed: ", 15+35*9, "")
 qXZmin = freecadutils.qrow(qw, "XZmin: ", 15+35*9, "", 260)
 qpassYy = freecadutils.qrow(qw, "passYy: ", 15+35*10, "")
 
+qalongwirelanded = freecadutils.qrow(qw, "alongwirelanded: ", 15+35*11)
 
 
 actButton = QtGui.QPushButton("Act", qw)
-actButton.move(90, 15+35*11)
+actButton.move(90, 15+35*12)
 QtCore.QObject.connect(actButton, QtCore.SIGNAL("pressed()"), actpressed)  
 
 driveButton = QtGui.QPushButton("Drive", qw)
-driveButton.move(190, 15+35*11)
+driveButton.move(190, 15+35*12)
 QtCore.QObject.connect(driveButton, QtCore.SIGNAL("pressed()"), drivepressed)  
 
 
