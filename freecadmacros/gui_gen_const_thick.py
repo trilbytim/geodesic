@@ -275,8 +275,9 @@ qAngLo = freecadutils.qrow(qw, "Min angle: ", 15+35*2, "%.1f" % 10)
 qAngHi = freecadutils.qrow(qw, "Max angle: ", 15+35*3, "%.1f" % 90)
 qoutputfilament = freecadutils.qrow(qw, "Output name: ", 15+35*10, "w1", 260)
 qthintol = freecadutils.qrow(qw, "Thinning tol: ", 15+35*5, "0.2")
-qbasewire = freecadutils.qrow(qw, "Base wire: ", 15+35*6)
-qthickgroup = freecadutils.qrow(qw, "Thick group: ", 15+35*6, "", 260)
+qalongwirelanded = freecadutils.qrow(qw, "alongwirelanded: ", 15+35*6)
+qthickgroup = freecadutils.qrow(qw, "Thick group: ", 15+35*11, "", 260)
+
 
 qtargetPO = freecadutils.qrow(qw, "Polar opening r: ", 15+35*0, "%.2f" % 43.0, 260)
 qtowwidth = freecadutils.qrow(qw, "Tow width: ", 15+35*2, "%.2f" % 6.35, 260)
@@ -284,7 +285,6 @@ qtolPO = freecadutils.qrow(qw, "PO tolerance: ", 15+35*1, "%.2f" % (6.35/8), 260
 qtowthick = freecadutils.qrow(qw, "Tow thickness: ", 15+35*3, "%.2f" % tth, 260)
 #vlab = QtGui.QLabel("clear above to go one direction", qw)
 #vlab.move(20+260, 15+35*3+5)
-qoutputfilament
 
 aimButton = QtGui.QPushButton("Aim", qw)
 aimButton.move(90, 15+35*4)
@@ -294,17 +294,17 @@ qtotthick = freecadutils.qrow(qw, "Desired thick: ", 15+35*4, "6.0", 260)
 qsideslip = freecadutils.qrow(qw, "Side slip: ", 15+35*5, "0", 260)
 
 prepButton = QtGui.QPushButton("Prep", qw)
-prepButton.move(90, 15+35*7)
+prepButton.move(90, 15+35*9)
 QtCore.QObject.connect(prepButton, QtCore.SIGNAL("pressed()"), preppressed)  
 
 qalongwire = freecadutils.qrow(qw, "alongwire: ", 15+35*7, "", 260)
-qdsangle = freecadutils.qrow(qw, "dsangle: ", 15+35*8, "")
-qtotrpt = freecadutils.qrow(qw, "totrpt: ", 15+35*8, "", 260)
-qlanded = freecadutils.qrow(qw, "landed: ", 15+35*9, "")
-qXZmin = freecadutils.qrow(qw, "XZmin: ", 15+35*9, "", 260)
-qpassYy = freecadutils.qrow(qw, "passYy: ", 15+35*10, "")
+qdsangle = freecadutils.qrow(qw, "dsangle: ", 15+35*7, "")
+qtotrpt = freecadutils.qrow(qw, "totrpt: ", 15+35*9, "", 260)
+qlanded = freecadutils.qrow(qw, "landed: ", 15+35*10, "")
+qXZmin = freecadutils.qrow(qw, "XZmin: ", 15+35*8, "", 260)
+qpassYy = freecadutils.qrow(qw, "passYy: ", 15+35*8, "")
 
-qalongwirelanded = freecadutils.qrow(qw, "alongwirelanded: ", 15+35*11)
+qbasewire = freecadutils.qrow(qw, "Base wire: ", 15+35*11)
 
 
 actButton = QtGui.QPushButton("Act", qw)
