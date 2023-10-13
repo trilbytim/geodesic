@@ -181,11 +181,8 @@ def preppressed():
 	dsangle = float(qdsangle.text())
 	XZmin = float(qXZmin.text())
 	passYy = float(qpassYy.text())
-	
-	if len(qbasewire.text()) != 0:
-		basewire = [freecadutils.findobjectbylabel(singlewirename)  for singlewirename in qbasewire.text().split(",") ]
-	else:
-		basewire = None
+	thickgroup = freecadutils.findobjectbylabel(qthickgroup.text()) if qthickgroup.text() != "" else None
+	basewire = thickgroup.OutList if thickgroup else None
 	if not (sketchplane and meshobject):
 		print("Need to select a Sketch and a Mesh object in the UI to make this work")
 		qw.hide()
@@ -203,15 +200,14 @@ def preppressed():
 	landed = alongwirelanded - alongwire
 	rpts, meanthick, totrpt = evalrepthick(landed, totrpt, XZmin, passYy, dsangle, tw)
 	#Create wire forced to an intersection point that gives an integer number of repeat)
+	basethick = 0.0
 	if basewire:
 		basepts = []
 		for bw in basewire:
 			basepts.append([P3(v.X,v.Y,v.Z)  for v in bw.Shape.Vertexes])
 		basethick = evalthick(XZmin, passYy, basepts, tw, tth)
 		print('basethickness', basethick)
-		totrpt = int(totrpt*(totthick-basethick)/meanthick)-1
-	else:
-		totrpt = int(totrpt*totthick/meanthick)-1
+	totrpt = int(totrpt*(totthick-basethick)/meanthick)-1
 	
 	qtotrpt.setText("%d" % totrpt)
 	qlanded.setText("%.6f" % landed)
@@ -247,16 +243,11 @@ def actpressed():
 	ply = Part.show(Part.makePolygon([Vector(pt)  for pt in rpts]), name+'x'+str(totrpt))
 	thickgroup.addObject(ply)
 	#Part.show(Part.makePolygon([rpts[0],rpts[-1]]), 'grrr')
-	basename = thickgroup.OutList[0].Name
-	for i in range(1,len(thickgroup.OutList)):
-		basename += ','
-		basename += thickgroup.OutList[i].Name
-	qbasewire.setText(basename)
 	
 	# advancing in prep for next cycle
 	targetPO = float(qtargetPO.text())
 	tw = float(qtowwidth.text())
-	qtargetPO.setText(str(targetPO+tw*0.75))
+	qtargetPO.setText("%.6f" % (targetPO+tw*0.75))
 
 
 
@@ -309,8 +300,6 @@ qtotrpt = freecadutils.qrow(qw, "totrpt: ", 15+35*9, "", 260)
 qlanded = freecadutils.qrow(qw, "landed: ", 15+35*10, "")
 qXZmin = freecadutils.qrow(qw, "XZmin: ", 15+35*8, "", 260)
 qpassYy = freecadutils.qrow(qw, "passYy: ", 15+35*8, "")
-
-qbasewire = freecadutils.qrow(qw, "Base wire: ", 15+35*11)
 
 
 actButton = QtGui.QPushButton("Act", qw)
