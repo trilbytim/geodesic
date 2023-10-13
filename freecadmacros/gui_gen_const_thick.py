@@ -105,6 +105,12 @@ def drivepressed():
 	preppressed()
 	actpressed()
 
+# XZMin should be same as PolarOpening after aim
+# alongwire???
+# PolarOpening should be along a perp drive curve?
+# Generate a little sector of stock to see how it differs from 6mm (colour it?)
+# Thick group to replace Base wire stuff
+
 def aimpressed():
 	global sketchplane, meshobject, sideslipturningfactorZ, outputfilament , thintol
 	dsangle = None
