@@ -182,7 +182,6 @@ def preppressed():
 	XZmin = float(qXZmin.text())
 	passYy = float(qpassYy.text())
 	thickgroup = freecadutils.findobjectbylabel(qthickgroup.text()) if qthickgroup.text() != "" else None
-	basewire = thickgroup.OutList if thickgroup else None
 	if not (sketchplane and meshobject):
 		print("Need to select a Sketch and a Mesh object in the UI to make this work")
 		qw.hide()
@@ -201,10 +200,12 @@ def preppressed():
 	rpts, meanthick, totrpt = evalrepthick(landed, totrpt, XZmin, passYy, dsangle, tw)
 	#Create wire forced to an intersection point that gives an integer number of repeat)
 	basethick = 0.0
-	if basewire:
+	if thickgroup:
 		basepts = []
-		for bw in basewire:
-			basepts.append([P3(v.X,v.Y,v.Z)  for v in bw.Shape.Vertexes])
+		for bw in thickgroup.OutList:
+			if hasattr(bw, "Shape") and isinstance(bw.Shape, Part.Wire) and "towwidth" in bw.PropertiesList:
+				print("evalthick includes:", bw.Name)
+				basepts.append([P3(v.X,v.Y,v.Z)  for v in bw.Shape.Vertexes])
 		basethick = evalthick(XZmin, passYy, basepts, tw, tth)
 		print('basethickness', basethick)
 	totrpt = int(totrpt*(totthick-basethick)/meanthick)-1
@@ -229,7 +230,6 @@ def actpressed():
 	landed = float(qlanded.text())
 	XZmin = float(qXZmin.text())
 	passYy = float(qpassYy.text())
-	name = 'w'+str(int(dsangle-90))
 
 	if qthickgroup.text() != "":
 		thickgroup = freecadutils.findobjectbylabel(qthickgroup.text())
@@ -240,8 +240,15 @@ def actpressed():
 	#Repeat that wire to create final ply
 	rpts, meanthick,totrpt = evalrepthick(landed, totrpt, XZmin, passYy, dsangle, tw)
 	print('First:', rpts[0], 'Last', rpts[-1] , 'thick', meanthick)
-	ply = Part.show(Part.makePolygon([Vector(pt)  for pt in rpts]), name+'x'+str(totrpt))
+	name = 'w%dx%d' % (int(dsangle-90), totrpt)
+	ply = Part.show(Part.makePolygon([Vector(pt)  for pt in rpts]), name)
 	thickgroup.addObject(ply)
+	ply.addProperty("App::PropertyAngle", "dsangle", "filwind"); ply.dsangle = dsangle
+	ply.addProperty("App::PropertyFloat", "alongwire", "filwind"); ply.alongwire = alongwire
+	ply.addProperty("App::PropertyFloat", "totrpt", "filwind"); ply.totrpt = totrpt
+	ply.addProperty("App::PropertyFloat", "landed", "filwind"); ply.landed = landed
+	ply.addProperty("App::PropertyFloat", "towwidth", "filwind"); ply.towwidth = tw
+
 	#Part.show(Part.makePolygon([rpts[0],rpts[-1]]), 'grrr')
 	
 	# advancing in prep for next cycle
