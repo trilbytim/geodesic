@@ -7,6 +7,7 @@
 
 from PySide import QtGui, QtCore
 from FreeCAD import Vector
+import Mesh, MeshPart
 import numpy as np
 import os, sys, math
 sys.path.append(os.path.join(os.path.split(__file__)[0]))
@@ -70,12 +71,15 @@ def repeatwindingpath(rpts, repeats,thintol):
 	ptsout = thinptstotolerance(ptsout, tol=thintol)
 	return ptsout
 
-def evalthick(r, yo, tpt, towwidth, towthick,evalpts=50):
+def evalthick(r, yo, tpt, towwidth, towthick, evalpts=50, tnormPolar=None):
 	towwidth /= 2
 	POpts=[]
+	POnorms = [ ]
 	for a in np.linspace(0,2*np.pi,evalpts):
 		POpts.append(App.Vector(r*np.sin(a),yo,r*np.cos(a)))
-	
+		if tnormPolar:
+			POnorms.append(App.Vector(0,1,0))
+		
 	mandpaths = MandrelPaths(tpt)
 	xrg = mandpaths.xrg.Inflate(towwidth*2)
 	yrg = mandpaths.yrg.Inflate(towwidth*2)
@@ -107,6 +111,20 @@ def evalthick(r, yo, tpt, towwidth, towthick,evalpts=50):
 	meanthick = np.mean(thickcount)*towthick
 	print('THICKNESSES AROUND RING:')
 	print('MAX:',np.max(thickcount)*towthick,'MIN:',np.min(thickcount)*towthick,'MEAN:', meanthick)
+
+	if tnormPolar:
+		facets = [ ]
+		Dexaggeratedtowthick = 1.0
+		for i in range(len(POpts) - 1):
+			p0, p1 = POpts[i], POpts[i+1]
+			pe0, pe1 = p0 + POnorms[i]*(thickcount[i]*Dexaggeratedtowthick), p1 + POnorms[i+1]*(thickcount[i+1]*Dexaggeratedtowthick)
+			facets.append([p0, pe0, p1])
+			facets.append([p1, pe0, pe1])
+		mesh = freecadutils.doc.addObject("Mesh::Feature", "thicknessflange")
+		mesh.ViewObject.Lighting = "Two side"
+		mesh.ViewObject.DisplayMode = "Flat Lines"
+		mesh.Mesh = Mesh.Mesh(facets)
+
 	return meanthick
 
 def drivepressed():
@@ -147,11 +165,11 @@ def CalcClosestPolarEdge(gbs):
 					tnorm = gbs[i+1].tnorm_incoming
 					TOL_ZERO(P3.Dot(Dv, tnorm))
 					passY = Along(lam, gbs[i].pt, gbs[i+1].pt)
-	
 	return math.sqrt(dclosestsq), passY, tnorm
 
+tnormattargetPO = P3(0,0,0)
 def aimpressed():
-	global sketchplane, outputfilament , thintol
+	global sketchplane, outputfilament, thintol, tnormattargetPO
 	dsangle = None
 	sketchplane = freecadutils.findobjectbylabel(qsketchplane.text())
 	meshobject = freecadutils.findobjectbylabel(qmeshobject.text())
@@ -192,6 +210,7 @@ def aimpressed():
 	qXZmin.setText("%.6f" % XZmin)
 	qpassYy.setText("%.6f" % passY.y)
 	qalongwirelanded.setText("%.6f" % alongwirelanded)
+	tnormattargetPO = tnorm
 	
 def preppressed():
 	global sketchplane, meshobject, outputfilament , thintol
@@ -234,7 +253,8 @@ def preppressed():
 			if hasattr(bw, "Shape") and isinstance(bw.Shape, Part.Wire) and "towwidth" in bw.PropertiesList:
 				print("--evalthick includes:", bw.Name)
 				basepts.append([P3(v.X,v.Y,v.Z)  for v in bw.Shape.Vertexes])
-		basethick = evalthick(XZmin, passYy, basepts, tw, tth)
+		tnormPolar = P2(P2(tnormattargetPO.x, tnormattargetPO.z).Len(), tnormattargetPO.y)
+		basethick = evalthick(XZmin, passYy, basepts, tw, tth, tnormPolar=tnormPolar)
 		print('basethickness', basethick)
 	totrpt = int(totrpt*(totthick-basethick)/meanthick)-1
 	
