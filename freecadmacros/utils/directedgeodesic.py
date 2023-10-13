@@ -174,13 +174,15 @@ class DriveCurve:
 
 
 
-def directedgeodesic(combofoldbackmode,sketchplane,meshobject,alongwire,alongwireI,dsangle,Maxsideslipturningfactor,mandrelradius,sideslipturningfactorZ,maxlength,outputfilament):
+def directedgeodesic(combofoldbackmode,sketchplane,meshobject_or_utbm,alongwire,alongwireI,dsangle,Maxsideslipturningfactor,mandrelradius,sideslipturningfactorZ,maxlength,outputfilament):
     mandrelgirth = 2*math.pi*mandrelradius
     driveperpvec = sketchplane.Placement.Rotation.multVec(Vector(0,0,1))
     driveperpvecDot = driveperpvec.dot(sketchplane.Placement.Base)
     rotplanevecX = sketchplane.Placement.Rotation.multVec(Vector(1,0,0))
     rotplanevecY = sketchplane.Placement.Rotation.multVec(Vector(0,1,0))
-    utbm = UsefulBoxedTriangleMesh(meshobject.Mesh)
+
+    utbm = meshobject_or_utbm if isinstance(meshobject_or_utbm, UsefulBoxedTriangleMesh) else UsefulBoxedTriangleMesh(meshobject_or_utbm.Mesh)
+
     flatbartangents = None
 
     startbar, startlam = planecutbars(utbm.tbarmesh, driveperpvec, driveperpvecDot)

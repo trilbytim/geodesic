@@ -12,17 +12,27 @@ import os, sys, math
 sys.path.append(os.path.join(os.path.split(__file__)[0]))
 print(sys.path[-1])
 
+import imp
+import utils.directedgeodesic
+imp.reload(utils.directedgeodesic)
+
 import utils.freecadutils as freecadutils
 from utils.directedgeodesic import directedgeodesic, makebicolouredwire
 from barmesh.basicgeo import I1, Partition1, P3, P2, Along, lI1
 from barmesh.tribarmes.triangleboxing import TriangleBoxing
 from utils.pathutils import BallPathCloseRegions, MandrelPaths
 from utils.curvesutils import thinptstotolerance
+from utils.trianglemeshutils import UsefulBoxedTriangleMesh
 
 doc, sel = freecadutils.init(App)
 sketchplane = None
 meshobject = None
 thintol = 0.2
+
+def TOL_ZERO(X, msg=""):
+    if not (abs(X) < 0.0001):
+        print("TOL_ZERO fail", X, msg)
+
 
 #Function that repeats a path and evaluates the thickness on a ring at coord yo and radius r
 def evalrepthick(landed, totrpt, r, yo, dsangle, tw):
@@ -108,10 +118,40 @@ def drivepressed():
 # alongwire???
 # PolarOpening should be along a perp drive curve?
 # Generate a little sector of stock to see how it differs from 6mm (colour it?)
-# Thick group to replace Base wire stuff
+
+# (this could approach a point instead of the axis
+def CalcClosestPolarEdge(gbs):
+	ilclosest = 0.0
+	dclosestsq = P2(gbs[0].pt.x, gbs[0].pt.z).Lensq()
+	tnorm = gbs[0].tnorm  # GBarT kind.  Rest are GBarC kind so have tnorm_incoming
+	passY = gbs[0].pt.y
+	for i in range(0, len(gbs) - 2):
+		p0 = P2(gbs[i].pt.x, gbs[i].pt.z)
+		p1 = P2(gbs[i+1].pt.x, gbs[i+1].pt.z)
+		ldclosestsq = p1.Lensq()
+		if ldclosestsq < dclosestsq:
+			dclosestsq = ldclosestsq
+			ilclosest = i + 1.0
+			tnorm = gbs[i+1].tnorm_incoming
+			passY = gbs[i+1].pt.y
+		v = p1 - p0
+		vsq = v.Lensq()
+		if vsq != 0.0:
+			lam = -P2.Dot(p0, v) / vsq
+			if 0 < lam < 1:
+				ldclosestsq = Along(lam, p0, p1).Lensq()
+				if ldclosestsq < dclosestsq:
+					dclosestsq = ldclosestsq
+					ilclosest = i + lam
+					Dv = gbs[i+1].pt - gbs[i].pt
+					tnorm = gbs[i+1].tnorm_incoming
+					TOL_ZERO(P3.Dot(Dv, tnorm))
+					passY = Along(lam, gbs[i].pt, gbs[i+1].pt)
+	
+	return math.sqrt(dclosestsq), passY, tnorm
 
 def aimpressed():
-	global sketchplane, meshobject, outputfilament , thintol
+	global sketchplane, outputfilament , thintol
 	dsangle = None
 	sketchplane = freecadutils.findobjectbylabel(qsketchplane.text())
 	meshobject = freecadutils.findobjectbylabel(qmeshobject.text())
@@ -128,23 +168,13 @@ def aimpressed():
 	finished = False
 	attempts = 10
 	i = 0
+	utbm = UsefulBoxedTriangleMesh(meshobject.Mesh)
 	while not finished:
 		dsangle = (AngHi+AngLo)/2
 		print('Trying angle: ', dsangle-90)
-		gbs, fLRdirection, dseg, alongwirelanded = directedgeodesic(combofoldbackmode, sketchplane, meshobject, alongwire, alongwireI, dsangle, Maxsideslipturningfactor, mandrelradius, 0.0, maxlength, outputfilament)
-		if gbs[-1]:
-			pts = [Vector(*gb.pt)  for gb in gbs]
-		else:
-			pts = [Vector(*gb.pt)  for gb in gbs[:-1]]
-		#(could do with better way of seeing closest approach to y axis)
-		XZmin = np.Inf
-		passY = None
-		for v in pts:
-			XZ = np.sqrt(v.x**2 + v.z**2)
-			if XZ < XZmin:
-				XZmin = XZ
-				passY = v
-		print('Closest approach to Y axis of:',round(XZmin,2), 'at:', passY.x,',', passY.y,',',passY.z)
+		gbs, fLRdirection, dseg, alongwirelanded = directedgeodesic(combofoldbackmode, sketchplane, utbm, alongwire, alongwireI, dsangle, Maxsideslipturningfactor, mandrelradius, 0.0, maxlength, outputfilament)
+		XZmin, passY, tnorm = CalcClosestPolarEdge(gbs)
+		print('  New Closest approach to Y axis of:',round(XZmin,2), 'at:', passY.x,',', passY.y,',',passY.z)
 		if XZmin < targetPO or gbs[-1] == None:
 			AngLo = dsangle
 		else:
@@ -241,11 +271,13 @@ def actpressed():
 	name = 'w%dx%d' % (int(dsangle-90), totrpt)
 	ply = Part.show(Part.makePolygon([Vector(pt)  for pt in rpts]), name)
 	thickgroup.addObject(ply)
+	targetPO = float(qtargetPO.text())
 	ply.addProperty("App::PropertyAngle", "dsangle", "filwind"); ply.dsangle = dsangle
 	ply.addProperty("App::PropertyFloat", "alongwire", "filwind"); ply.alongwire = alongwire
 	ply.addProperty("App::PropertyFloat", "totrpt", "filwind"); ply.totrpt = totrpt
 	ply.addProperty("App::PropertyFloat", "landed", "filwind"); ply.landed = landed
 	ply.addProperty("App::PropertyFloat", "towwidth", "filwind"); ply.towwidth = tw
+	ply.addProperty("App::PropertyFloat", "targetPO", "filwind"); ply.targetPO = targetPO
 
 	#Part.show(Part.makePolygon([rpts[0],rpts[-1]]), 'grrr')
 	
