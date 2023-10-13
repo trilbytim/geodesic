@@ -22,7 +22,6 @@ from utils.curvesutils import thinptstotolerance
 doc, sel = freecadutils.init(App)
 sketchplane = None
 meshobject = None
-sideslipturningfactorZ = None
 thintol = 0.2
 
 #Function that repeats a path and evaluates the thickness on a ring at coord yo and radius r
@@ -39,7 +38,7 @@ def evalrepthick(landed, totrpt, r, yo, dsangle, tw):
 	alongwireadv =  turns / totrpt
 	print('FORCE TO', alongwireadv)
 	alongwireI = alongwire + alongwireadv
-	gbs, fLRdirection, dseg, alongwirelanded100 = directedgeodesic(combofoldbackmode, sketchplane, meshobject, alongwire, alongwireI, dsangle, Maxsideslipturningfactor, mandrelradius, sideslipturningfactorZ, maxlength, outputfilament)
+	gbs, fLRdirection, dseg, alongwirelanded100 = directedgeodesic(combofoldbackmode, sketchplane, meshobject, alongwire, alongwireI, dsangle, Maxsideslipturningfactor, mandrelradius, 0.0, maxlength, outputfilament)
 	#name = 'w'+str(int(dsangle-90))+'forced'
 	#makebicolouredwire(gbs, name, colfront=(1.0,0.0,0.0) if fLRdirection == -1 else (0.0,0.0,1.0), colback=(0.7,0.7,0.0), leadcolornodes=dseg+1)
 	rpts = repeatwindingpath([P3(*gb.pt)  for gb in gbs], totrpt,thintol)
@@ -112,7 +111,7 @@ def drivepressed():
 # Thick group to replace Base wire stuff
 
 def aimpressed():
-	global sketchplane, meshobject, sideslipturningfactorZ, outputfilament , thintol
+	global sketchplane, meshobject, outputfilament , thintol
 	dsangle = None
 	sketchplane = freecadutils.findobjectbylabel(qsketchplane.text())
 	meshobject = freecadutils.findobjectbylabel(qmeshobject.text())
@@ -124,7 +123,6 @@ def aimpressed():
 	AngHi = 90+float(qAngHi.text())
 	thintol = float(qthintol.text())
 	tth = float(qtowthick.text())
-	sideslipturningfactorZ = float(qsideslip.text())
 	
 	alongwireI = None
 	finished = False
@@ -133,7 +131,7 @@ def aimpressed():
 	while not finished:
 		dsangle = (AngHi+AngLo)/2
 		print('Trying angle: ', dsangle-90)
-		gbs, fLRdirection, dseg, alongwirelanded = directedgeodesic(combofoldbackmode, sketchplane, meshobject, alongwire, alongwireI, dsangle, Maxsideslipturningfactor, mandrelradius, sideslipturningfactorZ, maxlength, outputfilament)
+		gbs, fLRdirection, dseg, alongwirelanded = directedgeodesic(combofoldbackmode, sketchplane, meshobject, alongwire, alongwireI, dsangle, Maxsideslipturningfactor, mandrelradius, 0.0, maxlength, outputfilament)
 		if gbs[-1]:
 			pts = [Vector(*gb.pt)  for gb in gbs]
 		else:
@@ -166,7 +164,7 @@ def aimpressed():
 	qalongwirelanded.setText("%.6f" % alongwirelanded)
 	
 def preppressed():
-	global sketchplane, meshobject, sideslipturningfactorZ, outputfilament , thintol
+	global sketchplane, meshobject, outputfilament , thintol
 	dsangle = None
 	sketchplane = freecadutils.findobjectbylabel(qsketchplane.text())
 	meshobject = freecadutils.findobjectbylabel(qmeshobject.text())
@@ -204,7 +202,7 @@ def preppressed():
 		basepts = []
 		for bw in thickgroup.OutList:
 			if hasattr(bw, "Shape") and isinstance(bw.Shape, Part.Wire) and "towwidth" in bw.PropertiesList:
-				print("evalthick includes:", bw.Name)
+				print("--evalthick includes:", bw.Name)
 				basepts.append([P3(v.X,v.Y,v.Z)  for v in bw.Shape.Vertexes])
 		basethick = evalthick(XZmin, passYy, basepts, tw, tth)
 		print('basethickness', basethick)
@@ -215,7 +213,7 @@ def preppressed():
 
 	
 def actpressed():
-	global sketchplane, meshobject, sideslipturningfactorZ, outputfilament , thintol
+	global sketchplane, meshobject, outputfilament , thintol
 	sketchplane = freecadutils.findobjectbylabel(qsketchplane.text())
 	meshobject = freecadutils.findobjectbylabel(qmeshobject.text())
 	outputfilament = qoutputfilament.text()
@@ -295,7 +293,6 @@ aimButton.move(90, 15+35*4)
 QtCore.QObject.connect(aimButton, QtCore.SIGNAL("pressed()"), aimpressed)  
 
 qtotthick = freecadutils.qrow(qw, "Desired thick: ", 15+35*4, "6.0", 260)
-qsideslip = freecadutils.qrow(qw, "Side slip: ", 15+35*5, "0", 260)
 
 prepButton = QtGui.QPushButton("Prep", qw)
 prepButton.move(90, 15+35*9)
