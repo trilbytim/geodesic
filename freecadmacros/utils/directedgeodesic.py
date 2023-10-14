@@ -138,9 +138,9 @@ def drivegeodesicRI(gbStart, drivebars, tridrivebarsmap, LRdirection=1, sideslip
 
 def makebicolouredwire(gbs, name, colfront=(1.0,0.0,0.0), colback=(0.0,0.3,0.0), leadcolornodes=-1):
     if gbs[-1]: # Deal with last point being None type
-    	wire = Part.show(Part.makePolygon([Vector(*gb.pt)  for gb in gbs]), name)
+        wire = Part.show(Part.makePolygon([Vector(*gb.pt)  for gb in gbs]), name)
     else:
-    	wire = Part.show(Part.makePolygon([Vector(*gb.pt)  for gb in gbs[:-1]]), name)
+        wire = Part.show(Part.makePolygon([Vector(*gb.pt)  for gb in gbs[:-1]]), name)
     if leadcolornodes == -1:
         leadcolornodes = min(len(gbs)//2, 40)
     wire.ViewObject.LineColorArray= [colfront]*leadcolornodes + [colback]*(len(gbs) - leadcolornodes)
@@ -173,25 +173,24 @@ class DriveCurve:
         return alongwirelanded
 
 
-
-def directedgeodesic(combofoldbackmode,sketchplane,meshobject_or_utbm,alongwire,alongwireI,dsangle,Maxsideslipturningfactor,mandrelradius,sideslipturningfactorZ,maxlength,outputfilament):
+def makedrivecurve(sketchplane, utbm, mandrelradius):
     mandrelgirth = 2*math.pi*mandrelradius
     driveperpvec = sketchplane.Placement.Rotation.multVec(Vector(0,0,1))
     driveperpvecDot = driveperpvec.dot(sketchplane.Placement.Base)
     rotplanevecX = sketchplane.Placement.Rotation.multVec(Vector(1,0,0))
     rotplanevecY = sketchplane.Placement.Rotation.multVec(Vector(0,1,0))
-
-    utbm = meshobject_or_utbm if isinstance(meshobject_or_utbm, UsefulBoxedTriangleMesh) else UsefulBoxedTriangleMesh(meshobject_or_utbm.Mesh)
-
-    flatbartangents = None
-
     startbar, startlam = planecutbars(utbm.tbarmesh, driveperpvec, driveperpvecDot)
     drivebars = planecutembeddedcurve(startbar, startlam, driveperpvec)
     drivecurve = DriveCurve(drivebars)
     print("girth comparison", 'Nominal:',mandrelgirth, 'Drivecurve length:',drivecurve.dptcls[-1])
+    return drivecurve
 
+def directedgeodesic(combofoldbackmode, sketchplane, meshobject_or_utbm, 
+                     alongwire, alongwireI, dsangle, Maxsideslipturningfactor,
+                     mandrelradius, sideslipturningfactorZ, maxlength, outputfilament):
+    utbm = meshobject_or_utbm if isinstance(meshobject_or_utbm, UsefulBoxedTriangleMesh) else UsefulBoxedTriangleMesh(meshobject_or_utbm.Mesh)
+    drivecurve = makedrivecurve(sketchplane, utbm, mandrelradius)
     gbStart = drivecurve.startalongangle(alongwire, dsangle)
-
     fLRdirection = 1 if ((dsangle + 360)%360) < 180.0 else -1
     if combofoldbackmode != 0:
         fLRdirection = -fLRdirection
@@ -199,7 +198,8 @@ def directedgeodesic(combofoldbackmode,sketchplane,meshobject_or_utbm,alongwire,
     #print("doing alongwire %.2f foldback=%d  alongwireI %.2f" % (alongwire, fLRdirection, alongwireI or 0))
     gbs = drivegeodesicRI(gbStart, drivecurve.drivebars, drivecurve.tridrivebarsmap, LRdirection=fLRdirection, sideslipturningfactor=sideslipturningfactorZ, maxlength=maxlength)
     if gbs[-1] == None:
-        #Part.show(Part.makePolygon([Vector(*gb.pt)  for gb in gbs[:-1]]), outputfilament)
+        if outputfilament:
+            Part.show(Part.makePolygon([Vector(*gb.pt)  for gb in gbs[:-1]]), outputfilament)
         return gbs, 0, -1, None
         
     alongwirelanded = drivecurve.endalongposition(gbs[-1])
@@ -224,8 +224,9 @@ def directedgeodesic(combofoldbackmode,sketchplane,meshobject_or_utbm,alongwire,
     
     if gbsI[-1] == None:
         print("Reversed path did not intersect")
-        Part.show(Part.makePolygon([Vector(*gb.pt)  for gb in gbs]), outputfilament)
-        Part.show(Part.makePolygon([Vector(*gb.pt)  for gb in gbsI[:-1]]), outputfilament)
+        if outputfilament:
+            Part.show(Part.makePolygon([Vector(*gb.pt)  for gb in gbs]), outputfilament)
+            Part.show(Part.makePolygon([Vector(*gb.pt)  for gb in gbsI[:-1]]), outputfilament)
         return
 
     for j in range(2):
