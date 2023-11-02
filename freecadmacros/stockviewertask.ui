@@ -7,7 +7,7 @@
     <x>0</x>
     <y>0</y>
     <width>400</width>
-    <height>324</height>
+    <height>373</height>
    </rect>
   </property>
   <property name="sizePolicy">
@@ -23,9 +23,9 @@
    <property name="geometry">
     <rect>
      <x>70</x>
-     <y>280</y>
+     <y>320</y>
      <width>87</width>
-     <height>26</height>
+     <height>30</height>
     </rect>
    </property>
    <property name="text">
@@ -36,7 +36,7 @@
    <property name="geometry">
     <rect>
      <x>200</x>
-     <y>280</y>
+     <y>319</y>
      <width>66</width>
      <height>27</height>
     </rect>
@@ -54,7 +54,7 @@
      <x>0</x>
      <y>0</y>
      <width>391</width>
-     <height>268</height>
+     <height>301</height>
     </rect>
    </property>
    <layout class="QFormLayout" name="formLayout">
@@ -145,14 +145,17 @@
      </widget>
     </item>
     <item row="5" column="0">
-     <widget class="QLabel" name="labrowheight">
+     <widget class="QLabel" name="labcolsamplestep">
       <property name="text">
-       <string>rowheight</string>
+       <string>colsamplestep</string>
       </property>
      </widget>
     </item>
     <item row="5" column="1">
-     <widget class="QDoubleSpinBox" name="qrowheight">
+     <widget class="QDoubleSpinBox" name="qcolsamplestep">
+      <property name="toolTip">
+       <string extracomment="The sample step along the radial paths "/>
+      </property>
       <property name="value">
        <double>3.200000000000000</double>
       </property>

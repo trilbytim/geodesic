@@ -1,8 +1,9 @@
 # -*- coding: utf-8 -*-
 
-# directional geodesics from embedded curve controlling endpoint
+# stock viewer task, a standard interactive panel on the left in FreeCAD.  
+# To edit the UI file, nix-shell -p qtcreator, start up qtcreator
+# select default current project and start editing stockviewertask.ui
 
-# Embed a curve into a mesh so we can head off in different directions and tell when it is crossed
 
 import Draft, Part, Mesh, MeshPart, Fem
 from FreeCAD import Vector, Rotation 
@@ -19,6 +20,7 @@ from barmesh.tribarmes.triangleboxing import TriangleBoxing
 from utils.pathutils import BallPathCloseRegions, MandrelPaths, MakeFEAcoloredmesh
 import utils.freecadutils as freecadutils
 freecadutils.init(App)
+from utils.curvesutils import cumlengthlist, seglampos
 
 import imp
 import utils.directedgeodesic
@@ -113,15 +115,6 @@ if False:
 
 
 
-# Should be put back into the useful utils
-def sgetlabelsofselectedwire(sel, multiples=False):
-    labels = [ ]
-    for s in sel:
-        if hasattr(s, "Shape") and isinstance(s.Shape, Part.Wire):
-            labels.append(s.Label)
-            if not multiples:
-                break
-    return ",".join(labels)
 
 def sgetlabelstowwires(sel):
     labels = [ ]
@@ -131,9 +124,14 @@ def sgetlabelstowwires(sel):
         if hasattr(s, "Shape") and isinstance(s.Shape, Part.Wire):
             if "towwidth" in s.PropertiesList and not (s.Label in labels):
                 labels.append(s.Label)
+            else:
+                if not (hasattr(s, "Module") and s.Module == 'Sketcher'):
+                    print("Warning: %s has no towwidth property" % s.Label)
         elif hasattr(s, "OutList"):
             lsel.extend(s.OutList)
     return ",".join(labels)
+    
+    
 
 def sgetlabelofselectedmesh(sel):
     for s in sel:
@@ -158,18 +156,53 @@ def sfindobjectbylabel(doc, lab):
     return objs[0] if objs else None
 
 
+mandrelradius = 110  # fc6 file
+dsangle = 90.0
+LRdirection = 1
+
+def chaseupcolumnptnormalsfromdrivecurve(drivecurve, alongwireLo, alongwireHi, columns, colsamplestep):
+    columnptnormals = [ ]
+    for alongwire in numpy.linspace(alongwireLo, alongwireHi, columns+1):
+        colgbStart = drivecurve.startalongangle(alongwire, dsangle)
+        colgbs = drivegeodesicRI(colgbStart, drivecurve.drivebars, drivecurve.tridrivebarsmap, LRdirection=LRdirection, maxlength=400.0)
+        if colgbs[-1] == None:
+            colgbs.pop()
+
+        colcls = cumlengthlist([gb.pt  for gb in colgbs])
+        ds = 0.0
+        ptnormals = [ ]
+        while ds < colcls[-1] and len(ptnormals) < 100:
+            dsseg, dslam = seglampos(ds, colcls)
+            pt = Along(dslam, colgbs[dsseg].pt, colgbs[dsseg+1].pt)
+            norm = colgbs[dsseg+1].tnorm if hasattr(colgbs[dsseg+1], "tnorm") else colgbs[dsseg+1].tnorm_incoming
+            ptnormals.append((pt, -norm))
+            ds += colsamplestep
+        columnptnormals.append(ptnormals)
+    return columnptnormals
+
+def makemeshfromcolumnpts(columnpts):
+    facets = [ ]
+    for j in range(len(columnpts)-1):
+        c0, c1 = columnpts[j], columnpts[j+1]
+        for i in range(min(len(c0), len(c1))-1):
+            p0, p1 = c0[i], c0[i+1]
+            pe0, pe1 = c1[i], c1[i+1]
+            facets.append([p0, pe0, p1])
+            facets.append([p1, pe0, pe1])
+    mesh = freecadutils.doc.addObject("Mesh::Feature", "stockshape")
+    mesh.ViewObject.Lighting = "Two side"
+    mesh.ViewObject.DisplayMode = "Flat Lines"
+    mesh.Mesh = Mesh.Mesh(facets)
+
 
 import FreeCADGui as Gui
 import PySide.QtGui as QtGui
 import PySide.QtCore as QtCore
 
-Maxsideslipturningfactor = 0.26
-combofoldbackmode = 0
-mandrelradius = 110  # fc6 file
 
-
-class CCCC(QtGui.QWidget):
+class StockViewerTaskPanel(QtGui.QWidget):
     def __init__(self):
+        print("loading stockviewertask.ui")
         x = os.path.join(os.path.split(__file__)[0], "stockviewertask.ui")
         self.form = FreeCADGui.PySideUic.loadUi(x)
         self.form.setMinimumSize(0, 300)
@@ -187,14 +220,22 @@ class CCCC(QtGui.QWidget):
         print("Pushbutton pressed")
 
     def apply(self):
-        print("apply!")
+        print("apply!!")
         sketchplane = sfindobjectbylabel(self.doc, self.form.qsketchplane.text())
         meshobject = sfindobjectbylabel(self.doc, self.form.qmeshobject.text())
         alongwireLo = float(self.form.qalongwireLo.text())
         alongwireHi = float(self.form.qalongwireHi.text())
         columns = int(self.form.qcolumns.text())
+        colsamplestep = float(self.form.qcolsamplestep.text())
+
         utbm = UsefulBoxedTriangleMesh(meshobject.Mesh)
         drivecurve = makedrivecurve(sketchplane, utbm, mandrelradius)
+
+        columnptnormals = chaseupcolumnptnormalsfromdrivecurve(drivecurve, alongwireLo, alongwireHi, columns, colsamplestep)
+        #Part.show(Part.makePolygon([Vector(*pt)  for pt, norm in ptnormals]), "thing")
+
+        columnpts = [ [ pt+norm*4.1  for pt, norm in ptnormals ]  for ptnormals in columnptnormals ]
+        makemeshfromcolumnpts(columnpts)
 
 
 # We are making a radial path that can be a secondary drive curve
@@ -203,21 +244,12 @@ class CCCC(QtGui.QWidget):
 # which will lie in a sector and have its own normal vectors embedded
 # and we can use this to project outward for the stock meshes.
 # call this build stock basis mesh
-        dsangle, LRdirection = 90.0, 1
-        perpdrivecurves = [ ]
-        for alongwire in numpy.linspace(alongwireLo, alongwireHi, columns+1):
-            gbStart = drivecurve.startalongangle(alongwire, dsangle)
-            gbs = drivegeodesicRI(gbStart, drivecurve.drivebars, drivecurve.tridrivebarsmap, LRdirection=LRdirection, maxlength=400.0)
-            gbdrivebars = [(gb.bar, gb.lam)  for gb in reversed(gbs[1:-2])]
-            r = DriveCurve(gbdrivebars)  # this can't handle running to the edge case, so why it's -2, or the GbarT case
-            perpdrivecurves.append(r)
-            Part.show(Part.makePolygon([Vector(*gb.pt)  for gb in gbs[:-1]]), "thing")
+
 
     def getStandardButtons(self):
         return int(QtGui.QDialogButtonBox.Cancel
                    | QtGui.QDialogButtonBox.Ok
                    | QtGui.QDialogButtonBox.Apply)
-
 
     def clicked(self, bt):
         if bt == QtGui.QDialogButtonBox.Apply:
@@ -236,5 +268,5 @@ class CCCC(QtGui.QWidget):
         print("Finish")
         Gui.Control.closeDialog()
 
-Gui.Control.showDialog(CCCC())
+Gui.Control.showDialog(StockViewerTaskPanel())
 
