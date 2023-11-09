@@ -28,110 +28,10 @@ imp.reload(utils.directedgeodesic)
 from utils.directedgeodesic import directedgeodesic, makebicolouredwire, makedrivecurve, drivegeodesicRI, DriveCurve
 from utils.trianglemeshutils import UsefulBoxedTriangleMesh
 
-def okaypressed():
-    print("Okay Pressed") 
-    mandrelpaths = [ freecadutils.findobjectbylabel(mandrelpathname)  for mandrelpathname in qmandrelpaths.text().split(",") ]
-    towwidth = float(qtowwidth.text())/2
-    towthick = float(qtowthick.text())
-    
-    measuremesh = freecadutils.findobjectbylabel(qmeshpointstomeasure.text())
-    if measuremesh.TypeId == "Mesh::Curvature":
-        meshcurvature = measuremesh
-        measuremesh = meshcurvature.Source
-    else:
-        meshcurvature = None
-    
-    mandrelptpaths = [ ]
-    for mandrelpath in mandrelpaths:
-        mandrelwindpts = [ P3(p.X, p.Y, p.Z)  for p in mandrelpath.Shape.Vertexes ]
-        mandrelptpaths.append(mandrelwindpts)
-    mandpaths = MandrelPaths(mandrelptpaths)
-    xrg = mandpaths.xrg.Inflate(towwidth*2)
-    yrg = mandpaths.yrg.Inflate(towwidth*2)
-    boxwidth = max(towwidth, xrg.Leng()/30, yrg.Leng()/30)
-    tbs = TriangleBoxing(None, xrg.lo, xrg.hi, yrg.lo, yrg.hi, boxwidth)
-    print("Creating box set boxwidth=", boxwidth, mandpaths.Nm)
-    mandpaths.addpathstotgbs(tbs)
+import FreeCADGui as Gui
+import PySide.QtGui as QtGui
+import PySide.QtCore as QtCore
 
-    thickcount = [ ]
-    maxthickcount = 0
-    thickpoint = None
-    for mp in measuremesh.Mesh.Points[::]:
-        mmp = P3(mp.x, mp.y, mp.z)
-        bpcr = BallPathCloseRegions(mmp, towwidth)
-        mandpaths.nhitreg += 1
-        for ix, iy in tbs.CloseBoxeGenerator(mp.x, mp.x, mp.y, mp.y, towwidth):
-            tbox = tbs.boxes[ix][iy]
-            for i in tbox.pointis:
-                bpcr.DistPoint(mandpaths.getpt(i), i)
-            for i in tbox.edgeis:
-                if mandpaths.hitreg[i] != mandpaths.nhitreg:
-                    bpcr.DistEdge(mandpaths.getpt(i), mandpaths.getpt(i+1), i)
-                    mandpaths.hitreg[i] = mandpaths.nhitreg
-        bpcr.mergeranges()
-        #ss = len(bpcr.ranges)
-        #bpcr.mergegaps(0.1, mandpaths)
-        #if ss != len(bpcr.ranges):
-        #    print("Gap actually merged")
-        thickcount.append(len(bpcr.ranges))
-        if thickcount[-1] > maxthickcount:
-            maxthickcount = thickcount[-1]
-            thickpoint = mp
-        
-    print("Max thick count", maxthickcount, "thickness", maxthickcount*towthick, "at point", thickpoint)
-    if meshcurvature != None:
-        for i, c in enumerate(thickcount):
-            meshcurvature.ValueAtIndex = (i, c*towthick, c)
-            meshcurvature.recompute()
-        print(" Setting of Min/Max curvatures to filament crossings")
-    else:
-        if "VertexThicknesses" not in measuremesh.PropertiesList:
-            measuremesh.addProperty("App::PropertyFloatList", "VertexThicknesses")
-        measuremesh.VertexThicknesses = [ c*towthick  for c in thickcount ]
-    qw.hide()
-
-if False:
-    qw = QtGui.QWidget()
-    qw.setWindowFlag(QtCore.Qt.WindowStaysOnTopHint)
-    qw.setGeometry(700, 500, 300, 350)
-    qw.setWindowTitle('Measure thickness')
-    qmeshpointstomeasure = freecadutils.qrow(qw, "Mesh: ", 15+35*1)
-
-    qmandrelpaths = freecadutils.qrow(qw, "Winding paths ", 15+35*2, "")
-    qtowwidth = freecadutils.qrow(qw, "Tow width: ", 15+35*3, "6.35")
-    qtowthick = freecadutils.qrow(qw, "Tow thick: ", 15+35*4, "0.18")
-
-    okButton = QtGui.QPushButton("Measure", qw)
-    okButton.move(180, 15+35*8)
-    QtCore.QObject.connect(okButton, QtCore.SIGNAL("pressed()"), okaypressed)  
-
-    qmandrelpaths.setText(freecadutils.getlabelofselectedwire(multiples=True))
-    qmeshpointstomeasure.setText(freecadutils.getlabelofselectedmesh())
-
-    qw.show()
-
-
-
-
-
-
-
-def sgetlabelstowwires(sel):
-    labels = [ ]
-    lsel = sel.copy()
-    while lsel:
-        s = lsel.pop()
-        if hasattr(s, "Shape") and isinstance(s.Shape, Part.Wire):
-            if "towwidth" in s.PropertiesList and not (s.Label in labels):
-                labels.append(s.Label)
-            else:
-                if not (hasattr(s, "Module") and s.Module == 'Sketcher'):
-                    print("Warning: %s has no towwidth property" % s.Label)
-        elif hasattr(s, "OutList"):
-            lsel.extend(s.OutList)
-    return ",".join(labels)
-    
-    
 
 def sgetlabelofselectedmesh(sel):
     for s in sel:
@@ -180,7 +80,7 @@ def chaseupcolumnptnormalsfromdrivecurve(drivecurve, alongwireLo, alongwireHi, c
         columnptnormals.append(ptnormals)
     return columnptnormals
 
-def makedrivemeshfromcolumnpts(columnptnormals):
+def makedrivemeshfromcolumnpts(columnptnormals, stockmeshname):
     facets = [ ]
     for j in range(len(columnptnormals)-1):
         c0, c1 = columnptnormals[j], columnptnormals[j+1]
@@ -191,7 +91,8 @@ def makedrivemeshfromcolumnpts(columnptnormals):
             facets.append([p1, pe0, pe1])
             
     # there is no way to associate normals to these mesh vertices 
-    # so we have to look them up afterwards
+    # so we have to look them up afterwards, using an n^2 algorithm
+    # The correct way would be to set the components of the mesh directly
     mesh = Mesh.Mesh(facets)
     assert mesh.CountPoints == len(columnptnormals)*len(columnptnormals[0])
     ptnormalsdict = sum(columnptnormals, [ ])
@@ -200,7 +101,7 @@ def makedrivemeshfromcolumnpts(columnptnormals):
         s = min(ptnormalsdict, key=lambda X: (X[0] - P3(m.x, m.y, m.z)).Lensq())
         normalslist.append(s[1])
     
-    drivemesh = freecadutils.doc.addObject("Mesh::Feature", "stockshape")
+    drivemesh = freecadutils.doc.addObject("Mesh::Feature", stockmeshname)
     drivemesh.Mesh = mesh
     drivemesh.addProperty("App::PropertyVectorList", "Normals")
     drivemesh.Normals = normalslist
@@ -211,15 +112,9 @@ def makedrivemeshfromcolumnpts(columnptnormals):
     drivemesh.ViewObject.DisplayMode = "Flat Lines"
 
 
-import FreeCADGui as Gui
-import PySide.QtGui as QtGui
-import PySide.QtCore as QtCore
-
-
 class StockViewerTaskPanel(QtGui.QWidget):
     def __init__(self):
-        print("loading stockviewertask.ui")
-        x = os.path.join(os.path.split(__file__)[0], "stockviewertask.ui")
+        x = os.path.join(os.path.split(__file__)[0], "stockmeshcreatortask.ui")
         self.form = FreeCADGui.PySideUic.loadUi(x)
         self.form.setMinimumSize(0, 300)
         QtCore.QObject.connect(self.form.pushButton, QtCore.SIGNAL("pressed()"), self.pushbutton)  
@@ -228,7 +123,6 @@ class StockViewerTaskPanel(QtGui.QWidget):
     def update(self):
         self.doc = App.ActiveDocument
         self.sel = App.Gui.Selection.getSelection()
-        self.form.qmandrelpaths.setText(sgetlabelstowwires(self.sel))
         self.form.qmeshobject.setText(sgetlabelofselectedmesh(self.sel))
         self.form.qsketchplane.setText(sgetlabelofselectedsketch(self.sel))
 
@@ -239,6 +133,7 @@ class StockViewerTaskPanel(QtGui.QWidget):
         print("apply!!")
         sketchplane = sfindobjectbylabel(self.doc, self.form.qsketchplane.text())
         meshobject = sfindobjectbylabel(self.doc, self.form.qmeshobject.text())
+        stockmeshname = self.form.qstockmeshname.text()
         alongwireLo = float(self.form.qalongwireLo.text())
         alongwireHi = float(self.form.qalongwireHi.text())
         columns = int(self.form.qcolumns.text())
@@ -248,9 +143,8 @@ class StockViewerTaskPanel(QtGui.QWidget):
         drivecurve = makedrivecurve(sketchplane, utbm, mandrelradius)
 
         columnptnormals = chaseupcolumnptnormalsfromdrivecurve(drivecurve, alongwireLo, alongwireHi, columns, colsamplestep)
-        #Part.show(Part.makePolygon([Vector(*pt)  for pt, norm in ptnormals]), "thing")
 
-        makedrivemeshfromcolumnpts(columnptnormals)
+        makedrivemeshfromcolumnpts(columnptnormals, stockmeshname)
 
 
 

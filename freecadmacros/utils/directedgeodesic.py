@@ -121,7 +121,7 @@ def drivegeodesicRI(gbStart, drivebars, tridrivebarsmap, LRdirection=1, sideslip
     while True:
         gbFore = GBCrossBarRS(gbs[-1], gbs[-2].pt, sideslipturningfactor)
         if not gbFore:
-            print("gone off edge")
+            #print("gone off edge")
             gbs.append(None)
             break
         dlength += (gbFore.pt - gbs[-1].pt).Len()
