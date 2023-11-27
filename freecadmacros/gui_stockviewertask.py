@@ -26,67 +26,6 @@ imp.reload(utils.directedgeodesic)
 from utils.directedgeodesic import directedgeodesic, makebicolouredwire, makedrivecurve, drivegeodesicRI, DriveCurve
 from utils.trianglemeshutils import UsefulBoxedTriangleMesh
 
-def okaypressed():
-    print("Okay Pressed") 
-    mandrelpaths = [ freecadutils.findobjectbylabel(mandrelpathname)  for mandrelpathname in qmandrelpaths.text().split(",") ]
-    towwidth = float(qtowwidth.text())/2
-    towthick = float(qtowthick.text())
-    
-    measuremesh = freecadutils.findobjectbylabel(qmeshpointstomeasure.text())
-    if measuremesh.TypeId == "Mesh::Curvature":
-        meshcurvature = measuremesh
-        measuremesh = meshcurvature.Source
-    else:
-        meshcurvature = None
-
-    mandrelptpaths = [ ]
-    for mandrelpath in mandrelpaths:
-        mandrelwindpts = [ P3(p.X, p.Y, p.Z)  for p in mandrelpath.Shape.Vertexes ]
-        mandrelptpaths.append(mandrelwindpts)
-    mandpaths = MandrelPaths(mandrelptpaths)
-    xrg = mandpaths.xrg.Inflate(towwidth*2)
-    yrg = mandpaths.yrg.Inflate(towwidth*2)
-    boxwidth = max(towwidth, xrg.Leng()/30, yrg.Leng()/30)
-    tbs = TriangleBoxing(None, xrg.lo, xrg.hi, yrg.lo, yrg.hi, boxwidth)
-    print("Creating box set boxwidth=", boxwidth, mandpaths.Nm)
-    mandpaths.addpathstotgbs(tbs)
-
-    thickcount = [ ]
-    maxthickcount = 0
-    thickpoint = None
-    for mp in measuremesh.Mesh.Points[::]:
-        mmp = P3(mp.x, mp.y, mp.z)
-        bpcr = BallPathCloseRegions(mmp, towwidth)
-        mandpaths.nhitreg += 1
-        for ix, iy in tbs.CloseBoxeGenerator(mp.x, mp.x, mp.y, mp.y, towwidth):
-            tbox = tbs.boxes[ix][iy]
-            for i in tbox.pointis:
-                bpcr.DistPoint(mandpaths.getpt(i), i)
-            for i in tbox.edgeis:
-                if mandpaths.hitreg[i] != mandpaths.nhitreg:
-                    bpcr.DistEdge(mandpaths.getpt(i), mandpaths.getpt(i+1), i)
-                    mandpaths.hitreg[i] = mandpaths.nhitreg
-        bpcr.mergeranges()
-        #ss = len(bpcr.ranges)
-        #bpcr.mergegaps(0.1, mandpaths)
-        #if ss != len(bpcr.ranges):
-        #    print("Gap actually merged")
-        thickcount.append(len(bpcr.ranges))
-        if thickcount[-1] > maxthickcount:
-            maxthickcount = thickcount[-1]
-            thickpoint = mp
-
-    print("Max thick count", maxthickcount, "thickness", maxthickcount*towthick, "at point", thickpoint)
-    if meshcurvature != None:
-        for i, c in enumerate(thickcount):
-            meshcurvature.ValueAtIndex = (i, c*towthick, c)
-            meshcurvature.recompute()
-        print(" Setting of Min/Max curvatures to filament crossings")
-    else:
-        if "VertexThicknesses" not in measuremesh.PropertiesList:
-            measuremesh.addProperty("App::PropertyFloatList", "VertexThicknesses")
-        measuremesh.VertexThicknesses = [ c*towthick  for c in thickcount ]
-    qw.hide()
 
 def sgetlabelstowwires(sel):
     labels = [ ]
@@ -133,6 +72,35 @@ def makemesh(opts, facetis, measstockmeshname):
     mmesh.ViewObject.DisplayMode = "Flat Lines"
     return mmesh
     
+def makemandpaths(mandrelpaths, towrad):
+    mandrelptpaths = [ [ P3(p.X, p.Y, p.Z)  for p in mandrelpath.Shape.Vertexes ]  for mandrelpath in mandrelpaths ]
+    mandpaths = MandrelPaths(mandrelptpaths)
+    xrg = mandpaths.xrg.Inflate(towrad*2)
+    yrg = mandpaths.yrg.Inflate(towrad*2)
+    boxwidth = max(towrad, xrg.Leng()/30, yrg.Leng()/30)
+    tbs = TriangleBoxing(None, xrg.lo, xrg.hi, yrg.lo, yrg.hi, boxwidth)
+    print("Creating box set boxwidth=", boxwidth, mandpaths.Nm)
+    mandpaths.addpathstotgbs(tbs)
+    return mandpaths, tbs
+    
+def towcountonpoint(mp, towrad, mandpaths, tbs):
+    bpcr = BallPathCloseRegions(mp, towrad)
+    mandpaths.nhitreg += 1
+    for ix, iy in tbs.CloseBoxeGenerator(mp.x, mp.x, mp.y, mp.y, towrad):
+        tbox = tbs.boxes[ix][iy]
+        for i in tbox.pointis:
+            bpcr.DistPoint(mandpaths.getpt(i), i)
+        for i in tbox.edgeis:
+            if mandpaths.hitreg[i] != mandpaths.nhitreg:
+                bpcr.DistEdge(mandpaths.getpt(i), mandpaths.getpt(i+1), i)
+                mandpaths.hitreg[i] = mandpaths.nhitreg
+    bpcr.mergeranges()
+    #ss = len(bpcr.ranges)
+    #bpcr.mergegaps(0.1, mandpaths)
+    #if ss != len(bpcr.ranges):
+    #    print("Gap actually merged")
+    return len(bpcr.ranges)
+
 
 import FreeCADGui as Gui
 import PySide.QtGui as QtGui
@@ -166,8 +134,15 @@ class StockViewerTaskPanel(QtGui.QWidget):
         norms = [ P3(*p)  for p in basestockmeshobject.Normals ]
         measstockmeshname = self.form.qmeasstockmesh.text()
         offsetfactor = float(self.form.qoffsetfactor.text())
-        opts = [ p + n*offsetfactor  for p, n in zip(pts, norms) ]
+        
+        mandrelpaths = [ freecadutils.findobjectbylabel(mandrelpathname)  for mandrelpathname in self.form.qmandrelpaths.text().split(",") ]
+        towrad = mandrelpaths[0].towwidth/2.0   # we assume single width and thickness
+        towthick = 0.1
+        mandpaths, tbs = makemandpaths(mandrelpaths, towrad)
+        thickcounts = [ towcountonpoint(p, towrad, mandpaths, tbs)  for p in pts ]
+        opts = [ p + n*(th*towthick*offsetfactor)  for p, n, th in zip(pts, norms, thickcounts) ]
         makemesh(opts, facetis, measstockmeshname)
+
 
     def getStandardButtons(self):
         return int(QtGui.QDialogButtonBox.Cancel
