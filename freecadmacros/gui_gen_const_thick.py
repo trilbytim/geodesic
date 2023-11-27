@@ -7,10 +7,15 @@
 
 from PySide import QtGui, QtCore
 from FreeCAD import Vector
+import Mesh, MeshPart
 import numpy as np
 import os, sys, math
 sys.path.append(os.path.join(os.path.split(__file__)[0]))
 print(sys.path[-1])
+
+import imp
+import utils.directedgeodesic
+imp.reload(utils.directedgeodesic)
 
 import utils.freecadutils as freecadutils
 from utils.directedgeodesic import directedgeodesic, makebicolouredwire
@@ -18,12 +23,17 @@ from barmesh.basicgeo import I1, Partition1, P3, P2, Along, lI1
 from barmesh.tribarmes.triangleboxing import TriangleBoxing
 from utils.pathutils import BallPathCloseRegions, MandrelPaths
 from utils.curvesutils import thinptstotolerance
+from utils.trianglemeshutils import UsefulBoxedTriangleMesh
 
 doc, sel = freecadutils.init(App)
 sketchplane = None
 meshobject = None
-sideslipturningfactorZ = None
 thintol = 0.2
+
+def TOL_ZERO(X, msg=""):
+    if not (abs(X) < 0.0001):
+        print("TOL_ZERO fail", X, msg)
+
 
 #Function that repeats a path and evaluates the thickness on a ring at coord yo and radius r
 def evalrepthick(landed, totrpt, r, yo, dsangle, tw):
@@ -39,7 +49,7 @@ def evalrepthick(landed, totrpt, r, yo, dsangle, tw):
 	alongwireadv =  turns / totrpt
 	print('FORCE TO', alongwireadv)
 	alongwireI = alongwire + alongwireadv
-	gbs, fLRdirection, dseg, alongwirelanded100 = directedgeodesic(combofoldbackmode, sketchplane, meshobject, alongwire, alongwireI, dsangle, Maxsideslipturningfactor, mandrelradius, sideslipturningfactorZ, maxlength, outputfilament)
+	gbs, fLRdirection, dseg, alongwirelanded100 = directedgeodesic(combofoldbackmode, sketchplane, meshobject, alongwire, alongwireI, dsangle, Maxsideslipturningfactor, mandrelradius, 0.0, maxlength, outputfilament)
 	#name = 'w'+str(int(dsangle-90))+'forced'
 	#makebicolouredwire(gbs, name, colfront=(1.0,0.0,0.0) if fLRdirection == -1 else (0.0,0.0,1.0), colback=(0.7,0.7,0.0), leadcolornodes=dseg+1)
 	rpts = repeatwindingpath([P3(*gb.pt)  for gb in gbs], totrpt,thintol)
@@ -61,12 +71,15 @@ def repeatwindingpath(rpts, repeats,thintol):
 	ptsout = thinptstotolerance(ptsout, tol=thintol)
 	return ptsout
 
-def evalthick(r, yo, tpt, towwidth, towthick,evalpts=50):
+def evalthick(r, yo, tpt, towwidth, towthick, evalpts=50, tnormPolar=None):
 	towwidth /= 2
 	POpts=[]
+	POnorms = [ ]
 	for a in np.linspace(0,2*np.pi,evalpts):
 		POpts.append(App.Vector(r*np.sin(a),yo,r*np.cos(a)))
-	
+		if tnormPolar:
+			POnorms.append(App.Vector(0,1,0))
+		
 	mandpaths = MandrelPaths(tpt)
 	xrg = mandpaths.xrg.Inflate(towwidth*2)
 	yrg = mandpaths.yrg.Inflate(towwidth*2)
@@ -98,6 +111,20 @@ def evalthick(r, yo, tpt, towwidth, towthick,evalpts=50):
 	meanthick = np.mean(thickcount)*towthick
 	print('THICKNESSES AROUND RING:')
 	print('MAX:',np.max(thickcount)*towthick,'MIN:',np.min(thickcount)*towthick,'MEAN:', meanthick)
+
+	if tnormPolar:
+		facets = [ ]
+		Dexaggeratedtowthick = 1.0
+		for i in range(len(POpts) - 1):
+			p0, p1 = POpts[i], POpts[i+1]
+			pe0, pe1 = p0 + POnorms[i]*(thickcount[i]*Dexaggeratedtowthick), p1 + POnorms[i+1]*(thickcount[i+1]*Dexaggeratedtowthick)
+			facets.append([p0, pe0, p1])
+			facets.append([p1, pe0, pe1])
+		mesh = freecadutils.doc.addObject("Mesh::Feature", "thicknessflange")
+		mesh.ViewObject.Lighting = "Two side"
+		mesh.ViewObject.DisplayMode = "Flat Lines"
+		mesh.Mesh = Mesh.Mesh(facets)
+
 	return meanthick
 
 def drivepressed():
@@ -105,8 +132,44 @@ def drivepressed():
 	preppressed()
 	actpressed()
 
+# XZMin should be same as PolarOpening after aim
+# alongwire???
+# PolarOpening should be along a perp drive curve?
+# Generate a little sector of stock to see how it differs from 6mm (colour it?)
+
+# (this could approach a point instead of the axis
+def CalcClosestPolarEdge(gbs):
+	ilclosest = 0.0
+	dclosestsq = P2(gbs[0].pt.x, gbs[0].pt.z).Lensq()
+	tnorm = gbs[0].tnorm  # GBarT kind.  Rest are GBarC kind so have tnorm_incoming
+	passY = gbs[0].pt.y
+	for i in range(0, len(gbs) - 2):
+		p0 = P2(gbs[i].pt.x, gbs[i].pt.z)
+		p1 = P2(gbs[i+1].pt.x, gbs[i+1].pt.z)
+		ldclosestsq = p1.Lensq()
+		if ldclosestsq < dclosestsq:
+			dclosestsq = ldclosestsq
+			ilclosest = i + 1.0
+			tnorm = gbs[i+1].tnorm_incoming
+			passY = gbs[i+1].pt.y
+		v = p1 - p0
+		vsq = v.Lensq()
+		if vsq != 0.0:
+			lam = -P2.Dot(p0, v) / vsq
+			if 0 < lam < 1:
+				ldclosestsq = Along(lam, p0, p1).Lensq()
+				if ldclosestsq < dclosestsq:
+					dclosestsq = ldclosestsq
+					ilclosest = i + lam
+					Dv = gbs[i+1].pt - gbs[i].pt
+					tnorm = gbs[i+1].tnorm_incoming
+					TOL_ZERO(P3.Dot(Dv, tnorm))
+					passY = Along(lam, gbs[i].pt, gbs[i+1].pt)
+	return math.sqrt(dclosestsq), passY, tnorm
+
+tnormattargetPO = P3(0,0,0)
 def aimpressed():
-	global sketchplane, meshobject, sideslipturningfactorZ, outputfilament , thintol
+	global sketchplane, outputfilament, thintol, tnormattargetPO
 	dsangle = None
 	sketchplane = freecadutils.findobjectbylabel(qsketchplane.text())
 	meshobject = freecadutils.findobjectbylabel(qmeshobject.text())
@@ -118,29 +181,18 @@ def aimpressed():
 	AngHi = 90+float(qAngHi.text())
 	thintol = float(qthintol.text())
 	tth = float(qtowthick.text())
-	sideslipturningfactorZ = float(qsideslip.text())
 	
 	alongwireI = None
 	finished = False
 	attempts = 10
 	i = 0
+	utbm = UsefulBoxedTriangleMesh(meshobject.Mesh)
 	while not finished:
 		dsangle = (AngHi+AngLo)/2
 		print('Trying angle: ', dsangle-90)
-		gbs, fLRdirection, dseg, alongwirelanded = directedgeodesic(combofoldbackmode, sketchplane, meshobject, alongwire, alongwireI, dsangle, Maxsideslipturningfactor, mandrelradius, sideslipturningfactorZ, maxlength, outputfilament)
-		if gbs[-1]:
-			pts = [Vector(*gb.pt)  for gb in gbs]
-		else:
-			pts = [Vector(*gb.pt)  for gb in gbs[:-1]]
-		#(could do with better way of seeing closest approach to y axis)
-		XZmin = np.Inf
-		passY = None
-		for v in pts:
-			XZ = np.sqrt(v.x**2 + v.z**2)
-			if XZ < XZmin:
-				XZmin = XZ
-				passY = v
-		print('Closest approach to Y axis of:',round(XZmin,2), 'at:', passY.x,',', passY.y,',',passY.z)
+		gbs, fLRdirection, dseg, alongwirelanded = directedgeodesic(combofoldbackmode, sketchplane, utbm, alongwire, alongwireI, dsangle, Maxsideslipturningfactor, mandrelradius, 0.0, maxlength, outputfilament)
+		XZmin, passY, tnorm = CalcClosestPolarEdge(gbs)
+		print('  New Closest approach to Y axis of:',round(XZmin,2), 'at:', passY.x,',', passY.y,',',passY.z)
 		if XZmin < targetPO or gbs[-1] == None:
 			AngLo = dsangle
 		else:
@@ -158,9 +210,10 @@ def aimpressed():
 	qXZmin.setText("%.6f" % XZmin)
 	qpassYy.setText("%.6f" % passY.y)
 	qalongwirelanded.setText("%.6f" % alongwirelanded)
+	tnormattargetPO = tnorm
 	
 def preppressed():
-	global sketchplane, meshobject, sideslipturningfactorZ, outputfilament , thintol
+	global sketchplane, meshobject, outputfilament , thintol
 	dsangle = None
 	sketchplane = freecadutils.findobjectbylabel(qsketchplane.text())
 	meshobject = freecadutils.findobjectbylabel(qmeshobject.text())
@@ -175,11 +228,7 @@ def preppressed():
 	dsangle = float(qdsangle.text())
 	XZmin = float(qXZmin.text())
 	passYy = float(qpassYy.text())
-	
-	if len(qbasewire.text()) != 0:
-		basewire = [freecadutils.findobjectbylabel(singlewirename)  for singlewirename in qbasewire.text().split(",") ]
-	else:
-		basewire = None
+	thickgroup = freecadutils.findobjectbylabel(qthickgroup.text()) if qthickgroup.text() != "" else None
 	if not (sketchplane and meshobject):
 		print("Need to select a Sketch and a Mesh object in the UI to make this work")
 		qw.hide()
@@ -197,22 +246,24 @@ def preppressed():
 	landed = alongwirelanded - alongwire
 	rpts, meanthick, totrpt = evalrepthick(landed, totrpt, XZmin, passYy, dsangle, tw)
 	#Create wire forced to an intersection point that gives an integer number of repeat)
-	if basewire:
+	basethick = 0.0
+	if thickgroup:
 		basepts = []
-		for bw in basewire:
-			basepts.append([P3(v.X,v.Y,v.Z)  for v in bw.Shape.Vertexes])
-		basethick = evalthick(XZmin, passYy, basepts, tw, tth)
+		for bw in thickgroup.OutList:
+			if hasattr(bw, "Shape") and isinstance(bw.Shape, Part.Wire) and "towwidth" in bw.PropertiesList:
+				print("--evalthick includes:", bw.Name)
+				basepts.append([P3(v.X,v.Y,v.Z)  for v in bw.Shape.Vertexes])
+		tnormPolar = P2(P2(tnormattargetPO.x, tnormattargetPO.z).Len(), tnormattargetPO.y)
+		basethick = evalthick(XZmin, passYy, basepts, tw, tth, tnormPolar=tnormPolar)
 		print('basethickness', basethick)
-		totrpt = int(totrpt*(totthick-basethick)/meanthick)-1
-	else:
-		totrpt = int(totrpt*totthick/meanthick)-1
+	totrpt = int(totrpt*(totthick-basethick)/meanthick)-1
 	
 	qtotrpt.setText("%d" % totrpt)
 	qlanded.setText("%.6f" % landed)
 
 	
 def actpressed():
-	global sketchplane, meshobject, sideslipturningfactorZ, outputfilament , thintol
+	global sketchplane, meshobject, outputfilament , thintol
 	sketchplane = freecadutils.findobjectbylabel(qsketchplane.text())
 	meshobject = freecadutils.findobjectbylabel(qmeshobject.text())
 	outputfilament = qoutputfilament.text()
@@ -227,7 +278,6 @@ def actpressed():
 	landed = float(qlanded.text())
 	XZmin = float(qXZmin.text())
 	passYy = float(qpassYy.text())
-	name = 'w'+str(int(dsangle-90))
 
 	if qthickgroup.text() != "":
 		thickgroup = freecadutils.findobjectbylabel(qthickgroup.text())
@@ -238,19 +288,23 @@ def actpressed():
 	#Repeat that wire to create final ply
 	rpts, meanthick,totrpt = evalrepthick(landed, totrpt, XZmin, passYy, dsangle, tw)
 	print('First:', rpts[0], 'Last', rpts[-1] , 'thick', meanthick)
-	ply = Part.show(Part.makePolygon([Vector(pt)  for pt in rpts]), name+'x'+str(totrpt))
+	name = 'w%dx%d' % (int(dsangle-90), totrpt)
+	ply = Part.show(Part.makePolygon([Vector(pt)  for pt in rpts]), name)
 	thickgroup.addObject(ply)
+	targetPO = float(qtargetPO.text())
+	ply.addProperty("App::PropertyAngle", "dsangle", "filwind"); ply.dsangle = dsangle
+	ply.addProperty("App::PropertyFloat", "alongwire", "filwind"); ply.alongwire = alongwire
+	ply.addProperty("App::PropertyFloat", "totrpt", "filwind"); ply.totrpt = totrpt
+	ply.addProperty("App::PropertyFloat", "landed", "filwind"); ply.landed = landed
+	ply.addProperty("App::PropertyFloat", "towwidth", "filwind"); ply.towwidth = tw
+	ply.addProperty("App::PropertyFloat", "targetPO", "filwind"); ply.targetPO = targetPO
+
 	#Part.show(Part.makePolygon([rpts[0],rpts[-1]]), 'grrr')
-	basename = thickgroup.OutList[0].Name
-	for i in range(1,len(thickgroup.OutList)):
-		basename += ','
-		basename += thickgroup.OutList[i].Name
-	qbasewire.setText(basename)
 	
 	# advancing in prep for next cycle
 	targetPO = float(qtargetPO.text())
 	tw = float(qtowwidth.text())
-	qtargetPO.setText(str(targetPO+tw*0.75))
+	qtargetPO.setText("%.6f" % (targetPO+tw*0.75))
 
 
 
@@ -291,7 +345,6 @@ aimButton.move(90, 15+35*4)
 QtCore.QObject.connect(aimButton, QtCore.SIGNAL("pressed()"), aimpressed)  
 
 qtotthick = freecadutils.qrow(qw, "Desired thick: ", 15+35*4, "6.0", 260)
-qsideslip = freecadutils.qrow(qw, "Side slip: ", 15+35*5, "0", 260)
 
 prepButton = QtGui.QPushButton("Prep", qw)
 prepButton.move(90, 15+35*9)
@@ -303,8 +356,6 @@ qtotrpt = freecadutils.qrow(qw, "totrpt: ", 15+35*9, "", 260)
 qlanded = freecadutils.qrow(qw, "landed: ", 15+35*10, "")
 qXZmin = freecadutils.qrow(qw, "XZmin: ", 15+35*8, "", 260)
 qpassYy = freecadutils.qrow(qw, "passYy: ", 15+35*8, "")
-
-qbasewire = freecadutils.qrow(qw, "Base wire: ", 15+35*11)
 
 
 actButton = QtGui.QPushButton("Act", qw)

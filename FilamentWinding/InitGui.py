@@ -70,6 +70,7 @@ class FilamentWindingWorkbench(Workbench):
  
     def Activated(self):
         "This function is executed when the workbench is activated"
+        print("FilamentWinding workbench activated")
         #global act
         #act.setVisible(True)
 #        import AddonManager as AM
@@ -79,6 +80,7 @@ class FilamentWindingWorkbench(Workbench):
  
     def Deactivated(self):
         "This function is executed when the workbench is deactivated"
+        print("FilamentWinding workbench dectivated")
 
         #FreeCAD will hide our menu and toolbar upon exiting the wb, so we setup a singleshot
         #to unhide them once FreeCAD is finished, 2 seconds later
@@ -108,6 +110,7 @@ class FilamentWindingWorkbench(Workbench):
     def GetClassName(self): 
         # this function is mandatory if this is a full python workbench
         return "Gui::PythonWorkbench"
+
 wb = FilamentWindingWorkbench()
 Gui.addWorkbench(wb)
 

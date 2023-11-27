@@ -442,12 +442,13 @@ class BoxTaskPanelClass(object):
         self.form = FreeCADGui.PySideUic.loadUi(path_to_ui)
  
     def GetResources(self):
-        path_to_icon = os.path.join(currentpath, "Resources", "Icons", "CreateCrossSections.svg")
+        path_to_icon = os.path.join(currentpath, "Resources", "icons", "CreateCrossSections.svg")
         return {'Pixmap'  : path_to_icon , 
             'MenuText': "Create Box test" ,
             'ToolTip' : "A Thing here"}
  
     def Activated(self):
+        self.form.show()
         print(self.form)
         print(self.form.__dict__)
         length = self.form.boxlength.value()
