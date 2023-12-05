@@ -27,6 +27,7 @@ import utils.directedgeodesic
 imp.reload(utils.directedgeodesic)
 from utils.directedgeodesic import directedgeodesic, makebicolouredwire, makedrivecurve, drivegeodesicRI, DriveCurve
 from utils.trianglemeshutils import UsefulBoxedTriangleMesh
+from utils.geodesicutils import drivegeodesic, InvAlong, GBarT, GBarC, drivecurveintersectionfinder, trilinecrossing, TOL_ZERO
 
 import FreeCADGui as Gui
 import PySide.QtGui as QtGui
@@ -57,29 +58,124 @@ def sfindobjectbylabel(doc, lab):
 
 
 mandrelradius = 110  # fc6 file
-dsangle = 90.0
 LRdirection = 1
+appaturepapproachpoint = P3(0,-150,0)
+maxlength = 1800
 
-def chaseupcolumnptnormalsfromdrivecurve(drivecurve, alongwireLo, alongwireHi, columns, colsamplestep):
-    columnptnormals = [ ]
-    for alongwire in numpy.linspace(alongwireLo, alongwireHi, columns+1):
-        colgbStart = drivecurve.startalongangle(alongwire, dsangle)
-        colgbs = drivegeodesicRI(colgbStart, drivecurve.drivebars, drivecurve.tridrivebarsmap, LRdirection=LRdirection, maxlength=400.0)
-        if colgbs[-1] == None:
-            colgbs.pop()
+def findappatureclosestapproach(gbs):
+    rclose = 0
+    iclose = -1
+    lamclose = -1.0
+    for i in range(1, len(gbs) - 2):
+        p0 = gbs[i].pt
+        p1 = gbs[i+1].pt
+        v0 = p0 - appaturepapproachpoint
+        v0len = v0.Len()
+        if iclose == -1 or v0len < rclose:
+            rclose = v0len
+            iclose = i
+            lamclose = 0.0
+        if v0len > rclose + 10.0:
+            continue
+        v = p1 - p0
+        vlensq = v.Lensq()
+        if vlensq != 0:
+            lam = -P3.Dot(v0, v) / v.Lensq()
+            if 0.0 < lam < 1.0:
+                vd = v0 + v*lam
+                TOL_ZERO(P3.Dot(vd, v))
+                vdlen = vd.Len()
+                if vdlen < rclose:
+                    rclose = vdlen
+                    iclose = i
+                    lamclose = lam
+    gbt = GBarT([(gbs[iclose].bar, (gbs[iclose].lam), (gbs[iclose+1].bar, gbs[iclose+1].lam)], 0, lamclose)
+    TOL_ZERO((gbt.pt - appaturepapproachpoint).Len() - rclose)
+    return gbt, rclose
 
-        colcls = cumlengthlist([gb.pt  for gb in colgbs])
-        ds = 0.0
-        ptnormals = [ ]
-        while ds < colcls[-1] and len(ptnormals) < 1000:
-            dsseg, dslam = seglampos(ds, colcls)
-            pt = Along(dslam, colgbs[dsseg].pt, colgbs[dsseg+1].pt)
-            norm = colgbs[dsseg+1].tnorm if hasattr(colgbs[dsseg+1], "tnorm") else colgbs[dsseg+1].tnorm_incoming
-            ptnormals.append((pt, -norm))
-            ds += colsamplestep
-        columnptnormals.append(ptnormals)
-    return columnptnormals
+def spherecutlam(p0, p1, sphpt, sphrad):
+    v = p1 - p0
+    vs = p0 - sphpt
+    qa = v.Lensq()
+    qb2 = P3.Dot(vs, v)
+    qc = vs.Lensq() - sphrad*sphrad
+    qdq = qb2*qb2 - qa*qc
+    qs = math.sqrt(qdq) / qa
+    qm = -qb2 / qa
+    q = qm + qs
+    TOL_ZERO(qa*q*q + qb2*2*q + qc)
+    Dpt = vs + v*q
+    assert (-0.01 <= q <= 1.01), q
+    return res
 
+
+def TriangleCrossSphereRight(tbar, bGoRight, sphpt, sphrad):
+    nodeAhead = bar.GetNodeFore(bGoRight)
+    nodeBehind = bar.GetNodeFore(not bGoRight)
+    barAhead = bar.GetForeRightBL(bGoRight)
+    barAheadGoRight = (barAhead.nodeback == nodeAhead)
+    nodeOpposite = barAhead.GetNodeFore(barAheadGoRight)
+    barBehind = barAhead.GetForeRightBL(barAheadGoRight)
+    DbarBehindGoRight = (barBehind.nodeback == nodeOpposite)
+    assert nodeBehind == barBehind.GetNodeFore(DbarBehindGoRight)
+
+    nds = [ nodeBehind, nodeAhead, nodeOpposite ]
+    dnds = [ (b.p - sphpt).Len()  for b in nds ]
+    for i in range(3):
+        i1 = i + 1 if i != 2 else 0
+        if (dnds[i] < sphrad) and (dnds[i1] >= sphrad):
+            break
+    jlam = spherecutlam(nds[i0].pt, nds[i1].pt, sphpt, sphrad)
+    print("jlam", jlam, sphrad)
+
+def TriangleCrossCutPlane(bar, lam, bGoRight, driveperpvec, driveperpvecDot):
+    nodeAhead = bar.GetNodeFore(bGoRight)
+    nodeBehind = bar.GetNodeFore(not bGoRight)
+    barAhead = bar.GetForeRightBL(bGoRight)
+    barAheadGoRight = (barAhead.nodeback == nodeAhead)
+    nodeOpposite = barAhead.GetNodeFore(barAheadGoRight)
+    barBehind = barAhead.GetForeRightBL(barAheadGoRight)
+    DbarBehindGoRight = (barBehind.nodeback == nodeOpposite)
+    assert nodeBehind == barBehind.GetNodeFore(DbarBehindGoRight)
+    dpvdAhead = P3.Dot(driveperpvec, nodeAhead.p)
+    dpvdBehind = P3.Dot(driveperpvec, nodeBehind.p)
+    dpvdOpposite = P3.Dot(driveperpvec, nodeOpposite.p)
+    assert dpvdAhead > driveperpvecDot - 0.001 and dpvdBehind < driveperpvecDot + 0.001
+    bAheadSeg = (dpvdOpposite < driveperpvecDot)
+    barCrossing = (barAhead if bAheadSeg else barBehind)
+    dpvdAB = (dpvdAhead if bAheadSeg else dpvdBehind)
+    barCrossingLamO = -(dpvdOpposite - driveperpvecDot)/(dpvdAB - dpvdOpposite)
+    assert barCrossingLamO >= 0.0
+    barCrossingLam = barCrossingLamO if (barCrossing.nodeback == nodeOpposite) else 1-barCrossingLamO
+    barCrossingGoRight = (barCrossing.nodeback == nodeOpposite) == bAheadSeg
+    return barCrossing, barCrossingLam, barCrossingGoRight
+
+def planecutembeddedcurve(startbar, startlam, driveperpvec):
+    startpt = Along(startlam, startbar.nodeback.p, startbar.nodefore.p)
+    driveperpvecDot = P3.Dot(driveperpvec, startpt)
+    drivebars = [ (startbar, startlam) ]
+    bGoRight = (P3.Dot(driveperpvec, startbar.nodefore.p - startbar.nodeback.p) > 0)
+    bar, lam = startbar, startlam
+    while True:
+        bar, lam, bGoRight = TriangleCrossCutPlane(bar, lam, bGoRight, driveperpvec, driveperpvecDot)
+        drivebars.append((bar, lam))
+        if bar == startbar:
+            assert abs(startlam - lam) < 0.001
+            drivebars[-1] = drivebars[0]
+            break
+        if len(drivebars) > 500:
+            print("failed, too many drivebars")
+            break
+    return drivebars
+
+
+
+def makeappatgurecircuit(gbt):
+    startbar, startlam = planecutbars(utbm.tbarmesh, driveperpvec, driveperpvecDot)
+    drivebars = planecutembeddedcurve(startbar, startlam, driveperpvec)
+    drivecurve = DriveCurve(drivebars)
+    print("girth comparison", 'Nominal:',mandrelgirth, 'Drivecurve length:',drivecurve.dptcls[-1])
+    return drivecurve
 
 
 class DirectedSplayTaskPanel(QtGui.QWidget):
@@ -114,19 +210,26 @@ class DirectedSplayTaskPanel(QtGui.QWidget):
         utbm = UsefulBoxedTriangleMesh(meshobject.Mesh)
         drivecurve = makedrivecurve(sketchplane, utbm, mandrelradius)
 
-        dsangle = minangle
-        combofoldbackmode = 0
-        maxlength = 800
-        while dsangle < maxangle:
+        dsanglesgen = ( minangle + i*anglestep  for i in range(int((maxangle - minangle)/anglestep + 1))  if minangle + i*anglestep < maxangle )
+        for dsangle in dsanglesgen:
             gbStart = drivecurve.startalongangle(alongwire, dsangle)
-            gbs = drivegeodesicRI(gbStart, drivecurve.drivebars, drivecurve.tridrivebarsmap, LRdirection=0, sideslipturningfactor=0, maxlength=maxlength)
+            gbs = drivegeodesicRI(gbStart, drivecurve.drivebars, drivecurve.tridrivebarsmap, LRdirection=LRdirection, sideslipturningfactor=0, maxlength=maxlength)
             if gbs[-1] == None:
-                gbs = gbs[:-1]
+                continue
+            alongwirelanded = drivecurve.endalongposition(gbs[-1])
+            gbt, sphrad = findappatureclosestapproach(gbs)
+            TriangleCrossSphereRight(gbt.tbar, True, sphpt, sphrad)
+
+
+            
             name = 'w%.1f' % dsangle
             ply = Part.show(Part.makePolygon([Vector(*gb.pt)  for gb in gbs]), name)
             splaygroup.addObject(ply)
+            ply.addProperty("App::PropertyFloat", "alongwire", "filwind"); ply.alongwire = alongwire
             ply.addProperty("App::PropertyAngle", "dsangle", "filwind"); ply.dsangle = dsangle
-            dsangle += anglestep
+            ply.addProperty("App::PropertyFloat", "alongwirelanded", "filwind"); ply.alongwirelanded = alongwirelanded
+
+
 
     def getStandardButtons(self):
         return int(QtGui.QDialogButtonBox.Cancel

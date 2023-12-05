@@ -223,7 +223,7 @@ def drivecurveintersectionfinder(drivebars, tridrivebarsmap, gb0, gb1, LRdirecti
     if LRdirection != 0:
         tperpdorapproach = P3.Dot(res.tperp, gb1.pt - gb0.pt)
         if (tperpdorapproach > 0.0) == (LRdirection == 1):
-            print("skipping reverse side crossing point")
+            #print("skipping reverse side crossing point")
             return None
     res.dcseg = dseg
     res.dclam = dlam
