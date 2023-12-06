@@ -60,7 +60,7 @@ def sfindobjectbylabel(doc, lab):
 mandrelradius = 110  # fc6 file
 LRdirection = 1
 appaturepapproachpoint = P3(0,-150,0)
-maxlength = 1800
+maxlength = 2500
 
 def findappatureclosestapproach(gbs):
     rclose = 0
@@ -89,7 +89,7 @@ def findappatureclosestapproach(gbs):
                     rclose = vdlen
                     iclose = i
                     lamclose = lam
-    gbt = GBarT([(gbs[iclose].bar, (gbs[iclose].lam), (gbs[iclose+1].bar, gbs[iclose+1].lam)], 0, lamclose)
+    gbt = GBarT([(gbs[iclose].bar, gbs[iclose].lam), (gbs[iclose+1].bar, gbs[iclose+1].lam)], 0, lamclose)
     TOL_ZERO((gbt.pt - appaturepapproachpoint).Len() - rclose)
     return gbt, rclose
 
@@ -106,13 +106,13 @@ def spherecutlam(p0, p1, sphpt, sphrad):
     TOL_ZERO(qa*q*q + qb2*2*q + qc)
     Dpt = vs + v*q
     assert (-0.01 <= q <= 1.01), q
-    return res
+    return q
 
 
-def TriangleCrossSphereRight(tbar, bGoRight, sphpt, sphrad):
-    nodeAhead = bar.GetNodeFore(bGoRight)
-    nodeBehind = bar.GetNodeFore(not bGoRight)
-    barAhead = bar.GetForeRightBL(bGoRight)
+def TriangleCrossSphereRight(tbar, bGoRight, sphpt, sphrad, bContinuation):
+    nodeAhead = tbar.GetNodeFore(bGoRight)
+    nodeBehind = tbar.GetNodeFore(not bGoRight)
+    barAhead = tbar.GetForeRightBL(bGoRight)
     barAheadGoRight = (barAhead.nodeback == nodeAhead)
     nodeOpposite = barAhead.GetNodeFore(barAheadGoRight)
     barBehind = barAhead.GetForeRightBL(barAheadGoRight)
@@ -120,13 +120,21 @@ def TriangleCrossSphereRight(tbar, bGoRight, sphpt, sphrad):
     assert nodeBehind == barBehind.GetNodeFore(DbarBehindGoRight)
 
     nds = [ nodeBehind, nodeAhead, nodeOpposite ]
+    brs = [ tbar, barAhead, barBehind ]
     dnds = [ (b.p - sphpt).Len()  for b in nds ]
     for i in range(3):
         i1 = i + 1 if i != 2 else 0
         if (dnds[i] < sphrad) and (dnds[i1] >= sphrad):
             break
-    jlam = spherecutlam(nds[i0].pt, nds[i1].pt, sphpt, sphrad)
-    print("jlam", jlam, sphrad)
+    jlam = spherecutlam(nds[i].p, nds[i1].p, sphpt, sphrad)
+    barCrossing = brs[i]
+    barCrossingGoRight = not (barCrossing.nodeback == nds[i])
+    barCrossingLam = 1 - jlam if barCrossingGoRight else jlam
+    barCrossingpt = Along(barCrossingLam, barCrossing.nodeback.p, barCrossing.nodefore.p)
+    TOL_ZERO((barCrossingpt - sphpt).Len() - sphrad)
+    return barCrossing, barCrossingLam, barCrossingGoRight
+
+
 
 def TriangleCrossCutPlane(bar, lam, bGoRight, driveperpvec, driveperpvecDot):
     nodeAhead = bar.GetNodeFore(bGoRight)
@@ -218,9 +226,16 @@ class DirectedSplayTaskPanel(QtGui.QWidget):
                 continue
             alongwirelanded = drivecurve.endalongposition(gbs[-1])
             gbt, sphrad = findappatureclosestapproach(gbs)
-            TriangleCrossSphereRight(gbt.tbar, True, sphpt, sphrad)
-
-
+            print("ddd ", dsangle, sphrad, gbt)
+            bar, lam, bGoRight = TriangleCrossSphereRight(gbt.tbar, True, appaturepapproachpoint, sphrad, False)
+            bar0 = bar
+            sphbars = [ (bar, lam) ]
+            for i in range(600):
+                bar, lam, bGoRight = TriangleCrossSphereRight(bar, bGoRight, appaturepapproachpoint, sphrad, True)
+                sphbars.append((bar, lam))
+                if bar == bar0:
+                    break
+            freecadutils.showdrivebarscurve(sphbars, 'ting%.1f' % dsangle)
             
             name = 'w%.1f' % dsangle
             ply = Part.show(Part.makePolygon([Vector(*gb.pt)  for gb in gbs]), name)
