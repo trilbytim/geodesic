@@ -62,14 +62,14 @@ LRdirection = 1
 appaturepapproachpoint = P3(0,-150,0)
 maxlength = 2500
 
-def findappatureclosestapproach(gbs):
+def findappatureclosestapproach(gbs, sphpt):
     rclose = 0
     iclose = -1
     lamclose = -1.0
     for i in range(1, len(gbs) - 2):
         p0 = gbs[i].pt
         p1 = gbs[i+1].pt
-        v0 = p0 - appaturepapproachpoint
+        v0 = p0 - sphpt
         v0len = v0.Len()
         if iclose == -1 or v0len < rclose:
             rclose = v0len
@@ -90,7 +90,7 @@ def findappatureclosestapproach(gbs):
                     iclose = i
                     lamclose = lam
     gbt = GBarT([(gbs[iclose].bar, gbs[iclose].lam), (gbs[iclose+1].bar, gbs[iclose+1].lam)], 0, lamclose)
-    TOL_ZERO((gbt.pt - appaturepapproachpoint).Len() - rclose)
+    TOL_ZERO((gbt.pt - sphpt).Len() - rclose)
     return gbt, rclose
 
 def spherecutlam(p0, p1, sphpt, sphrad):
@@ -185,6 +185,18 @@ def makeappatgurecircuit(gbt):
     print("girth comparison", 'Nominal:',mandrelgirth, 'Drivecurve length:',drivecurve.dptcls[-1])
     return drivecurve
 
+def makesplaycycle(gbs, sphpt):
+    gbt, sphrad = findappatureclosestapproach(gbs, sphpt)
+    bar, lam, bGoRight = TriangleCrossSphereRight(gbt.tbar, True, sphpt, sphrad, False)
+    bar0 = bar
+    sphbars = [ ]
+    for i in range(600):
+        bar, lam, bGoRight = TriangleCrossSphereRight(bar, bGoRight, sphpt, sphrad, True)
+        sphbars.append(GBarC(bar, lam, bGoRight))
+        if bar == bar0:
+            break
+    return sphbars, sphrad
+    
 
 class DirectedSplayTaskPanel(QtGui.QWidget):
     def __init__(self):
@@ -208,12 +220,14 @@ class DirectedSplayTaskPanel(QtGui.QWidget):
         sketchplane = sfindobjectbylabel(self.doc, self.form.qsketchplane.text())
         meshobject = sfindobjectbylabel(self.doc, self.form.qmeshobject.text())
         splayfolder = self.form.qsplayfolder.text()
+        splaycyclefolder = self.form.qsplayfolder.text()+"C"
         alongwire = float(self.form.qalongwire.text())
         minangle = float(self.form.qminangle.text())
         maxangle = float(self.form.qmaxangle.text())
         anglestep = float(self.form.qanglestep.text())
 
         splaygroup = freecadutils.getemptyfolder(self.doc, splayfolder)
+        splaycyclegroup = freecadutils.getemptyfolder(self.doc, splaycyclefolder)
 
         utbm = UsefulBoxedTriangleMesh(meshobject.Mesh)
         drivecurve = makedrivecurve(sketchplane, utbm, mandrelradius)
@@ -224,26 +238,21 @@ class DirectedSplayTaskPanel(QtGui.QWidget):
             gbs = drivegeodesicRI(gbStart, drivecurve.drivebars, drivecurve.tridrivebarsmap, LRdirection=LRdirection, sideslipturningfactor=0, maxlength=maxlength)
             if gbs[-1] == None:
                 continue
-            alongwirelanded = drivecurve.endalongposition(gbs[-1])
-            gbt, sphrad = findappatureclosestapproach(gbs)
-            print("ddd ", dsangle, sphrad, gbt)
-            bar, lam, bGoRight = TriangleCrossSphereRight(gbt.tbar, True, appaturepapproachpoint, sphrad, False)
-            bar0 = bar
-            sphbars = [ (bar, lam) ]
-            for i in range(600):
-                bar, lam, bGoRight = TriangleCrossSphereRight(bar, bGoRight, appaturepapproachpoint, sphrad, True)
-                sphbars.append((bar, lam))
-                if bar == bar0:
-                    break
-            freecadutils.showdrivebarscurve(sphbars, 'ting%.1f' % dsangle)
+            alongwirelanded, angcrosslanded = drivecurve.endalongpositionA(gbs[-1])
+            cgbs, sphrad = makesplaycycle(gbs, appaturepapproachpoint)
             
             name = 'w%.1f' % dsangle
+
             ply = Part.show(Part.makePolygon([Vector(*gb.pt)  for gb in gbs]), name)
             splaygroup.addObject(ply)
             ply.addProperty("App::PropertyFloat", "alongwire", "filwind"); ply.alongwire = alongwire
             ply.addProperty("App::PropertyAngle", "dsangle", "filwind"); ply.dsangle = dsangle
             ply.addProperty("App::PropertyFloat", "alongwirelanded", "filwind"); ply.alongwirelanded = alongwirelanded
+            ply.addProperty("App::PropertyFloat", "angcrosslanded", "filwind"); ply.angcrosslanded = angcrosslanded
 
+            cply = Part.show(Part.makePolygon([Vector(*gb.pt)  for gb in cgbs]), name)
+            cply.addProperty("App::PropertyFloat", "sphrad", "filwind"); cply.sphrad = sphrad
+            splaycyclegroup.addObject(cply)
 
 
     def getStandardButtons(self):
