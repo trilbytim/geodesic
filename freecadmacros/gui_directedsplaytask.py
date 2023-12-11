@@ -189,7 +189,7 @@ def makesplaycycle(gbs, sphpt):
     gbt, sphrad = findappatureclosestapproach(gbs, sphpt)
     bar, lam, bGoRight = TriangleCrossSphereRight(gbt.tbar, True, sphpt, sphrad, False)
     bar0 = bar
-    sphbars = [ ]
+    sphbars = [ GBarC(bar, lam, bGoRight) ]
     for i in range(600):
         bar, lam, bGoRight = TriangleCrossSphereRight(bar, bGoRight, sphpt, sphrad, True)
         sphbars.append(GBarC(bar, lam, bGoRight))
@@ -255,13 +255,13 @@ class DirectedSplayTaskPanel(QtGui.QWidget):
             setpropertyval(ply, "App::PropertyFloat", "alongwire", alongwire)
             setpropertyval(ply, "App::PropertyAngle", "dsangle", dsangle)
             setpropertyval(ply, "App::PropertyFloat", "alongwirelanded", alongwirelanded)
-            setpropertyval(ply, "App::PropertyFloat", "angcrosslanded", angcrosslanded)
+            setpropertyval(ply, "App::PropertyAngle", "angcrosslanded", angcrosslanded)
 
             cply = Part.show(Part.makePolygon([Vector(*gb.pt)  for gb in cgbs]), name)
             setpropertyval(cply, "App::PropertyFloat", "alongwire", alongwire)
             setpropertyval(cply, "App::PropertyAngle", "dsangle", dsangle)
             setpropertyval(cply, "App::PropertyFloat", "alongwirelanded", alongwirelanded)
-            setpropertyval(cply, "App::PropertyFloat", "angcrosslanded", angcrosslanded)
+            setpropertyval(cply, "App::PropertyAngle", "angcrosslanded", angcrosslanded)
             setpropertyval(cply, "App::PropertyFloat", "sphrad", sphrad)
             splaycyclegroup.addObject(cply)
 

@@ -7,7 +7,7 @@
     <x>0</x>
     <y>0</y>
     <width>400</width>
-    <height>373</height>
+    <height>542</height>
    </rect>
   </property>
   <property name="sizePolicy">
@@ -22,8 +22,8 @@
   <widget class="QPushButton" name="pushButton">
    <property name="geometry">
     <rect>
-     <x>70</x>
-     <y>320</y>
+     <x>50</x>
+     <y>500</y>
      <width>87</width>
      <height>30</height>
     </rect>
@@ -35,8 +35,8 @@
   <widget class="QDoubleSpinBox" name="doubleSpinBox">
    <property name="geometry">
     <rect>
-     <x>200</x>
-     <y>319</y>
+     <x>220</x>
+     <y>510</y>
      <width>66</width>
      <height>27</height>
     </rect>
@@ -54,7 +54,7 @@
      <x>10</x>
      <y>0</y>
      <width>381</width>
-     <height>414</height>
+     <height>461</height>
     </rect>
    </property>
    <layout class="QFormLayout" name="formLayout">
@@ -184,7 +184,7 @@
     <item row="7" column="0">
      <widget class="QLabel" name="labdesiredthickness">
       <property name="text">
-       <string>Desired thick</string>
+       <string>Desired thickness</string>
       </property>
      </widget>
     </item>
@@ -207,14 +207,45 @@
       </property>
      </widget>
     </item>
-    <item row="8" column="0">
+    <item row="9" column="0">
+     <widget class="QLabel" name="laboutputwindings">
+      <property name="text">
+       <string>Output windings</string>
+      </property>
+     </widget>
+    </item>
+    <item row="9" column="1">
+     <widget class="QLineEdit" name="qoutputwindings">
+      <property name="enabled">
+       <bool>true</bool>
+      </property>
+      <property name="text">
+       <string>outputwindings</string>
+      </property>
+     </widget>
+    </item>
+    <item row="10" column="0">
+     <widget class="QLabel" name="labsphradlimitnext">
+      <property name="text">
+       <string>sphrad limit next</string>
+      </property>
+     </widget>
+    </item>
+    <item row="10" column="1">
+     <widget class="QDoubleSpinBox" name="qsphradlimitnext">
+      <property name="enabled">
+       <bool>false</bool>
+      </property>
+     </widget>
+    </item>
+    <item row="12" column="0">
      <widget class="QLabel" name="labthinningtol">
       <property name="text">
        <string>Thinning tol</string>
       </property>
      </widget>
     </item>
-    <item row="8" column="1">
+    <item row="12" column="1">
      <widget class="QDoubleSpinBox" name="qthinningtol">
       <property name="decimals">
        <number>4</number>
@@ -233,27 +264,29 @@
       </property>
      </widget>
     </item>
-    <item row="13" column="0">
-     <widget class="QLabel" name="labsplayfolder">
+    <item row="8" column="0">
+     <widget class="QLabel" name="labdthicknesslower">
       <property name="text">
-       <string>splay folder</string>
+       <string>DThickness lower</string>
       </property>
      </widget>
     </item>
-    <item row="9" column="0">
-     <widget class="QLabel" name="labwindingsfolder">
-      <property name="text">
-       <string>windings fldr</string>
+    <item row="8" column="1">
+     <widget class="QDoubleSpinBox" name="qthicknesslower">
+      <property name="decimals">
+       <number>4</number>
       </property>
-     </widget>
-    </item>
-    <item row="9" column="1">
-     <widget class="QLineEdit" name="qwindingsfolder">
-      <property name="enabled">
-       <bool>true</bool>
+      <property name="minimum">
+       <double>0.000000000000000</double>
       </property>
-      <property name="text">
-       <string>outputwindings</string>
+      <property name="maximum">
+       <double>100.000000000000000</double>
+      </property>
+      <property name="singleStep">
+       <double>1.000000000000000</double>
+      </property>
+      <property name="value">
+       <double>5.400000000000000</double>
       </property>
      </widget>
     </item>
@@ -268,8 +301,7 @@
   <tabstop>qtowwidth</tabstop>
   <tabstop>qtowthickness</tabstop>
   <tabstop>qdesiredthickness</tabstop>
-  <tabstop>qthinningtol</tabstop>
-  <tabstop>qwindingsfolder</tabstop>
+  <tabstop>qoutputwindings</tabstop>
   <tabstop>pushButton</tabstop>
   <tabstop>doubleSpinBox</tabstop>
  </tabstops>
