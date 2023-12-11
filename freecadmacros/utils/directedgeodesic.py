@@ -165,12 +165,15 @@ class DriveCurve:
         TOL_ZERO(((dsangle - Ddsangle + 180)%360) - 180)
         return gbStart
 
-    def endalongposition(self, gbEnd):
+    def endalongpositionA(self, gbEnd):
         dslanded = Along(gbEnd.dclam, self.dptcls[gbEnd.dcseg], self.dptcls[gbEnd.dcseg + 1])
         alongwirelanded = InvAlong(dslanded, self.dptcls[0], self.dptcls[-1])
         angcross = gbEnd.drivecurveanglefromvec(gbEnd.gbForebarC.pt - gbEnd.gbBackbarC.pt)
-        print("angcross", angcross)
-        return alongwirelanded
+        #print("angcross", angcross)
+        return alongwirelanded, angcross
+
+    def endalongposition(self, gbEnd):
+        return self.endalongpositionA(gbEnd)[0]
 
 
 def makedrivecurve(sketchplane, utbm, mandrelradius):
