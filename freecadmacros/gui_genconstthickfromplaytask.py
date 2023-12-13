@@ -240,7 +240,12 @@ class GenConstThickFromSplayTaskPanel(QtGui.QWidget):
         mandpathsE = MandrelPaths([rptsE], towrad)
         meanthicknessE = measuremeanthicknessatcircle(mandpathsE, towrad, towthickness, splaycircle)
         additionalthicknessperwinding = meanthicknessE/newtotalwindingsE
-        print("meanthicknessE", meanthicknessE)
+
+        Dsplaycirclerad = max(v.X  for v in splaycircle.Shape.Vertexes)
+        print(Dsplaycirclerad, towrad, (Dsplaycirclerad - towrad)/Dsplaycirclerad)
+        Dcircleproportioncover = math.degrees(math.acos((Dsplaycirclerad - towrad)/Dsplaycirclerad))*2/360
+        DcircleproportioncoverFarEdge = math.degrees(math.acos((Dsplaycirclerad - towrad)/(Dsplaycirclerad + towrad)))*2/360
+        print("additionalthicknessperwindingProp", additionalthicknessperwinding/towthickness, "predicted", Dcircleproportioncover, "far edge bigger by", DcircleproportioncoverFarEdge/Dcircleproportioncover)
 
         requiredadditionalthickness = desiredthickness - meanbasethickness
         requiredwindingsforthickness = int(requiredadditionalthickness/additionalthicknessperwinding) + 1
