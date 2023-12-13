@@ -99,15 +99,17 @@ def adjustlandingrepeatstobecoprime(alongwire, alongwirelanded, totalrepeats):
             break
     else:
         print("didn't find non coprime total turns ", totalturns, totalrepeats)
+
     newalongwireadvance =  totalturns / newtotalrepeats
     newalongwirelanded = (alongwire + newalongwireadvance) % 1
     return newalongwirelanded, newtotalrepeats
 
-def repeatwindingpath(rpts, repeats,thintol):
+def repeatwindingpath(rpts, repeats, thintol):
     ptfront, ptback = rpts[0], rpts[-1]
     fvec0 = P2(ptfront.x, ptfront.z)
     fvec1 = P2(ptback.x, ptback.z)
     angadvance = P2(P2.Dot(fvec0, fvec1), P2.Dot(fvec0, P2.APerp(fvec1))).Arg()
+    print("repeatwindingpath angadvance prop", angadvance/360)
     rpts = thinptstotolerance(rpts, tol=thintol*2)
     ptsout = rpts[:]
     for i in range(1, repeats):
@@ -251,8 +253,14 @@ class GenConstThickFromSplayTaskPanel(QtGui.QWidget):
         requiredwindingsforthickness = int(requiredadditionalthickness/additionalthicknessperwinding) + 1
         adjustedalongwirelanded, adjustedwindings = adjustlandingrepeatstobecoprime(splaycircle.alongwire, splaycircle.alongwirelanded, requiredwindingsforthickness)
 
+        Dadustedalongwireadvance = adjustedalongwirelanded - alongwire
+        if Dadustedalongwireadvance <= 0.0:
+            Dadustedalongwireadvance += 1.0
+        print("turns", round(Dadustedalongwireadvance*adjustedwindings), "for windings", adjustedwindings)
+
+ 
         gbs, fLRdirection, dseg, alongwirelanded = directedgeodesic(combofoldbackmode, self.drivecurve, self.utbm, alongwire, adjustedalongwirelanded, float(splaycircle.dsangle), Maxsideslipturningfactor, mandrelradius, 0.0, maxlength, None)
-        rpts = repeatwindingpath([P3(*gb.pt)  for gb in gbsE], adjustedwindings, thinningtol)
+        rpts = repeatwindingpath([P3(*gb.pt)  for gb in gbs], adjustedwindings, thinningtol)
         name = 'w%dx%d' % (90-int(splaycircle.dsangle), adjustedwindings)
         ply = Part.show(Part.makePolygon([Vector(pt)  for pt in rpts]), name)
         outputwindingsgroup.addObject(ply)
@@ -265,6 +273,10 @@ class GenConstThickFromSplayTaskPanel(QtGui.QWidget):
 
         self.form.qsphradlimitnext.setValue(splaycircle.sphrad)
 
+        #re = envelope radius
+        #tr = towwidth/2
+        #r = radius to make measurement
+        #acos(min(1,(re-tr)/r))/pi - acos(min(1,(re+tr)/r))/pi
 
 
     def getStandardButtons(self):
