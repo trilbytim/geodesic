@@ -234,7 +234,7 @@
     <item row="10" column="1">
      <widget class="QDoubleSpinBox" name="qsphradlimitnext">
       <property name="enabled">
-       <bool>false</bool>
+       <bool>true</bool>
       </property>
      </widget>
     </item>
@@ -272,7 +272,7 @@
      </widget>
     </item>
     <item row="8" column="1">
-     <widget class="QDoubleSpinBox" name="qthicknesslower">
+     <widget class="QDoubleSpinBox" name="qdesiredthicknesslower">
       <property name="decimals">
        <number>4</number>
       </property>
@@ -287,6 +287,13 @@
       </property>
       <property name="value">
        <double>5.400000000000000</double>
+      </property>
+     </widget>
+    </item>
+    <item row="11" column="0">
+     <widget class="QPushButton" name="buttontest">
+      <property name="text">
+       <string>Test Button</string>
       </property>
      </widget>
     </item>

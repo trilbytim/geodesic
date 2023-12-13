@@ -188,11 +188,11 @@ def makedrivecurve(sketchplane, utbm, mandrelradius):
     print("girth comparison", 'Nominal:',mandrelgirth, 'Drivecurve length:',drivecurve.dptcls[-1])
     return drivecurve
 
-def directedgeodesic(combofoldbackmode, sketchplane, meshobject_or_utbm, 
+def directedgeodesic(combofoldbackmode, sketchplane_or_drivecurve, meshobject_or_utbm, 
                      alongwire, alongwireI, dsangle, Maxsideslipturningfactor,
                      mandrelradius, sideslipturningfactorZ, maxlength, outputfilament):
     utbm = meshobject_or_utbm if isinstance(meshobject_or_utbm, UsefulBoxedTriangleMesh) else UsefulBoxedTriangleMesh(meshobject_or_utbm.Mesh)
-    drivecurve = makedrivecurve(sketchplane, utbm, mandrelradius)
+    drivecurve = sketchplane_or_drivecurve if isinstance(sketchplane_or_drivecurve, DriveCurve) else makedrivecurve(sketchplane_or_drivecurve, utbm, mandrelradius)
     gbStart = drivecurve.startalongangle(alongwire, dsangle)
     fLRdirection = 1 if ((dsangle + 360)%360) < 180.0 else -1
     if combofoldbackmode != 0:
