@@ -157,27 +157,6 @@
       </property>
      </widget>
     </item>
-    <item row="6" column="0">
-     <widget class="QLabel" name="labmandrelpaths">
-      <property name="text">
-       <string>output</string>
-      </property>
-     </widget>
-    </item>
-    <item row="7" column="0">
-     <widget class="QLabel" name="labsplayfolder">
-      <property name="text">
-       <string>splay folder</string>
-      </property>
-     </widget>
-    </item>
-    <item row="7" column="1">
-     <widget class="QLineEdit" name="qsplayfolder">
-      <property name="text">
-       <string>wiresplays</string>
-      </property>
-     </widget>
-    </item>
     <item row="4" column="1">
      <widget class="QDoubleSpinBox" name="qmaxangle">
       <property name="maximum">
@@ -188,9 +167,49 @@
       </property>
      </widget>
     </item>
+    <item row="6" column="0">
+     <widget class="QLabel" name="labsplaycircles">
+      <property name="text">
+       <string>Splay circles</string>
+      </property>
+     </widget>
+    </item>
+    <item row="6" column="1">
+     <widget class="QLineEdit" name="qsplaycircles">
+      <property name="text">
+       <string>splaycircles</string>
+      </property>
+     </widget>
+    </item>
+    <item row="7" column="0">
+     <widget class="QLabel" name="labhoops">
+      <property name="text">
+       <string>Splay hoops</string>
+      </property>
+     </widget>
+    </item>
+    <item row="7" column="1">
+     <widget class="QLineEdit" name="qsplayhoops">
+      <property name="text">
+       <string>splayhoops</string>
+      </property>
+     </widget>
+    </item>
    </layout>
   </widget>
  </widget>
+ <tabstops>
+  <tabstop>qmeshobject</tabstop>
+  <tabstop>qsketchplane</tabstop>
+  <tabstop>qalongwire</tabstop>
+  <tabstop>qminangle</tabstop>
+  <tabstop>qmaxangle</tabstop>
+  <tabstop>qanglestep</tabstop>
+  <tabstop>qsplaycircles</tabstop>
+  <tabstop>qsplayhoops</tabstop>
+  <tabstop>doubleSpinBox</tabstop>
+  <tabstop>pushButton</tabstop>
+ </tabstops>
  <resources/>
  <connections/>
 </ui>

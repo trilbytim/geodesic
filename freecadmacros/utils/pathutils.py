@@ -2,6 +2,7 @@ import numpy as np
 import Fem
 import utils.freecadutils as freecadutils
 from barmesh.basicgeo import I1, P3
+from barmesh.tribarmes.triangleboxing import TriangleBoxing
 
 def TOL_ZERO(X, msg=""):
     if not (abs(X) < 0.0001):
@@ -59,19 +60,41 @@ class BallPathCloseRegions:
             del self.ranges[i+1]
 
 class MandrelPaths:
-    def __init__(self, mandrelptpaths):
+    def __init__(self, mandrelptpaths, towrad=None):
         self.mandrelptpaths = mandrelptpaths
-        self.Nm = max(map(len, mandrelptpaths)) + 1
+        self.Nm = max(map(len, mandrelptpaths), default=1) + 1
         xrgs = [ ]
         yrgs = [ ]
         for mandrelwindpts in mandrelptpaths:
             xrgs.append(I1.AbsorbList(p.x  for p in mandrelwindpts))
             yrgs.append(I1.AbsorbList(p.y  for p in mandrelwindpts))
-        self.xrg = I1.AbsorbList(iter(sum(xrgs, ())))
-        self.yrg = I1.AbsorbList(iter(sum(yrgs, ())))
+        self.xrg = I1.AbsorbList(iter(sum(xrgs, ())))  if xrgs  else I1(0,1)
+        self.yrg = I1.AbsorbList(iter(sum(yrgs, ())))  if yrgs  else I1(0,1)
 
         self.hitreg = [0]*(self.Nm * len(self.mandrelptpaths))
         self.nhitreg = 0
+        
+        if towrad is not None:
+            xrg = self.xrg.Inflate(towrad*2)
+            yrg = self.yrg.Inflate(towrad*2)
+            boxwidth = max(towrad, xrg.Leng()/30, yrg.Leng()/30)
+            self.tbs = TriangleBoxing(None, xrg.lo, xrg.hi, yrg.lo, yrg.hi, boxwidth)
+            print("Creating box set boxwidth=", boxwidth, self.Nm)
+            self.addpathstotgbs(self.tbs)
+
+    def BallCloseCount(self, pt, towrad):
+        bpcr = BallPathCloseRegions(pt, towrad)
+        self.nhitreg += 1
+        for ix, iy in self.tbs.CloseBoxeGenerator(pt.x, pt.x, pt.y, pt.y, towrad):
+            tbox = self.tbs.boxes[ix][iy]
+            for i in tbox.pointis:
+                bpcr.DistPoint(self.getpt(i), i)
+            for i in tbox.edgeis:
+                if self.hitreg[i] != self.nhitreg:
+                    bpcr.DistEdge(self.getpt(i), self.getpt(i+1), i)
+                    self.hitreg[i] = self.nhitreg
+        bpcr.mergeranges()
+        return len(bpcr.ranges)
 
     def encodei(self, j, k):
         return j*self.Nm + k

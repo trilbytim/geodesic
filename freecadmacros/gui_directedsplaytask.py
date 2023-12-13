@@ -189,7 +189,7 @@ def makesplaycycle(gbs, sphpt):
     gbt, sphrad = findappatureclosestapproach(gbs, sphpt)
     bar, lam, bGoRight = TriangleCrossSphereRight(gbt.tbar, True, sphpt, sphrad, False)
     bar0 = bar
-    sphbars = [ ]
+    sphbars = [ GBarC(bar, lam, bGoRight) ]
     for i in range(600):
         bar, lam, bGoRight = TriangleCrossSphereRight(bar, bGoRight, sphpt, sphrad, True)
         sphbars.append(GBarC(bar, lam, bGoRight))
@@ -197,6 +197,10 @@ def makesplaycycle(gbs, sphpt):
             break
     return sphbars, sphrad
     
+def setpropertyval(obj, atype, name, value):
+    if name not in obj.PropertiesList:
+        obj.addProperty(atype, name, "filwind")
+    setattr(obj, name, value)
 
 class DirectedSplayTaskPanel(QtGui.QWidget):
     def __init__(self):
@@ -219,15 +223,18 @@ class DirectedSplayTaskPanel(QtGui.QWidget):
         print("apply!!")
         sketchplane = sfindobjectbylabel(self.doc, self.form.qsketchplane.text())
         meshobject = sfindobjectbylabel(self.doc, self.form.qmeshobject.text())
-        splayfolder = self.form.qsplayfolder.text()
-        splaycyclefolder = self.form.qsplayfolder.text()+"C"
+        splaycircles = self.form.qsplaycircles.text()
+        splayhoops = self.form.qsplayhoops.text()
         alongwire = float(self.form.qalongwire.text())
         minangle = float(self.form.qminangle.text())
         maxangle = float(self.form.qmaxangle.text())
         anglestep = float(self.form.qanglestep.text())
 
-        splaygroup = freecadutils.getemptyfolder(self.doc, splayfolder)
-        splaycyclegroup = freecadutils.getemptyfolder(self.doc, splaycyclefolder)
+        splaygroup = freecadutils.getemptyfolder(self.doc, splayhoops)
+        splaycyclegroup = freecadutils.getemptyfolder(self.doc, splaycircles)
+        setpropertyval(splaycyclegroup, "App::PropertyFloat", "alongwire", alongwire)
+        setpropertyval(splaycyclegroup, "App::PropertyString", "sketchplane", sketchplane.Label)
+        setpropertyval(splaycyclegroup, "App::PropertyString", "meshobject", meshobject.Label)
 
         utbm = UsefulBoxedTriangleMesh(meshobject.Mesh)
         drivecurve = makedrivecurve(sketchplane, utbm, mandrelradius)
@@ -245,13 +252,17 @@ class DirectedSplayTaskPanel(QtGui.QWidget):
 
             ply = Part.show(Part.makePolygon([Vector(*gb.pt)  for gb in gbs]), name)
             splaygroup.addObject(ply)
-            ply.addProperty("App::PropertyFloat", "alongwire", "filwind"); ply.alongwire = alongwire
-            ply.addProperty("App::PropertyAngle", "dsangle", "filwind"); ply.dsangle = dsangle
-            ply.addProperty("App::PropertyFloat", "alongwirelanded", "filwind"); ply.alongwirelanded = alongwirelanded
-            ply.addProperty("App::PropertyFloat", "angcrosslanded", "filwind"); ply.angcrosslanded = angcrosslanded
+            setpropertyval(ply, "App::PropertyFloat", "alongwire", alongwire)
+            setpropertyval(ply, "App::PropertyAngle", "dsangle", dsangle)
+            setpropertyval(ply, "App::PropertyFloat", "alongwirelanded", alongwirelanded)
+            setpropertyval(ply, "App::PropertyAngle", "angcrosslanded", angcrosslanded)
 
             cply = Part.show(Part.makePolygon([Vector(*gb.pt)  for gb in cgbs]), name)
-            cply.addProperty("App::PropertyFloat", "sphrad", "filwind"); cply.sphrad = sphrad
+            setpropertyval(cply, "App::PropertyFloat", "alongwire", alongwire)
+            setpropertyval(cply, "App::PropertyAngle", "dsangle", dsangle)
+            setpropertyval(cply, "App::PropertyFloat", "alongwirelanded", alongwirelanded)
+            setpropertyval(cply, "App::PropertyAngle", "angcrosslanded", angcrosslanded)
+            setpropertyval(cply, "App::PropertyFloat", "sphrad", sphrad)
             splaycyclegroup.addObject(cply)
 
 
