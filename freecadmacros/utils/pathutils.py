@@ -123,16 +123,17 @@ class MandrelPaths:
         if (si0//self.Nm) != (si1//self.Nm):
             return None
         for k in range(si0, si1+1):
-            vlen = (self.getpt(k+1) - self.getpt(k)).Len()
             prop = 1.0
             if k == si0 and k == si1:
                 prop = llam1 - llam0 
             elif k == si0:
-                prop = si0 + 1 - llam0 
+                prop = si0 + 1.0 - llam0 
             elif k == si1:
                 prop = llam1 - si1 
             assert 0.0 <= prop <= 1.0
-            ld += prop*vlen
+            if prop != 0.0:
+                vlen = (self.getpt(k+1) - self.getpt(k)).Len()
+                ld += prop*vlen
         return ld
         
 def MakeFEAcoloredmesh(mesh, nodecolours):
