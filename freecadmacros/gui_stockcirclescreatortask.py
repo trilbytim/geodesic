@@ -67,14 +67,60 @@ dsangle = 90.0
 LRdirection = 1
 appaturepapproachpoint = P3(0,-150,0)
 
+def spherecutlam(p0, p1, sphpt, sphrad):
+    v = p1 - p0
+    vs = p0 - sphpt
+    qa = v.Lensq()
+    qb2 = P3.Dot(vs, v)
+    qc = vs.Lensq() - sphrad*sphrad
+    qdq = qb2*qb2 - qa*qc
+    qs = math.sqrt(qdq) / qa
+    qm = -qb2 / qa
+    q = qm + qs
+    TOL_ZERO(qa*q*q + qb2*2*q + qc)
+    Dpt = vs + v*q
+    assert (-0.01 <= q <= 1.01), q
+    return q
 
 
-def makestockcolumnline(gbts):
-    stockcolumn = Part.show(Part.makePolygon([Vector(gbt.pt - gbt.tnorm*0)  for gbt in gbts]), "stockcolumn")
-    #outputwindingsgroup.addObject(ply)
-    #setpropertyval(stockcolumn, "App::PropertyAngle", "sphrad", splaycircle.sphrad)
-    stockcolumn.addProperty("App::PropertyVectorList", "Normals")
-    stockcolumn.Normals = [ Vector(-gbt.tnorm)  for gbt in gbts ] 
+def TriangleCrossSphereRight(tbar, bGoRight, sphpt, sphrad, bContinuation):
+    nodeAhead = tbar.GetNodeFore(bGoRight)
+    nodeBehind = tbar.GetNodeFore(not bGoRight)
+    barAhead = tbar.GetForeRightBL(bGoRight)
+    barAheadGoRight = (barAhead.nodeback == nodeAhead)
+    nodeOpposite = barAhead.GetNodeFore(barAheadGoRight)
+    barBehind = barAhead.GetForeRightBL(barAheadGoRight)
+    DbarBehindGoRight = (barBehind.nodeback == nodeOpposite)
+    assert nodeBehind == barBehind.GetNodeFore(DbarBehindGoRight)
+
+    nds = [ nodeBehind, nodeAhead, nodeOpposite ]
+    brs = [ tbar, barAhead, barBehind ]
+    dnds = [ (b.p - sphpt).Len()  for b in nds ]
+    for i in range(3):
+        i1 = i + 1 if i != 2 else 0
+        if (dnds[i] < sphrad) and (dnds[i1] >= sphrad):
+            break
+    jlam = spherecutlam(nds[i].p, nds[i1].p, sphpt, sphrad)
+    barCrossing = brs[i]
+    barCrossingGoRight = not (barCrossing.nodeback == nds[i])
+    barCrossingLam = 1 - jlam if barCrossingGoRight else jlam
+    barCrossingpt = Along(barCrossingLam, barCrossing.nodeback.p, barCrossing.nodefore.p)
+    TOL_ZERO((barCrossingpt - sphpt).Len() - sphrad)
+    return barCrossing, barCrossingLam, barCrossingGoRight
+
+
+def makestockcircle(gbt, sphpt):
+    sphrad = (gbt.pt - sphpt).Len()
+    bar, lam, bGoRight = TriangleCrossSphereRight(gbt.tbar, True, sphpt, sphrad, False)
+    bar0 = bar
+    sphbars = [ GBarC(bar, lam, bGoRight) ]
+    for i in range(600):
+        bar, lam, bGoRight = TriangleCrossSphereRight(bar, bGoRight, sphpt, sphrad, True)
+        sphbars.append(GBarC(bar, lam, bGoRight))
+        if bar == bar0:
+            break
+    return sphbars, sphrad
+
 
 
 def chaseupcolumngbtsfromdrivecurveSingle(drivecurve, alongwire, colsamplestep):
@@ -131,13 +177,21 @@ class StockCirclesTaskPanel(QtGui.QWidget):
         drivecurve = makedrivecurve(sketchplane, utbm, mandrelradius)
 
         gbts = chaseupcolumngbtsfromdrivecurveSingle(drivecurve, alongwire, colsamplestep)
-        makestockcolumnline(gbts)
-        
+        stockcolumn = Part.show(Part.makePolygon([Vector(gbt.pt - gbt.tnorm*0.0)  for gbt in gbts]), "stockcolumn")
+
         stockcirclesgroup = freecadutils.getemptyfolder(self.doc, stockcirclesname)
         setpropertyval(stockcirclesgroup, "App::PropertyFloat", "alongwire", alongwire)
         setpropertyval(stockcirclesgroup, "App::PropertyString", "sketchplane", sketchplane.Label)
         setpropertyval(stockcirclesgroup, "App::PropertyString", "meshobject", meshobject.Label)
         setpropertyval(stockcirclesgroup, "App::PropertyBool", "stockcirclestype", True)
+        for gbt in gbts:
+            cgbs, sphrad = makestockcircle(gbt, appaturepapproachpoint)
+            name = 'sc%.2f' % sphrad
+            cply = Part.show(Part.makePolygon([Vector(*gb.pt)  for gb in cgbs]), name)
+            setpropertyval(cply, "App::PropertyFloat", "sphrad", sphrad)
+            setpropertyval(cply, "App::PropertyVector", "pt", Vector(gbt.pt))
+            setpropertyval(cply, "App::PropertyVector", "norm", Vector(-gbt.tnorm))
+            stockcirclesgroup.addObject(cply)
 
 
     def getStandardButtons(self):
