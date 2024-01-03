@@ -207,6 +207,32 @@
       </property>
      </widget>
     </item>
+    <item row="8" column="0">
+     <widget class="QLabel" name="labdthicknesslower">
+      <property name="text">
+       <string>DThickness lower</string>
+      </property>
+     </widget>
+    </item>
+    <item row="8" column="1">
+     <widget class="QDoubleSpinBox" name="qdesiredthicknesslower">
+      <property name="decimals">
+       <number>4</number>
+      </property>
+      <property name="minimum">
+       <double>0.000000000000000</double>
+      </property>
+      <property name="maximum">
+       <double>100.000000000000000</double>
+      </property>
+      <property name="singleStep">
+       <double>1.000000000000000</double>
+      </property>
+      <property name="value">
+       <double>5.400000000000000</double>
+      </property>
+     </widget>
+    </item>
     <item row="9" column="0">
      <widget class="QLabel" name="laboutputwindings">
       <property name="text">
@@ -238,6 +264,13 @@
       </property>
      </widget>
     </item>
+    <item row="11" column="0">
+     <widget class="QPushButton" name="buttontest">
+      <property name="text">
+       <string>Test Button</string>
+      </property>
+     </widget>
+    </item>
     <item row="12" column="0">
      <widget class="QLabel" name="labthinningtol">
       <property name="text">
@@ -264,36 +297,20 @@
       </property>
      </widget>
     </item>
-    <item row="8" column="0">
-     <widget class="QLabel" name="labdthicknesslower">
+    <item row="3" column="0">
+     <widget class="QLabel" name="labsplayhoops">
       <property name="text">
-       <string>DThickness lower</string>
+       <string>Splay hoops</string>
       </property>
      </widget>
     </item>
-    <item row="8" column="1">
-     <widget class="QDoubleSpinBox" name="qdesiredthicknesslower">
-      <property name="decimals">
-       <number>4</number>
+    <item row="3" column="1">
+     <widget class="QLineEdit" name="qsplayhoops">
+      <property name="enabled">
+       <bool>true</bool>
       </property>
-      <property name="minimum">
-       <double>0.000000000000000</double>
-      </property>
-      <property name="maximum">
-       <double>100.000000000000000</double>
-      </property>
-      <property name="singleStep">
-       <double>1.000000000000000</double>
-      </property>
-      <property name="value">
-       <double>5.400000000000000</double>
-      </property>
-     </widget>
-    </item>
-    <item row="11" column="0">
-     <widget class="QPushButton" name="buttontest">
       <property name="text">
-       <string>Test Button</string>
+       <string>splayhoops</string>
       </property>
      </widget>
     </item>
