@@ -17,7 +17,7 @@
    </sizepolicy>
   </property>
   <property name="windowTitle">
-   <string>Directed Splay</string>
+   <string>Stock hoop measure</string>
   </property>
   <widget class="QWidget" name="formLayoutWidget">
    <property name="geometry">
@@ -91,14 +91,14 @@
       </property>
      </widget>
     </item>
-    <item row="4" column="0">
+    <item row="5" column="0">
      <widget class="QLabel" name="labalongwire">
       <property name="text">
        <string>alongwire</string>
       </property>
      </widget>
     </item>
-    <item row="4" column="1">
+    <item row="5" column="1">
      <widget class="QDoubleSpinBox" name="qalongwire">
       <property name="enabled">
        <bool>false</bool>
@@ -117,14 +117,14 @@
       </property>
      </widget>
     </item>
-    <item row="5" column="0">
+    <item row="6" column="0">
      <widget class="QLabel" name="labtowwidth">
       <property name="text">
        <string>Tow width</string>
       </property>
      </widget>
     </item>
-    <item row="5" column="1">
+    <item row="6" column="1">
      <widget class="QDoubleSpinBox" name="qtowwidth">
       <property name="decimals">
        <number>4</number>
@@ -143,14 +143,14 @@
       </property>
      </widget>
     </item>
-    <item row="6" column="0">
+    <item row="7" column="0">
      <widget class="QLabel" name="labtowthickness">
       <property name="text">
        <string>Tow thickness</string>
       </property>
      </widget>
     </item>
-    <item row="6" column="1">
+    <item row="7" column="1">
      <widget class="QDoubleSpinBox" name="qtowthickness">
       <property name="decimals">
        <number>4</number>
@@ -170,56 +170,13 @@
      </widget>
     </item>
     <item row="8" column="0">
-     <widget class="QLabel" name="laboutputwindings">
+     <widget class="QLabel" name="labmultiplier">
       <property name="text">
-       <string>Output windings</string>
+       <string>multiplier</string>
       </property>
      </widget>
     </item>
     <item row="8" column="1">
-     <widget class="QLineEdit" name="qoutputwindings">
-      <property name="enabled">
-       <bool>true</bool>
-      </property>
-      <property name="text">
-       <string>outputwindings</string>
-      </property>
-     </widget>
-    </item>
-    <item row="9" column="0">
-     <widget class="QPushButton" name="buttontest">
-      <property name="text">
-       <string>Test Button</string>
-      </property>
-     </widget>
-    </item>
-    <item row="10" column="0">
-     <widget class="QLabel" name="labthinningtol">
-      <property name="text">
-       <string>Thinning tol</string>
-      </property>
-     </widget>
-    </item>
-    <item row="10" column="1">
-     <widget class="QDoubleSpinBox" name="qthinningtol">
-      <property name="decimals">
-       <number>4</number>
-      </property>
-      <property name="minimum">
-       <double>0.000000000000000</double>
-      </property>
-      <property name="maximum">
-       <double>100.000000000000000</double>
-      </property>
-      <property name="singleStep">
-       <double>0.100000000000000</double>
-      </property>
-      <property name="value">
-       <double>0.200000000000000</double>
-      </property>
-     </widget>
-    </item>
-    <item row="7" column="1">
      <widget class="QDoubleSpinBox" name="qmultiplier">
       <property name="decimals">
        <number>4</number>
@@ -238,14 +195,100 @@
       </property>
      </widget>
     </item>
-    <item row="7" column="0">
-     <widget class="QLabel" name="labmultiplier">
+    <item row="9" column="0">
+     <widget class="QLabel" name="laboutputwindings">
       <property name="text">
-       <string>multiplier</string>
+       <string>Output windings</string>
+      </property>
+     </widget>
+    </item>
+    <item row="9" column="1">
+     <widget class="QLineEdit" name="qoutputwindings">
+      <property name="enabled">
+       <bool>true</bool>
+      </property>
+      <property name="text">
+       <string>outputwindings</string>
+      </property>
+     </widget>
+    </item>
+    <item row="10" column="0">
+     <widget class="QPushButton" name="buttontest">
+      <property name="text">
+       <string>Test Button</string>
+      </property>
+     </widget>
+    </item>
+    <item row="11" column="0">
+     <widget class="QLabel" name="labthinningtol">
+      <property name="text">
+       <string>Thinning tol</string>
+      </property>
+     </widget>
+    </item>
+    <item row="11" column="1">
+     <widget class="QDoubleSpinBox" name="qthinningtol">
+      <property name="decimals">
+       <number>4</number>
+      </property>
+      <property name="minimum">
+       <double>0.000000000000000</double>
+      </property>
+      <property name="maximum">
+       <double>100.000000000000000</double>
+      </property>
+      <property name="singleStep">
+       <double>0.100000000000000</double>
+      </property>
+      <property name="value">
+       <double>0.200000000000000</double>
+      </property>
+     </widget>
+    </item>
+    <item row="4" column="0">
+     <widget class="QLabel" name="labsplayhoopindexes">
+      <property name="text">
+       <string>Splay hoop indexes</string>
+      </property>
+     </widget>
+    </item>
+    <item row="4" column="1">
+     <widget class="QLineEdit" name="qsplayhoopindexes">
+      <property name="text">
+       <string>55, 30, 10</string>
       </property>
      </widget>
     </item>
    </layout>
+  </widget>
+  <widget class="QLineEdit" name="qsplayhoops_2">
+   <property name="enabled">
+    <bool>true</bool>
+   </property>
+   <property name="geometry">
+    <rect>
+     <x>357</x>
+     <y>420</y>
+     <width>262</width>
+     <height>26</height>
+    </rect>
+   </property>
+   <property name="text">
+    <string>splayhoops</string>
+   </property>
+  </widget>
+  <widget class="QLabel" name="labsplayhoops_2">
+   <property name="geometry">
+    <rect>
+     <x>240</x>
+     <y>420</y>
+     <width>81</width>
+     <height>26</height>
+    </rect>
+   </property>
+   <property name="text">
+    <string>Splay hoops</string>
+   </property>
   </widget>
  </widget>
  <tabstops>

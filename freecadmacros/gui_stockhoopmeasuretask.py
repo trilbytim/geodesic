@@ -10,7 +10,7 @@ from FreeCAD import Vector, Rotation
 from PySide import QtGui, QtCore
 
 
-import os, sys, math, time, numpy
+import os, sys, math, time, numpy, re
 sys.path.append(os.path.join(os.path.split(__file__)[0]))
 print(sys.path[-1])
 
@@ -113,9 +113,9 @@ def getcirclerangesonpt(circlepaths, pt, towrad):
     bpcr.mergeranges()
     return bpcr.ranges
 
-def makehoopthicknessmesh(stockcircles, circlethicknesses, multiplier):
-    ptpairs = [ (stockcircle.pt, stockcircle.pt + stockcircle.norm*(circlethickness*multiplier))  \
-                for stockcircle, circlethickness in zip(stockcircles, circlethicknesses) ]
+def makehoopthicknessmesh(stockcircles, circlethicknessesLo, circlethicknessesHi, multiplier):
+    ptpairs = [ (stockcircle.pt + stockcircle.norm*(circlethicknessLo*multiplier), stockcircle.pt + stockcircle.norm*(circlethicknessHi*multiplier))  \
+                for stockcircle, circlethicknessLo, circlethicknessHi in zip(stockcircles, circlethicknessesLo, circlethicknessesHi) ]
     facets = [ ]
     for i in range(len(ptpairs)-1):
         p0, p1 = ptpairs[i]
@@ -124,6 +124,28 @@ def makehoopthicknessmesh(stockcircles, circlethicknesses, multiplier):
         facets.append([p1, pe0, pe1])
     return Mesh.Mesh(facets)
 
+
+def calccirclethicknesses(splayhoop, circlepaths, circlelengths, towrad, towthickness):
+    splayhooppts = [P3(v.X,v.Y,v.Z)  for v in splayhoop.Shape.Vertexes]
+
+    assert len(circlepaths.mandrelptpaths) == len(circlelengths)
+    cranges = [ ]
+    for pt in splayhooppts: # [ splayhooppts[len(splayhooppts)//2] ]:
+            # should do the cylinders connecting these points too, but we will consider the spheres  
+            # at the corner points are overlapping enough to have a small enough 
+            # cusp to treat it as this at the moment
+        crangesI = getcirclerangesonpt(circlepaths, pt, towrad)
+        mergeinranges(cranges, crangesI)
+
+    circleoverlapthicknesses = [ 0.0 ] * len(circlelengths)
+    for rg in cranges:
+        si = int(rg.lo)
+        ci = (si//circlepaths.Nm)
+        circleoverlapthicknesses[ci] += circlepaths.getgaplength(rg.lo, rg.hi)
+    #print(circleoverlapthicknesses)
+    circlethicknesses = [ circleoverlapthickness/circlelength*towthickness  for circleoverlapthickness, circlelength in zip(circleoverlapthicknesses, circlelengths) ]
+    return circlethicknesses
+    
 
 class GenConstThickFromSplayTaskPanel(QtGui.QWidget):
     def __init__(self):
@@ -171,34 +193,24 @@ class GenConstThickFromSplayTaskPanel(QtGui.QWidget):
         assert len(circlepaths.mandrelptpaths) == len(stockcirclesfolder.OutList)
         multiplier = float(self.form.qmultiplier.text())
         
-        splayhoop = splayhoopsfolder.OutList[30]
-        splayhooppts = [P3(v.X,v.Y,v.Z)  for v in splayhoop.Shape.Vertexes]
-  
-        cranges = [ ]
-        for pt in splayhooppts: # [ splayhooppts[len(splayhooppts)//2] ]:
-                # should do the cylinders connecting these points too, but we will consider the spheres  
-                # at the corner points are overlapping enough to have a small enough 
-                # cusp to treat it as this at the moment
-            crangesI = getcirclerangesonpt(circlepaths, pt, towrad)
-            mergeinranges(cranges, crangesI)
-
-        circleoverlapthicknesses = [ 0.0 ] * len(stockcirclesfolder.OutList)
-        for rg in cranges:
-            si = int(rg.lo)
-            ci = (si//circlepaths.Nm)
-            circleoverlapthicknesses[ci] += circlepaths.getgaplength(rg.lo, rg.hi)
-        #print(circleoverlapthicknesses)
+        splayhoopindexes = list(map(int, re.findall("\d+", self.form.qsplayhoopindexes.text())))
+        assert len(circlepaths.mandrelptpaths) == len(stockcirclesfolder.OutList)
         circlelengths = [ circlepaths.getgaplength(i*circlepaths.Nm + 0.0, i*circlepaths.Nm + len(circlepaths.mandrelptpaths[i])-1) \
                           for i in range(len(stockcirclesfolder.OutList)) ]
-        circlethicknesses = [ max(0.001, circleoverlapthickness/circlelength*towthickness)  for circleoverlapthickness, circlelength in zip(circleoverlapthicknesses, circlelengths) ]
-        print(circlelengths)
 
-        stockmeshname = "stockmesh"
-        stockmesh = freecadutils.doc.addObject("Mesh::Feature", stockmeshname)
-        stockmesh.Mesh = makehoopthicknessmesh(stockcirclesfolder.OutList, circlethicknesses, multiplier)
-        stockmesh.ViewObject.Lighting = "Two side"
-        #stockmesh.ViewObject.DisplayMode = "Flat Lines"
+        basecirclethicknesses = [ 0.0 ] * len(circlelengths)
+        for i in splayhoopindexes:
+            splayhoop = splayhoopsfolder.OutList[i]
+            circlethicknesses = calccirclethicknesses(splayhoop, circlepaths, circlelengths, towrad, towthickness)
+            additionalcirclethicknesses = [ a+b  for a, b in zip(basecirclethicknesses, circlethicknesses) ]
 
+            stockmeshname = "stockmesh%d" % i
+            stockmesh = freecadutils.doc.addObject("Mesh::Feature", stockmeshname)
+            stockmesh.Mesh = makehoopthicknessmesh(stockcirclesfolder.OutList, basecirclethicknesses, additionalcirclethicknesses, multiplier)
+            stockmesh.ViewObject.Lighting = "Two side"
+            #stockmesh.ViewObject.DisplayMode = "Flat Lines"
+
+            basecirclethicknesses = additionalcirclethicknesses
 
     def getStandardButtons(self):
         return int(QtGui.QDialogButtonBox.Cancel
