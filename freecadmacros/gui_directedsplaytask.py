@@ -231,10 +231,17 @@ class DirectedSplayTaskPanel(QtGui.QWidget):
         anglestep = float(self.form.qanglestep.text())
 
         splaygroup = freecadutils.getemptyfolder(self.doc, splayhoops)
+        setpropertyval(splaygroup, "App::PropertyFloat", "alongwire", alongwire)
+        setpropertyval(splaygroup, "App::PropertyFloat", "minangle", alongwire)
+        setpropertyval(splaygroup, "App::PropertyFloat", "maxangle", alongwire)
+        setpropertyval(splaygroup, "App::PropertyBool", "splayhooptype", True)
+        
         splaycyclegroup = freecadutils.getemptyfolder(self.doc, splaycircles)
         setpropertyval(splaycyclegroup, "App::PropertyFloat", "alongwire", alongwire)
         setpropertyval(splaycyclegroup, "App::PropertyString", "sketchplane", sketchplane.Label)
         setpropertyval(splaycyclegroup, "App::PropertyString", "meshobject", meshobject.Label)
+        setpropertyval(splaycyclegroup, "App::PropertyString", "splayhoops", splaygroup.Label)
+        setpropertyval(splaycyclegroup, "App::PropertyBool", "splaycycletype", True)
 
         utbm = UsefulBoxedTriangleMesh(meshobject.Mesh)
         drivecurve = makedrivecurve(sketchplane, utbm, mandrelradius)
@@ -263,6 +270,7 @@ class DirectedSplayTaskPanel(QtGui.QWidget):
             setpropertyval(cply, "App::PropertyFloat", "alongwirelanded", alongwirelanded)
             setpropertyval(cply, "App::PropertyAngle", "angcrosslanded", angcrosslanded)
             setpropertyval(cply, "App::PropertyFloat", "sphrad", sphrad)
+            setpropertyval(cply, "App::PropertyString","hooplabel", ply.Label)
             splaycyclegroup.addObject(cply)
 
 

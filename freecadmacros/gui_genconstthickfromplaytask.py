@@ -120,25 +120,11 @@ def repeatwindingpath(rpts, repeats, thintol):
     ptsout = thinptstotolerance(ptsout, tol=thintol)
     return ptsout
 
-def evalthick(splaycircle, mandrelptpaths, towwidth, towthickness):
-    towrad = towwidth/2
-    POpts = [ P3(v.X,v.Y,v.Z)  for v in splaycircle.Shape.Vertexes ]
-    POnorms = [ App.Vector(0,1,0) ]*len(POpts)
-
-    mandpaths = MandrelPaths(mandrelptpaths, towrad)
-    thickcount = [ ]
-    for mp in POpts:
-        thickcount.append(mandpaths.BallCloseCount(mp, towrad))
-    meanthick = numpy.mean(thickcount)*towthickness
-    print('THICKNESSES AROUND RING:')
-    print('MAX:',numpy.max(thickcount)*towthickness,'MIN:',numpy.min(thickcount)*towthickness,'MEAN:', meanthick)
-    return meanthick
 
 def wirestopatharrays(wirelist):
     basepts = [ ]
     for bw in wirelist:
-        if hasattr(bw, "Shape") and isinstance(bw.Shape, Part.Wire) and "towwidth" in bw.PropertiesList:
-            print("--evalthick includes:", bw.Name)
+        if hasattr(bw, "Shape") and isinstance(bw.Shape, Part.Wire):
             basepts.append([P3(v.X,v.Y,v.Z)  for v in bw.Shape.Vertexes])
     return basepts
 
@@ -153,7 +139,7 @@ class GenConstThickFromSplayTaskPanel(QtGui.QWidget):
     def __init__(self):
         x = os.path.join(os.path.split(__file__)[0], "genconstthickfromsplaytask.ui")
         self.form = FreeCADGui.PySideUic.loadUi(x)
-        self.form.setMinimumSize(0, 390)
+        self.form.setMinimumSize(0, 420)
         QtCore.QObject.connect(self.form.buttontest, QtCore.SIGNAL("pressed()"), self.testbutton)
         self.update()
 
@@ -162,20 +148,26 @@ class GenConstThickFromSplayTaskPanel(QtGui.QWidget):
         self.sel = App.Gui.Selection.getSelection()
         outputwindings = sgetlabelofselectedgroupwithproperties(self.sel, ["splaycircles"])
         if outputwindings:
-            self.form.qsplaycircles.setText(outputwindings)
+            self.form.qoutputwindings.setText(outputwindings)
         outputwindingsgroup = sfindobjectbylabel(self.doc, self.form.qoutputwindings.text())
-        splaycircles = sgetlabelofselectedgroupwithproperties(self.sel, ["sketchplane", "meshobject"])
+        splaycircles = sgetlabelofselectedgroupwithproperties(self.sel, ["sketchplane", "meshobject", "splayhoop", "splaycycletype"])
+        splayhoops = sgetlabelofselectedgroupwithproperties(self.sel, ["splayhooptype"])
         if outputwindings and not splaycircles:
             splaycircles = outputwindings.splaycircles
         if splaycircles:
             self.form.qsplaycircles.setText(splaycircles)
         splaycirclesgroup = sfindobjectbylabel(self.doc, self.form.qsplaycircles.text())
+        print("splaycirclesgroup", splaycirclesgroup)
+        if not splayhoops and splaycirclesgroup:
+            splayhoops = splaycirclesgroup.splayhoops
+        if splayhoops:
+            self.form.qsplayhoops.setText(splayhoops)
         if splaycirclesgroup:
             self.form.qsketchplane.setText(splaycirclesgroup.sketchplane)
             self.form.qmeshobject.setText(splaycirclesgroup.meshobject)
             self.form.qalongwire.setValue(splaycirclesgroup.alongwire)
         if outputwindingsgroup and len(outputwindingsgroup.OutList):
-            self.form.qsphradlimit.setValue(outputwindingsgroup[-1].sphrad)
+            self.form.qsphradlimitnext.setValue(outputwindingsgroup.OutList[-1].sphrad)
         elif splaycirclesgroup:
             self.form.qsphradlimitnext.setValue(-1.0 + min(sc.sphrad  for sc in splaycirclesgroup.OutList[-10:]))
 
@@ -193,6 +185,34 @@ class GenConstThickFromSplayTaskPanel(QtGui.QWidget):
 
     def testbutton(self):
         print("Test button pressed")
+        towrad = float(self.form.qtowwidth.text())/2.0
+        splaycirclefolder = sfindobjectbylabel(self.doc, self.form.qsplaycircles.text())
+        splayhoopsfolder = sfindobjectbylabel(self.doc, self.form.qsplayhoops.text())
+        circlepaths = MandrelPaths(wirestopatharrays(splaycirclefolder.OutList), towrad)
+        
+        splayhoop = splayhoopsfolder.OutList[10]
+        splayhooppts = [P3(v.X,v.Y,v.Z)  for v in splayhoop.Shape.Vertexes]
+  
+        # will loop over points and merge all together
+        pt = splayhooppts[len(splayhooppts)//2]
+        print("ppppt", pt, circlepaths.tbs.xpart.vs)
+        print("ppppt", circlepaths.tbs.ypart.vs)
+        pt = P3(-50,-140,-13)
+        bpcr = BallPathCloseRegions(pt, towrad)
+
+        circlepaths.nhitreg += 1
+        for ix, iy in circlepaths.tbs.CloseBoxeGenerator(pt.x, pt.x, pt.y, pt.y, towrad):
+            tbox = circlepaths.tbs.boxes[ix][iy]
+            for i in tbox.pointis:
+                bpcr.DistPoint(circlepaths.getpt(i), i)
+            for i in tbox.edgeis:
+                if circlepaths.hitreg[i] != circlepaths.nhitreg:
+                    bpcr.DistEdge(circlepaths.getpt(i), circlepaths.getpt(i+1), i)
+                    circlepaths.hitreg[i] = circlepaths.nhitreg
+        bpcr.mergeranges()
+        print(bpcr.ranges)
+        #return len(bpcr.ranges)
+        
 
     def apply(self):
         print("apply!!")
@@ -207,7 +227,7 @@ class GenConstThickFromSplayTaskPanel(QtGui.QWidget):
         outputwindingsgroup = sfindobjectbylabel(self.doc, self.form.qoutputwindings.text())
         if not outputwindingsgroup:
             outputwindingsgroup = freecadutils.getemptyfolder(self.doc, self.form.qoutputwindings.text())
-        setpropertyval(outputwindingsgroup, "App::PropertyString", "splaycirclefolder", splaycirclefolder.Label)
+        setpropertyval(outputwindingsgroup, "App::PropertyString", "splaycircles", splaycirclefolder.Label)
 
         mandpaths = MandrelPaths(wirestopatharrays(outputwindingsgroup.OutList), towrad)
 
