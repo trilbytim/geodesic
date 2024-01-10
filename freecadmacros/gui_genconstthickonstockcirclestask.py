@@ -135,41 +135,84 @@ def measuremeanthicknessatcircle(mandpaths, towrad, towthickness, splaycircle):
     return meancount*towthickness
 
 
-class GenConstThickFromSplayTaskPanel(QtGui.QWidget):
+def mergeinranges(ranges, rangesI):
+    ranges.extend(rangesI)
+    ranges.sort(key=lambda X: X.lo)
+    i = 0
+    while i < len(ranges) - 1:
+        if ranges[i+1].lo <= ranges[i].hi:
+            ranges[i] = I1(ranges[i].lo, max(ranges[i].hi, ranges[i+1].hi))
+            del ranges[i+1]
+        else:
+            i += 1
+
+
+def getcirclerangesonpt(circlepaths, pt, towrad):
+    bpcr = BallPathCloseRegions(pt, towrad)
+    circlepaths.nhitreg += 1
+    for ix, iy in circlepaths.tbs.CloseBoxeGenerator(pt.x, pt.x, pt.y, pt.y, towrad):
+        tbox = circlepaths.tbs.boxes[ix][iy]
+        for i in tbox.pointis:
+            bpcr.DistPoint(circlepaths.getpt(i), i)
+        for i in tbox.edgeis:
+            if circlepaths.hitreg[i] != circlepaths.nhitreg:
+                bpcr.DistEdge(circlepaths.getpt(i), circlepaths.getpt(i+1), i)
+                circlepaths.hitreg[i] = circlepaths.nhitreg
+    bpcr.mergeranges()
+    return bpcr.ranges
+
+def calccirclethicknesses(splayhooppts, circlepaths, circlelengths, towrad, towthickness):
+
+    assert len(circlepaths.mandrelptpaths) == len(circlelengths)
+    cranges = [ ]
+    for pt in splayhooppts: # [ splayhooppts[len(splayhooppts)//2] ]:
+            # should do the cylinders connecting these points too, but we will consider the spheres  
+            # at the corner points are overlapping enough to have a small enough 
+            # cusp to treat it as this at the moment
+        crangesI = getcirclerangesonpt(circlepaths, pt, towrad)
+        mergeinranges(cranges, crangesI)
+
+    circleoverlapthicknesses = [ 0.0 ] * len(circlelengths)
+    for rg in cranges:
+        si = int(rg.lo)
+        ci = (si//circlepaths.Nm)
+        circleoverlapthicknesses[ci] += circlepaths.getgaplength(rg.lo, rg.hi)
+    #print(circleoverlapthicknesses)
+    circlethicknesses = [ circleoverlapthickness/circlelength*towthickness  for circleoverlapthickness, circlelength in zip(circleoverlapthicknesses, circlelengths) ]
+    return circlethicknesses
+
+
+class GenConstThickOnStockCirclesTaskPanel(QtGui.QWidget):
     def __init__(self):
         x = os.path.join(os.path.split(__file__)[0], "genconstthickonstockcirclestask.ui")
         self.form = FreeCADGui.PySideUic.loadUi(x)
-        self.form.setMinimumSize(0, 420)
+        self.form.setMinimumSize(0, 520)
         QtCore.QObject.connect(self.form.buttontest, QtCore.SIGNAL("pressed()"), self.testbutton)
         self.update()
 
     def update(self):
         self.doc = App.ActiveDocument
         self.sel = App.Gui.Selection.getSelection()
-        outputwindings = sgetlabelofselectedgroupwithproperties(self.sel, ["splaycircles"])
-        if outputwindings:
-            self.form.qoutputwindings.setText(outputwindings)
-        outputwindingsgroup = sfindobjectbylabel(self.doc, self.form.qoutputwindings.text())
-        splaycircles = sgetlabelofselectedgroupwithproperties(self.sel, ["sketchplane", "meshobject", "splayhoop", "splaycycletype"])
-        splayhoops = sgetlabelofselectedgroupwithproperties(self.sel, ["splayhooptype"])
-        if outputwindings and not splaycircles:
-            splaycircles = outputwindings.splaycircles
-        if splaycircles:
-            self.form.qsplaycircles.setText(splaycircles)
-        splaycirclesgroup = sfindobjectbylabel(self.doc, self.form.qsplaycircles.text())
-        print("splaycirclesgroup", splaycirclesgroup)
-        if not splayhoops and splaycirclesgroup:
-            splayhoops = splaycirclesgroup.splayhoops
-        if splayhoops:
-            self.form.qsplayhoops.setText(splayhoops)
-        if splaycirclesgroup:
-            self.form.qsketchplane.setText(splaycirclesgroup.sketchplane)
-            self.form.qmeshobject.setText(splaycirclesgroup.meshobject)
-            self.form.qalongwire.setValue(splaycirclesgroup.alongwire)
-        if outputwindingsgroup and len(outputwindingsgroup.OutList):
-            self.form.qsphradlimitnext.setValue(outputwindingsgroup.OutList[-1].sphrad)
-        elif splaycirclesgroup:
-            self.form.qsphradlimitnext.setValue(-1.0 + min(sc.sphrad  for sc in splaycirclesgroup.OutList[-10:]))
+        stockcircles = sgetlabelofselectedgroupwithproperties(self.sel, ["sketchplane", "meshobject", "stockcirclestype"])
+
+        planwindings = sgetlabelofselectedgroupwithproperties(self.sel, ["stockcircles"])
+        if planwindings:
+            self.form.qplanwindings.setText(planwindings)
+        planwindingsgroup = sfindobjectbylabel(self.doc, self.form.qplanwindings.text())
+
+        if planwindingsgroup and not stockcircles:
+            stockcircles = planwindingsgroup.stockcircles
+        if stockcircles:
+            self.form.qstockcircles.setText(stockcircles)
+            
+        stockcirclesgroup = sfindobjectbylabel(self.doc, self.form.qstockcircles.text())
+        print("stockcirclesgroup", stockcircles)
+        if stockcirclesgroup:
+            self.form.qsketchplane.setText(stockcirclesgroup.sketchplane)
+            self.form.qmeshobject.setText(stockcirclesgroup.meshobject)
+            self.form.qalongwire.setValue(stockcirclesgroup.alongwire)
+        if planwindingsgroup and len(planwindingsgroup.OutList):
+            self.form.qcurrentsplayangle.setValue(planwindingsgroup.OutList[-1].splayangle)
 
         self.sketchplane = sfindobjectbylabel(self.doc, self.form.qsketchplane.text())
         self.meshobject = sfindobjectbylabel(self.doc, self.form.qmeshobject.text())
@@ -184,51 +227,108 @@ class GenConstThickFromSplayTaskPanel(QtGui.QWidget):
 
 
     def testbutton(self):
-        print("Test button pressed")
-        towrad = float(self.form.qtowwidth.text())/2.0
-        splaycirclefolder = sfindobjectbylabel(self.doc, self.form.qsplaycircles.text())
-        splayhoopsfolder = sfindobjectbylabel(self.doc, self.form.qsplayhoops.text())
-        circlepaths = MandrelPaths(wirestopatharrays(splaycirclefolder.OutList), towrad)
-        
-        splayhoop = splayhoopsfolder.OutList[10]
-        splayhooppts = [P3(v.X,v.Y,v.Z)  for v in splayhoop.Shape.Vertexes]
-  
-        # will loop over points and merge all together
-        pt = splayhooppts[len(splayhooppts)//2]
-        print("ppppt", pt, circlepaths.tbs.xpart.vs)
-        print("ppppt", circlepaths.tbs.ypart.vs)
-        pt = P3(-50,-140,-13)
-        bpcr = BallPathCloseRegions(pt, towrad)
+        print("Make onion layers mesh")
+        planwindingsgroup = sfindobjectbylabel(self.doc, self.form.qplanwindings.text())
+        onionlayers = self.form.qonionlayers.text()
+        onionlayersgroup = freecadutils.getemptyfolder(self.doc, onionlayers)
+        previewmultiplier = float(self.form.qpreviewmultiplier.text())
 
-        circlepaths.nhitreg += 1
-        for ix, iy in circlepaths.tbs.CloseBoxeGenerator(pt.x, pt.x, pt.y, pt.y, towrad):
-            tbox = circlepaths.tbs.boxes[ix][iy]
-            for i in tbox.pointis:
-                bpcr.DistPoint(circlepaths.getpt(i), i)
-            for i in tbox.edgeis:
-                if circlepaths.hitreg[i] != circlepaths.nhitreg:
-                    bpcr.DistEdge(circlepaths.getpt(i), circlepaths.getpt(i+1), i)
-                    circlepaths.hitreg[i] = circlepaths.nhitreg
-        bpcr.mergeranges()
-        print(bpcr.ranges)
-        #return len(bpcr.ranges)
-        
+        stockcirclesfolder = sfindobjectbylabel(self.doc, self.form.qstockcircles.text())
+        basethicknesses = [ 0.0 ] * len(stockcirclesfolder.OutList)
 
+        for j, planwinding in enumerate(planwindingsgroup.OutList):
+            for i in range(len(planwindingsgroup.OutList)):
+                basethicknesses[i] += planwinding.circlethicknesses[i]*planwinding.plannedwinds
+        
+            additionalthicknesses = [ basecirclethickness + circlethickness*planwinding.plannedwinds \
+                        for basecirclethickness, circlethickness in zip(basethicknesses, planwinding.circlethicknesses) ]
+    
+            ptpairs = [ (stockcircle.pt + stockcircle.norm*(basethickness*previewmultiplier), stockcircle.pt + stockcircle.norm*(additionalthickness*previewmultiplier))  \
+                    for stockcircle, basethickness, additionalthickness in zip(stockcirclesfolder.OutList, basethicknesses, additionalthicknesses) ]
+            facets = [ ]
+            for i in range(len(ptpairs)-1):
+                p0, p1 = ptpairs[i]
+                pe0, pe1 = ptpairs[i+1]
+                facets.append([p0, pe0, p1])
+                facets.append([p1, pe0, pe1])
+            onionlayername = "splang%.01f" % planwinding.splayangle
+            onionlayer = freecadutils.doc.addObject("Mesh::Feature", onionlayername)
+            onionlayer.Mesh = Mesh.Mesh(facets)
+            onionlayer.ViewObject.Lighting = "Two side"
+            onionlayer.ViewObject.ShapeColor = (float(planwinding.splayangle)/90.0, 0.7, 0.5 + 0.4*(j%2))
+            onionlayersgroup.addObject(onionlayer)
+            basethicknesses = additionalthicknesses
+
+        
     def apply(self):
         print("apply!!")
-        splaycirclefolder = sfindobjectbylabel(self.doc, self.form.qsplaycircles.text())
+        stockcirclesfolder = sfindobjectbylabel(self.doc, self.form.qstockcircles.text())
         alongwire = float(self.form.qalongwire.text())
-        sphradlimitnext = float(self.form.qsphradlimitnext.text())
         thinningtol = float(self.form.qthinningtol.text())
         towrad = float(self.form.qtowwidth.text())/2.0
         towthickness = float(self.form.qtowthickness.text())
         desiredthickness = float(self.form.qdesiredthickness.text())
         desiredthicknesslower = float(self.form.qdesiredthicknesslower.text())
-        outputwindingsgroup = sfindobjectbylabel(self.doc, self.form.qoutputwindings.text())
-        if not outputwindingsgroup:
-            outputwindingsgroup = freecadutils.getemptyfolder(self.doc, self.form.qoutputwindings.text())
-        setpropertyval(outputwindingsgroup, "App::PropertyString", "splaycircles", splaycirclefolder.Label)
+        minimalwinds = int(self.form.qminimalwinds.text())
+        planwindingsgroup = sfindobjectbylabel(self.doc, self.form.qplanwindings.text())
+        if not planwindingsgroup:
+            planwindingsgroup = freecadutils.getemptyfolder(self.doc, self.form.qplanwindings.text())
+        setpropertyval(planwindingsgroup, "App::PropertyString", "stockcircles", stockcirclesfolder.Label)
 
+        currentsplayangle = float(self.form.qcurrentsplayangle.text())
+        endsplayangle = float(self.form.qendsplayangle.text())
+        stepsplayangle = float(self.form.qstepsplayangle.text())
+        stepsplayangle = abs(stepsplayangle)*(1 if endsplayangle >= currentsplayangle else -1)
+
+        
+        circlepaths = MandrelPaths(wirestopatharrays(stockcirclesfolder.OutList), towrad)
+        assert len(circlepaths.mandrelptpaths) == len(stockcirclesfolder.OutList)
+        previewmultiplier = float(self.form.qpreviewmultiplier.text())
+        assert len(circlepaths.mandrelptpaths) == len(stockcirclesfolder.OutList)
+        circlelengths = [ circlepaths.getgaplength(i*circlepaths.Nm + 0.0, i*circlepaths.Nm + len(circlepaths.mandrelptpaths[i])-1) \
+                          for i in range(len(stockcirclesfolder.OutList)) ]
+
+        # we are going to sum these up from planwindingsgroup
+        basethicknesses = [ 0.0 ] * len(circlelengths)
+        for planwinding in planwindingsgroup.OutList:
+            for i in range(len(circlelengths)):
+                basethicknesses[i] += planwinding.circlethicknesses[i]*planwinding.plannedwinds
+        
+        while True:
+            currentsplayangle += stepsplayangle
+            print("currentsplayangle", currentsplayangle)
+            if (currentsplayangle > endsplayangle) == (stepsplayangle > 0):
+                print("No more splay angles left")
+                return
+            self.form.qcurrentsplayangle.setValue(currentsplayangle)
+            gbStart = self.drivecurve.startalongangle(alongwire, currentsplayangle)
+            gbs = drivegeodesicRI(gbStart, self.drivecurve.drivebars, self.drivecurve.tridrivebarsmap, LRdirection=LRdirection, sideslipturningfactor=0, maxlength=maxlength)
+            if gbs[-1] == None:
+                continue
+            alongwirelanded, angcrosslanded = self.drivecurve.endalongpositionA(gbs[-1])
+            name = 'w%.1f' % currentsplayangle
+            splayhooppts = [ gb.pt  for gb in gbs ]
+            circlethicknesses = calccirclethicknesses(splayhooppts, circlepaths, circlelengths, towrad, towthickness)
+            minwindstothickness = min((desiredthickness - basethickness)/circlethickness  \
+                    for circlethickness, basethickness in zip(circlethicknesses, basethicknesses)  if circlethickness != 0)
+            print(minwindstothickness, max(circlethicknesses))
+            if minwindstothickness < minimalwinds:
+                continue
+
+            plannedwinds = int(minwindstothickness)
+            planwinding = Part.show(Part.makePolygon([Vector(*p)  for p in splayhooppts]), name)
+            setpropertyval(planwinding, "App::PropertyInteger", "plannedwinds", plannedwinds)
+            setpropertyval(planwinding, "App::PropertyFloat", "alongwire", alongwire)
+            setpropertyval(planwinding, "App::PropertyAngle", "splayangle", currentsplayangle)
+            setpropertyval(planwinding, "App::PropertyFloat", "alongwirelanded", alongwirelanded)
+            setpropertyval(planwinding, "App::PropertyAngle", "angcrosslanded", angcrosslanded)
+            setpropertyval(planwinding, "App::PropertyFloatList", "circlethicknesses", circlethicknesses)
+            planwindingsgroup.addObject(planwinding)
+            for i in range(len(circlelengths)):
+                basethicknesses[i] += planwinding.circlethicknesses[i]*planwinding.plannedwinds
+            break
+        return
+            
         mandpaths = MandrelPaths(wirestopatharrays(outputwindingsgroup.OutList), towrad)
 
         im = len(splaycirclefolder.OutList)   # small circle is at end
@@ -321,4 +421,4 @@ class GenConstThickFromSplayTaskPanel(QtGui.QWidget):
         print("Finish")
         Gui.Control.closeDialog()
 
-Gui.Control.showDialog(GenConstThickFromSplayTaskPanel())
+Gui.Control.showDialog(GenConstThickOnStockCirclesTaskPanel())
