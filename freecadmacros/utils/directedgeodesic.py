@@ -134,6 +134,7 @@ def drivegeodesicRI(gbStart, drivebars, tridrivebarsmap, LRdirection=1, sideslip
             gbs.append(gbEnd)
             break
         gbs.append(gbFore)
+    print('LENGTH:', dlength)
     return gbs
 
 def makebicolouredwire(gbs, name, colfront=(1.0,0.0,0.0), colback=(0.0,0.3,0.0), leadcolornodes=-1):
