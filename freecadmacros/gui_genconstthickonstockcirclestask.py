@@ -264,7 +264,6 @@ class GenConstThickOnStockCirclesTaskPanel(QtGui.QWidget):
         print("apply!!")
         stockcirclesfolder = sfindobjectbylabel(self.doc, self.form.qstockcircles.text())
         alongwire = float(self.form.qalongwire.text())
-        thinningtol = float(self.form.qthinningtol.text())
         towrad = float(self.form.qtowwidth.text())/2.0
         towthickness = float(self.form.qtowthickness.text())
         desiredthickness = float(self.form.qdesiredthickness.text())
@@ -273,7 +272,11 @@ class GenConstThickOnStockCirclesTaskPanel(QtGui.QWidget):
         planwindingsgroup = sfindobjectbylabel(self.doc, self.form.qplanwindings.text())
         if not planwindingsgroup:
             planwindingsgroup = freecadutils.getemptyfolder(self.doc, self.form.qplanwindings.text())
-        setpropertyval(planwindingsgroup, "App::PropertyString", "stockcircles", stockcirclesfolder.Label)
+            setpropertyval(planwindingsgroup, "App::PropertyString", "sketchplane", self.form.qsketchplane.text())
+            setpropertyval(planwindingsgroup, "App::PropertyString", "meshobject", self.form.qmeshobject.text())
+            setpropertyval(planwindingsgroup, "App::PropertyFloat", "alongwire", alongwire)
+            setpropertyval(planwindingsgroup, "App::PropertyString", "stockcircles", stockcirclesfolder.Label)
+            setpropertyval(planwindingsgroup, "App::PropertyBool", "planwindingstype", True)
 
         currentsplayangle = float(self.form.qcurrentsplayangle.text())
         endsplayangle = float(self.form.qendsplayangle.text())
@@ -322,81 +325,13 @@ class GenConstThickOnStockCirclesTaskPanel(QtGui.QWidget):
             setpropertyval(planwinding, "App::PropertyAngle", "splayangle", currentsplayangle)
             setpropertyval(planwinding, "App::PropertyFloat", "alongwirelanded", alongwirelanded)
             setpropertyval(planwinding, "App::PropertyAngle", "angcrosslanded", angcrosslanded)
+            setpropertyval(planwinding, "App::PropertyFloat", "towwidth", towrad*2)
+            setpropertyval(planwinding, "App::PropertyFloat", "towthickness", towthickness)
             setpropertyval(planwinding, "App::PropertyFloatList", "circlethicknesses", circlethicknesses)
             planwindingsgroup.addObject(planwinding)
             for i in range(len(circlelengths)):
                 basethicknesses[i] += planwinding.circlethicknesses[i]*planwinding.plannedwinds
             break
-        return
-            
-        mandpaths = MandrelPaths(wirestopatharrays(outputwindingsgroup.OutList), towrad)
-
-        im = len(splaycirclefolder.OutList)   # small circle is at end
-        while im > 0:
-            im -= 1
-
-            splaycircle = splaycirclefolder.OutList[im]
-
-            # skip till we find a circle that is wider than the previous
-            if splaycircle.sphrad < sphradlimitnext + 0.001:
-                continue
-                
-            meanbasethickness = measuremeanthicknessatcircle(mandpaths, towrad, towthickness, splaycircle)
-            print("meanbasethickness", meanbasethickness, "at", splaycircle.sphrad)
-            
-            # keep going only if the thickness on this circle is within tolerance
-            if meanbasethickness <= desiredthicknesslower:
-                break
-
-        else:
-            print("No next bigger winding to be found")
-            return
-
-        # we have now selected our circle level
-        
-        # estimate thickness for a winding of 100 paths at this hoop layer (tangential to this circle)
-        estimatorwindingsnumber = 100
-        newalongwirelandedE, newtotalwindingsE = adjustlandingrepeatstobecoprime(splaycircle.alongwire, splaycircle.alongwirelanded, estimatorwindingsnumber)
-        gbsE, fLRdirection, dsegE, alongwirelandedE = directedgeodesic(combofoldbackmode, self.drivecurve, self.utbm, alongwire, newalongwirelandedE, float(splaycircle.dsangle), Maxsideslipturningfactor, mandrelradius, 0.0, maxlength, None)
-        rptsE = repeatwindingpath([P3(*gb.pt)  for gb in gbsE], newtotalwindingsE, thinningtol)
-        mandpathsE = MandrelPaths([rptsE], towrad)
-        meanthicknessE = measuremeanthicknessatcircle(mandpathsE, towrad, towthickness, splaycircle)
-        additionalthicknessperwinding = meanthicknessE/newtotalwindingsE
-
-        Dsplaycirclerad = max(v.X  for v in splaycircle.Shape.Vertexes)
-        print(Dsplaycirclerad, towrad, (Dsplaycirclerad - towrad)/Dsplaycirclerad)
-        Dcircleproportioncover = math.degrees(math.acos((Dsplaycirclerad - towrad)/Dsplaycirclerad))*2/360
-        DcircleproportioncoverFarEdge = math.degrees(math.acos((Dsplaycirclerad - towrad)/(Dsplaycirclerad + towrad)))*2/360
-        print("additionalthicknessperwindingProp", additionalthicknessperwinding/towthickness, "predicted", Dcircleproportioncover, "far edge bigger by", DcircleproportioncoverFarEdge/Dcircleproportioncover)
-
-        requiredadditionalthickness = desiredthickness - meanbasethickness
-        requiredwindingsforthickness = int(requiredadditionalthickness/additionalthicknessperwinding) + 1
-        adjustedalongwirelanded, adjustedwindings = adjustlandingrepeatstobecoprime(splaycircle.alongwire, splaycircle.alongwirelanded, requiredwindingsforthickness)
-
-        Dadustedalongwireadvance = adjustedalongwirelanded - alongwire
-        if Dadustedalongwireadvance <= 0.0:
-            Dadustedalongwireadvance += 1.0
-        print("turns", round(Dadustedalongwireadvance*adjustedwindings), "for windings", adjustedwindings)
-
- 
-        gbs, fLRdirection, dseg, alongwirelanded = directedgeodesic(combofoldbackmode, self.drivecurve, self.utbm, alongwire, adjustedalongwirelanded, float(splaycircle.dsangle), Maxsideslipturningfactor, mandrelradius, 0.0, maxlength, None)
-        rpts = repeatwindingpath([P3(*gb.pt)  for gb in gbs], adjustedwindings, thinningtol)
-        name = 'w%dx%d' % (90-int(splaycircle.dsangle), adjustedwindings)
-        ply = Part.show(Part.makePolygon([Vector(pt)  for pt in rpts]), name)
-        outputwindingsgroup.addObject(ply)
-        setpropertyval(ply, "App::PropertyAngle", "sphrad", splaycircle.sphrad)
-        setpropertyval(ply, "App::PropertyAngle", "dsangle", splaycircle.dsangle)
-        setpropertyval(ply, "App::PropertyFloat", "alongwire", alongwire)
-        setpropertyval(ply, "App::PropertyFloat", "alongwirelanded", adjustedalongwirelanded)
-        setpropertyval(ply, "App::PropertyInteger", "windings", adjustedwindings)
-        setpropertyval(ply, "App::PropertyFloat", "towwidth", towrad*2)
-
-        self.form.qsphradlimitnext.setValue(splaycircle.sphrad)
-
-        #re = envelope radius
-        #tr = towwidth/2
-        #r = radius to make measurement
-        #acos(min(1,(re-tr)/r))/pi - acos(min(1,(re+tr)/r))/pi
 
 
     def getStandardButtons(self):
