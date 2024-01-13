@@ -265,7 +265,6 @@ class PostProcessWindingsTaskPanel(QtGui.QWidget):
         for outputwinding in outputwindingsgroup.OutList:
             owbb = owbb.united(outputwinding.Shape.BoundBox) if owbb else outputwinding.Shape.BoundBox
             owlngth += outputwinding.Shape.Length
-            print(outputwinding.Label, outputwinding.Shape.Length)
         if owbb == None:
             print("No output winding toolpath selected")
             return
@@ -411,7 +410,7 @@ class PostProcessWindingsTaskPanel(QtGui.QWidget):
                     fp0, fp1 = tcp0 + vecr0, tcp1 + vecr1
                     facets.append([Vector(*tcp0), Vector(*fp0), Vector(*tcp1)])
                     facets.append([Vector(*tcp1), Vector(*fp0), Vector(*fp1)])
-            mesh = freecadutils.doc.addObject("Mesh::Feature", qoutputsweepmesh.text())
+            mesh = freecadutils.doc.addObject("Mesh::Feature", sweepmesh)
             mesh.ViewObject.Lighting = "Two side"
             mesh.ViewObject.DisplayMode = "Flat Lines"
             mesh.Mesh = Mesh.Mesh(facets)
@@ -428,7 +427,7 @@ class PostProcessWindingsTaskPanel(QtGui.QWidget):
                     c = Path.Command("G1", {"X":tcp.X, "Y":tcp.Y, "Z":tcp.Z, "E3":tcp.E3*1000/360})  
                     pp.addCommands(c)
                 Part.show(Part.makePolygon([Vector(*tcp.GetTCP(True))  for tcp in tcpblock]), sweeppath)
-            o = freecadutils.doc.addObject("Path::Feature","mypath")
+            o = freecadutils.doc.addObject("Path::Feature", sweeppath)
             o.Path = pp
             o.ViewObject.StartPosition = Vector(tcpblockslinked[0][0].X, tcpblockslinked[0][0].Y, tcpblockslinked[0][0].Z)
 
