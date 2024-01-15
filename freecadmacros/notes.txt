@@ -1,0 +1,27 @@
+
+
+Instructions:
+
+1) Load ProperJob
+
+2) Select convexedmesh and drivecurve and run gui_genstockcirclescreatortask
+
+3) Select stockcircles and load up gen_constthickonstockcirclestask, then click 
+Apply several times, preview what the thickness will be using See Onion Layers
+
+4) Select planwindings and run gui_genpathfromplanwindings
+
+5) Select outputwindings and run gui_postprocesswindings.  
+
+6) Toolpath output is in fillwind11.src
+
+-----------------
+
+Further macros are verify the output and to visualize vector and sweep surfaces 
+for bad corners and creases.
+
+[*] OptionTestMinimal checked on gui_genpathfromplanwindings does one winding 
+per layer so we can see the worst parts (the joins)
+
+
+

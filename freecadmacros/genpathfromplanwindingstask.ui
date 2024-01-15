@@ -17,7 +17,7 @@
    </sizepolicy>
   </property>
   <property name="windowTitle">
-   <string>Directed Splay</string>
+   <string>Path from Plan Windings</string>
   </property>
   <widget class="QWidget" name="formLayoutWidget">
    <property name="geometry">

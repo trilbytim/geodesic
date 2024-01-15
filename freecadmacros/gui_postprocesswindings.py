@@ -5,7 +5,7 @@
 # select default current project and start editing stockviewertask.ui
 
 
-import Draft, Part, Mesh, MeshPart, Fem
+import Draft, Part, Mesh, MeshPart, Fem, Path
 from FreeCAD import Vector, Rotation 
 from PySide import QtGui, QtCore
 

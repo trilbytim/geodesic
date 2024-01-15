@@ -103,17 +103,19 @@ def adjustlandingrepeatstobecoprime(alongwire, alongwirelanded, totalrepeats):
     newalongwirelanded = (alongwire + newalongwireadvance) % 1
     return newalongwirelanded, newtotalrepeats
 
-def repeatwindingpath(rpts, repeats, thintol):
-    ptfront, ptback = rpts[0], rpts[-1]
-    fvec0 = P2(ptfront.x, ptfront.z)
-    fvec1 = P2(ptback.x, ptback.z)
-    angadvance = P2(P2.Dot(fvec0, fvec1), P2.Dot(fvec0, P2.APerp(fvec1))).Arg()
-    print("repeatwindingpath angadvance prop", angadvance/360)
-    rpts = thinptstotolerance(rpts, tol=thintol*2)
-    ptsout = rpts[:]
-    for i in range(1, repeats):
-        rotcos = math.cos(math.radians(i*angadvance))
-        rotsin = math.sin(math.radians(i*angadvance))
+def repeatwindingpath(rpts, repeats, thintol, angadvanceperwind, initialangadvance):
+    Dptfront, Dptback = rpts[0], rpts[-1]
+    Dfvec0 = P2(Dptfront.x, Dptfront.z)
+    Dfvec1 = P2(Dptback.x, Dptback.z)
+    Dangadvance = P2(P2.Dot(Dfvec0, Dfvec1), P2.Dot(Dfvec0, P2.APerp(Dfvec1))).Arg()
+    Dangadvanceperwind = P2(P2.Dot(Dfvec0, Dfvec1), P2.Dot(Dfvec0, P2.APerp(Dfvec1))).Arg()
+    Dangdiff = min(abs(((Dangadvanceperwind+Da)%360) - ((angadvanceperwind+Da)%360))  for Da in [360, 360+180])
+    TOL_ZERO(Dangdiff, "Dangdiff")
+    rpts = thinptstotolerance(rpts, tol=thintol*0.5)
+    ptsout = [ ]
+    for i in range(repeats):
+        rotcos = math.cos(math.radians(i*angadvanceperwind + initialangadvance))
+        rotsin = math.sin(math.radians(i*angadvanceperwind + initialangadvance))
         for pt in rpts:
             ptsout.append(P3(pt.x*rotcos + pt.z*rotsin, pt.y, pt.z*rotcos - pt.x*rotsin))
     ptsout = thinptstotolerance(ptsout, tol=thintol)
@@ -152,31 +154,40 @@ class GenPathFromPlanWindingsTaskPanel(QtGui.QWidget):
                 print("Warning, no sketchplane and drivecurve")
         else:
             print("Warning, no meshobject")
-
+        
     def apply(self):
         print("apply!!")
         alongwire = float(self.form.qalongwire.text())
         thinningtol = float(self.form.qthinningtol.text())
         planwindingsgroup = sfindobjectbylabel(self.doc, self.form.qplanwindings.text())
+        optiontestminimal = self.form.qoptiontestminimal.isChecked()
         if planwindingsgroup == None:
             print("No planwindings selected")
             return
-        outputwindingsgroup = sfindobjectbylabel(self.doc, self.form.qoutputwindings.text())
-        if not outputwindingsgroup:
-            outputwindingsgroup = freecadutils.getemptyfolder(self.doc, self.form.qoutputwindings.text())
-            setpropertyval(planwindingsgroup, "App::PropertyString", "planwindings", planwindingsgroup.Label)
-            setpropertyval(planwindingsgroup, "App::PropertyBool", "outputwindingsgrouptype", True)
-            setpropertyval(planwindingsgroup, "App::PropertyFloat", "thinningtol", thinningtol)
+        outputwindingsgroup = freecadutils.getemptyfolder(self.doc, self.form.qoutputwindings.text())
+        setpropertyval(planwindingsgroup, "App::PropertyString", "planwindings", planwindingsgroup.Label)
+        setpropertyval(planwindingsgroup, "App::PropertyBool", "outputwindingsgrouptype", True)
+        setpropertyval(planwindingsgroup, "App::PropertyFloat", "thinningtol", thinningtol)
 
+        initialangadvance = 0.0
         for planwinding in planwindingsgroup.OutList:
             adjustedalongwirelanded, adjustedwindings = adjustlandingrepeatstobecoprime(planwinding.alongwire, planwinding.alongwirelanded, planwinding.plannedwinds)
             Dadustedalongwireadvance = adjustedalongwirelanded - alongwire
             if Dadustedalongwireadvance <= 0.0:
                 Dadustedalongwireadvance += 1.0
             print("turns", round(Dadustedalongwireadvance*adjustedwindings), "for windings", adjustedwindings)
-            gbs, fLRdirection, dseg, alongwirelanded = directedgeodesic(combofoldbackmode, self.drivecurve, self.utbm, planwinding.alongwire, adjustedalongwirelanded, float(planwinding.splayangle), Maxsideslipturningfactor, mandrelradius, 0.0, maxlength, None)
-            rpts = repeatwindingpath([P3(*gb.pt)  for gb in gbs], adjustedwindings, thinningtol)
+            gbs, fLRdirection, dseg, Dalongwirelanded = directedgeodesic(combofoldbackmode, self.drivecurve, self.utbm, planwinding.alongwire, adjustedalongwirelanded, float(planwinding.splayangle), Maxsideslipturningfactor, mandrelradius, 0.0, maxlength, None)
+       
+            angadvanceperwind = (adjustedalongwirelanded - planwinding.alongwire + 1.0)*360
+            if optiontestminimal:
+                adjustedwindings = 1
+            rpts = repeatwindingpath([P3(*gb.pt)  for gb in gbs], adjustedwindings, thinningtol, angadvanceperwind, initialangadvance)
             
+            if optiontestminimal:
+                initialangadvance += (adjustedwindings*angadvanceperwind) % 360
+            else:
+                TOL_ZERO(((((adjustedwindings*angadvanceperwind)%360) + 180) % 360) - 180, "advanceperwind")
+
             name = 'w%dx%d' % (90-int(planwinding.splayangle), adjustedwindings)
             ply = Part.show(Part.makePolygon([Vector(pt)  for pt in rpts]), name)
             outputwindingsgroup.addObject(ply)
@@ -186,6 +197,7 @@ class GenPathFromPlanWindingsTaskPanel(QtGui.QWidget):
             setpropertyval(ply, "App::PropertyInteger", "windings", adjustedwindings)
             setpropertyval(ply, "App::PropertyFloat", "towwidth", planwinding.towwidth)
             setpropertyval(ply, "App::PropertyFloat", "towthickness", planwinding.towthickness)
+
 
     def getStandardButtons(self):
         return int(QtGui.QDialogButtonBox.Cancel
