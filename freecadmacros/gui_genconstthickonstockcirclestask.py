@@ -237,9 +237,6 @@ class GenConstThickOnStockCirclesTaskPanel(QtGui.QWidget):
         basethicknesses = [ 0.0 ] * len(stockcirclesfolder.OutList)
 
         for j, planwinding in enumerate(planwindingsgroup.OutList):
-            for i in range(len(planwindingsgroup.OutList)):
-                basethicknesses[i] += planwinding.circlethicknesses[i]*planwinding.plannedwinds
-        
             additionalthicknesses = [ basecirclethickness + circlethickness*planwinding.plannedwinds \
                         for basecirclethickness, circlethickness in zip(basethicknesses, planwinding.circlethicknesses) ]
     
@@ -259,6 +256,10 @@ class GenConstThickOnStockCirclesTaskPanel(QtGui.QWidget):
             onionlayersgroup.addObject(onionlayer)
             basethicknesses = additionalthicknesses
 
+
+        for i in range(len(stockcirclesfolder.OutList)):
+            setpropertyval(stockcirclesfolder.OutList[i], "App::PropertyFloat", "onionthickness", 0.0)
+            stockcirclesfolder.OutList[i].onionthickness = basethicknesses[i]
         
     def apply(self):
         print("apply!!")

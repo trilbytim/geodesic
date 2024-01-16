@@ -191,6 +191,7 @@ class StockCirclesTaskPanel(QtGui.QWidget):
             setpropertyval(cply, "App::PropertyFloat", "sphrad", sphrad)
             setpropertyval(cply, "App::PropertyVector", "pt", Vector(gbt.pt))
             setpropertyval(cply, "App::PropertyVector", "norm", Vector(-gbt.tnorm))
+            setpropertyval(cply, "App::PropertyFloat", "onionthickness", 0.0)
             stockcirclesgroup.addObject(cply)
 
 
