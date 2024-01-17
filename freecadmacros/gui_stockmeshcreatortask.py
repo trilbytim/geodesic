@@ -55,6 +55,11 @@ def sfindobjectbylabel(doc, lab):
     objs = [ obj  for obj in doc.findObjects(Label=lab)  if obj.Label == lab ]
     return objs[0] if objs else None
 
+def sgetlabelofselectedgroupwithproperties(sel, properties):
+    for s in sel:
+        if isinstance(s, App.DocumentObjectGroup) and set(properties).issubset(s.PropertiesList):
+            return s.Label
+    return ""
 
 mandrelradius = 110  # fc6 file
 dsangle = 90.0
@@ -116,34 +121,73 @@ class StockViewerTaskPanel(QtGui.QWidget):
     def __init__(self):
         x = os.path.join(os.path.split(__file__)[0], "stockmeshcreatortask.ui")
         self.form = FreeCADGui.PySideUic.loadUi(x)
-        self.form.setMinimumSize(0, 300)
-        QtCore.QObject.connect(self.form.pushButton, QtCore.SIGNAL("pressed()"), self.pushbutton)  
+        self.form.setMinimumSize(0, 400)
         self.update()
 
     def update(self):
         self.doc = App.ActiveDocument
         self.sel = App.Gui.Selection.getSelection()
-        self.form.qmeshobject.setText(sgetlabelofselectedmesh(self.sel))
-        self.form.qsketchplane.setText(sgetlabelofselectedsketch(self.sel))
+        self.supersel = set(self.sel).union(s.getParent()  for s in self.sel)
+        stockcircles = sgetlabelofselectedgroupwithproperties(self.supersel, ["stockcirclestype"])
+        if stockcircles:
+            self.form.qstockcircles.setText(stockcircles)
+        stockcirclesgroup = sfindobjectbylabel(self.doc, self.form.qstockcircles.text())
+        if stockcirclesgroup:
+            sci0, sci1 = 0, 0
+            sci1 = len(stockcirclesgroup.OutList)
+            self.form.qsketchplane.setText(stockcirclesgroup.sketchplane)
+            self.form.qmeshobject.setText(stockcirclesgroup.meshobject)
+            selstockcircleindexes = [ stockcirclesgroup.OutList.index(sc)  for sc in self.sel  if sc in stockcirclesgroup.OutList ]
+            if selstockcircleindexes:
+                sci0, sci1 = min(selstockcircleindexes), max(selstockcircleindexes)
+            self.form.qstockcircleindexes.setText("%d,%d" % (sci0, sci1))
+        self.sketchplane = sfindobjectbylabel(self.doc, self.form.qsketchplane.text())
+        self.meshobject = sfindobjectbylabel(self.doc, self.form.qmeshobject.text())
 
-    def pushbutton(self):
-        print("Pushbutton pressed")
+
 
     def apply(self):
         print("apply!!")
-        sketchplane = sfindobjectbylabel(self.doc, self.form.qsketchplane.text())
-        meshobject = sfindobjectbylabel(self.doc, self.form.qmeshobject.text())
+        stockcirclesgroup = sfindobjectbylabel(self.doc, self.form.qstockcircles.text())
         stockmeshname = self.form.qstockmeshname.text()
-        alongwireLo = float(self.form.qalongwireLo.text())
-        alongwireHi = float(self.form.qalongwireHi.text())
-        columns = int(self.form.qcolumns.text())
+        if not stockcirclesgroup:
+            sketchplane = sfindobjectbylabel(self.doc, self.form.qsketchplane.text())
+            meshobject = sfindobjectbylabel(self.doc, self.form.qmeshobject.text())
+            alongwireLo = float(self.form.qalongwireLo.text())
+            alongwireHi = float(self.form.qalongwireHi.text())
+            columns = int(self.form.qcolumns.text())
+            colsamplestep = float(self.form.qcolsamplestep.text())
+            utbm = UsefulBoxedTriangleMesh(meshobject.Mesh)
+            drivecurve = makedrivecurve(sketchplane, utbm, mandrelradius)
+            columnptnormals = chaseupcolumnptnormalsfromdrivecurve(drivecurve, alongwireLo, alongwireHi, columns, colsamplestep)
+            makedrivemeshfromcolumnpts(columnptnormals, stockmeshname)
+            return
+            
+        sci0, sci1 = list(map(int, self.form.qstockcircleindexes.text().split(",")))
+        selstockcolumn = [ (P3(*stockcirclesgroup.OutList[i].pt), P3(*stockcirclesgroup.OutList[i].norm))  for i in range(sci0, sci1+1) ]
         colsamplestep = float(self.form.qcolsamplestep.text())
+        colcls = cumlengthlist([P3(*x[0])  for x in selstockcolumn])
+        ds = 0.0
+        stockcolumn = [ ]
+        while ds < colcls[-1] and len(stockcolumn) < 1000:
+            dsseg, dslam = seglampos(ds, colcls)
+            ptn0, ptn1 = selstockcolumn[dsseg], selstockcolumn[min(len(selstockcolumn)-1, dsseg+1)]
+            stockcolumn.append((Along(dslam, ptn0[0], ptn1[0]), P3.ZNorm(Along(dslam, ptn0[1], ptn1[1]))))
+            ds += colsamplestep
 
-        utbm = UsefulBoxedTriangleMesh(meshobject.Mesh)
-        drivecurve = makedrivecurve(sketchplane, utbm, mandrelradius)
-
-        columnptnormals = chaseupcolumnptnormalsfromdrivecurve(drivecurve, alongwireLo, alongwireHi, columns, colsamplestep)
-
+        anglo, anghi, angstep = list(map(float, (x.strip() for x in self.form.qanglerangestep.text().split(","))))
+        ang = anglo
+        columnptnormals = [ ]
+        while ang < anghi:
+            ptnormals = [ ]
+            cosang = math.cos(math.radians(ang))
+            sinang = math.sin(math.radians(ang))
+            for pt, norm in stockcolumn:
+                lpt = P3(pt.x*cosang + pt.z*sinang, pt.y, pt.z*cosang - pt.x*sinang)
+                lnorm = P3(norm.x*cosang + norm.z*sinang, norm.y, norm.z*cosang - norm.x*sinang)
+                ptnormals.append((lpt, lnorm))
+            ang += angstep
+            columnptnormals.append(ptnormals)
         makedrivemeshfromcolumnpts(columnptnormals, stockmeshname)
 
 
