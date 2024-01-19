@@ -150,19 +150,6 @@ class StockViewerTaskPanel(QtGui.QWidget):
         print("apply!!")
         stockcirclesgroup = sfindobjectbylabel(self.doc, self.form.qstockcircles.text())
         stockmeshname = self.form.qstockmeshname.text()
-        if not stockcirclesgroup:
-            sketchplane = sfindobjectbylabel(self.doc, self.form.qsketchplane.text())
-            meshobject = sfindobjectbylabel(self.doc, self.form.qmeshobject.text())
-            alongwireLo = float(self.form.qalongwireLo.text())
-            alongwireHi = float(self.form.qalongwireHi.text())
-            columns = int(self.form.qcolumns.text())
-            colsamplestep = float(self.form.qcolsamplestep.text())
-            utbm = UsefulBoxedTriangleMesh(meshobject.Mesh)
-            drivecurve = makedrivecurve(sketchplane, utbm, mandrelradius)
-            columnptnormals = chaseupcolumnptnormalsfromdrivecurve(drivecurve, alongwireLo, alongwireHi, columns, colsamplestep)
-            makedrivemeshfromcolumnpts(columnptnormals, stockmeshname)
-            return
-            
         sci0, sci1 = list(map(int, self.form.qstockcircleindexes.text().split(",")))
         selstockcolumn = [ (P3(*stockcirclesgroup.OutList[i].pt), P3(*stockcirclesgroup.OutList[i].norm))  for i in range(sci0, sci1+1) ]
         colsamplestep = float(self.form.qcolsamplestep.text())

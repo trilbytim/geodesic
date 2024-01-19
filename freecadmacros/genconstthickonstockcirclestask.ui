@@ -280,32 +280,6 @@
       </property>
      </widget>
     </item>
-    <item row="13" column="0">
-     <widget class="QLabel" name="labpreviewmultiplier">
-      <property name="text">
-       <string>Preview multiplier</string>
-      </property>
-     </widget>
-    </item>
-    <item row="13" column="1">
-     <widget class="QDoubleSpinBox" name="qpreviewmultiplier">
-      <property name="decimals">
-       <number>4</number>
-      </property>
-      <property name="minimum">
-       <double>0.000000000000000</double>
-      </property>
-      <property name="maximum">
-       <double>100.000000000000000</double>
-      </property>
-      <property name="singleStep">
-       <double>1.000000000000000</double>
-      </property>
-      <property name="value">
-       <double>5.400000000000000</double>
-      </property>
-     </widget>
-    </item>
     <item row="14" column="0">
      <widget class="QPushButton" name="buttontest">
       <property name="text">
@@ -320,6 +294,32 @@
       </property>
       <property name="text">
        <string>onionlayers</string>
+      </property>
+     </widget>
+    </item>
+    <item row="15" column="0">
+     <widget class="QLabel" name="labonionmultiplier">
+      <property name="text">
+       <string>Onion multiplier</string>
+      </property>
+     </widget>
+    </item>
+    <item row="15" column="1">
+     <widget class="QDoubleSpinBox" name="qonionmultiplier">
+      <property name="decimals">
+       <number>4</number>
+      </property>
+      <property name="minimum">
+       <double>0.000000000000000</double>
+      </property>
+      <property name="maximum">
+       <double>100.000000000000000</double>
+      </property>
+      <property name="singleStep">
+       <double>1.000000000000000</double>
+      </property>
+      <property name="value">
+       <double>5.000000000000000</double>
       </property>
      </widget>
     </item>

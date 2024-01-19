@@ -133,14 +133,14 @@ class StockViewerTaskPanel(QtGui.QWidget):
         facetis = [ f.PointIndices  for f in basestockmeshobject.Mesh.Facets ]
         norms = [ P3(*p)  for p in basestockmeshobject.Normals ]
         measstockmeshname = self.form.qmeasstockmesh.text()
-        offsetfactor = float(self.form.qoffsetfactor.text())
+        stockmultiplier = float(self.form.qstockmultiplier.text())
         
         mandrelpaths = [ freecadutils.findobjectbylabel(mandrelpathname)  for mandrelpathname in self.form.qmandrelpaths.text().split(",") ]
         towrad = mandrelpaths[0].towwidth/2.0   # we assume single width and thickness
-        towthick = 0.1
+        towthick = mandrelpaths[0].towthickness
         mandpaths, tbs = makemandpaths(mandrelpaths, towrad)
         thickcounts = [ towcountonpoint(p, towrad, mandpaths, tbs)  for p in pts ]
-        opts = [ p + n*(th*towthick*offsetfactor)  for p, n, th in zip(pts, norms, thickcounts) ]
+        opts = [ p + n*(th*towthick*stockmultiplier)  for p, n, th in zip(pts, norms, thickcounts) ]
         makemesh(opts, facetis, measstockmeshname)
 
 

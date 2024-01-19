@@ -25,3 +25,13 @@ per layer so we can see the worst parts (the joins)
 
 
 
+-----------------
+
+To see the stock based on the outputwindings, 
+
+1) Select a set of stockcircles to define the extend of the stock model, and 
+run gui_stockmeshcreatortask, chosing the angle step and column steps according 
+to the fineness of the mesh
+
+2) Select the sstockshape and the paths in the outputwindings and run 
+gui_stockviewertask to create the mstock mesh of the stock in that area

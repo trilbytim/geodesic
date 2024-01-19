@@ -231,7 +231,7 @@ class GenConstThickOnStockCirclesTaskPanel(QtGui.QWidget):
         planwindingsgroup = sfindobjectbylabel(self.doc, self.form.qplanwindings.text())
         onionlayers = self.form.qonionlayers.text()
         onionlayersgroup = freecadutils.getemptyfolder(self.doc, onionlayers)
-        previewmultiplier = float(self.form.qpreviewmultiplier.text())
+        onionmultiplier = float(self.form.qonionmultiplier.text())
 
         stockcirclesfolder = sfindobjectbylabel(self.doc, self.form.qstockcircles.text())
         basethicknesses = [ 0.0 ] * len(stockcirclesfolder.OutList)
@@ -240,7 +240,7 @@ class GenConstThickOnStockCirclesTaskPanel(QtGui.QWidget):
             additionalthicknesses = [ basecirclethickness + circlethickness*planwinding.plannedwinds \
                         for basecirclethickness, circlethickness in zip(basethicknesses, planwinding.circlethicknesses) ]
     
-            ptpairs = [ (stockcircle.pt + stockcircle.norm*(basethickness*previewmultiplier), stockcircle.pt + stockcircle.norm*(additionalthickness*previewmultiplier))  \
+            ptpairs = [ (stockcircle.pt + stockcircle.norm*(basethickness*onionmultiplier), stockcircle.pt + stockcircle.norm*(additionalthickness*onionmultiplier))  \
                     for stockcircle, basethickness, additionalthickness in zip(stockcirclesfolder.OutList, basethicknesses, additionalthicknesses) ]
             facets = [ ]
             for i in range(len(ptpairs)-1):
@@ -287,7 +287,6 @@ class GenConstThickOnStockCirclesTaskPanel(QtGui.QWidget):
         
         circlepaths = MandrelPaths(wirestopatharrays(stockcirclesfolder.OutList), towrad)
         assert len(circlepaths.mandrelptpaths) == len(stockcirclesfolder.OutList)
-        previewmultiplier = float(self.form.qpreviewmultiplier.text())
         assert len(circlepaths.mandrelptpaths) == len(stockcirclesfolder.OutList)
         circlelengths = [ circlepaths.getgaplength(i*circlepaths.Nm + 0.0, i*circlepaths.Nm + len(circlepaths.mandrelptpaths[i])-1) \
                           for i in range(len(stockcirclesfolder.OutList)) ]
