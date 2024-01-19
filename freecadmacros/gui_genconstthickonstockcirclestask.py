@@ -81,7 +81,7 @@ maxlength = 2500
 
 Maxsideslipturningfactor = 0.26
 combofoldbackmode = 0
-
+examplecirclemandrelindex = 20
 
 def adjustlandingrepeatstobecoprime(alongwire, alongwirelanded, totalrepeats):
     alongwireadvance = alongwirelanded - alongwire
@@ -162,7 +162,6 @@ def getcirclerangesonpt(circlepaths, pt, towrad):
     return bpcr.ranges
 
 def calccirclethicknesses(splayhooppts, circlepaths, circlelengths, towrad, towthickness):
-
     assert len(circlepaths.mandrelptpaths) == len(circlelengths)
     cranges = [ ]
     for pt in splayhooppts: # [ splayhooppts[len(splayhooppts)//2] ]:
@@ -235,6 +234,7 @@ class GenConstThickOnStockCirclesTaskPanel(QtGui.QWidget):
 
         stockcirclesfolder = sfindobjectbylabel(self.doc, self.form.qstockcircles.text())
         basethicknesses = [ 0.0 ] * len(stockcirclesfolder.OutList)
+        basetheoreticalmandrelshaftthickness = 0.0
 
         for j, planwinding in enumerate(planwindingsgroup.OutList):
             additionalthicknesses = [ basecirclethickness + circlethickness*planwinding.plannedwinds \
@@ -256,10 +256,14 @@ class GenConstThickOnStockCirclesTaskPanel(QtGui.QWidget):
             onionlayersgroup.addObject(onionlayer)
             basethicknesses = additionalthicknesses
 
+            theoreticalmandrelshaftoverlapthickness = 2*planwinding.towwidth/math.sin(math.radians(float(planwinding.splayangle.Value)))
+            theoreticalmandrelshaftthickness = theoreticalmandrelshaftoverlapthickness/(math.pi*2*mandrelradius)*planwinding.towthickness
+            basetheoreticalmandrelshaftthickness += theoreticalmandrelshaftthickness*planwinding.plannedwinds
 
         for i in range(len(stockcirclesfolder.OutList)):
             setpropertyval(stockcirclesfolder.OutList[i], "App::PropertyFloat", "onionthickness", 0.0)
             stockcirclesfolder.OutList[i].onionthickness = basethicknesses[i]
+        print("Theoretical mandrel shaft thickness", basetheoreticalmandrelshaftthickness)
         
     def apply(self):
         print("apply!!")
@@ -290,6 +294,7 @@ class GenConstThickOnStockCirclesTaskPanel(QtGui.QWidget):
         assert len(circlepaths.mandrelptpaths) == len(stockcirclesfolder.OutList)
         circlelengths = [ circlepaths.getgaplength(i*circlepaths.Nm + 0.0, i*circlepaths.Nm + len(circlepaths.mandrelptpaths[i])-1) \
                           for i in range(len(stockcirclesfolder.OutList)) ]
+        print("circle length comparison", circlelengths[examplecirclemandrelindex], "theory", math.pi*2*mandrelradius)
 
         # we are going to sum these up from planwindingsgroup
         basethicknesses = [ 0.0 ] * len(circlelengths)
@@ -299,7 +304,6 @@ class GenConstThickOnStockCirclesTaskPanel(QtGui.QWidget):
         
         while True:
             currentsplayangle += stepsplayangle
-            print("currentsplayangle", currentsplayangle)
             if (currentsplayangle > endsplayangle) == (stepsplayangle > 0):
                 print("No more splay angles left")
                 return
@@ -312,9 +316,13 @@ class GenConstThickOnStockCirclesTaskPanel(QtGui.QWidget):
             name = 'w%.1f' % currentsplayangle
             splayhooppts = [ gb.pt  for gb in gbs ]
             circlethicknesses = calccirclethicknesses(splayhooppts, circlepaths, circlelengths, towrad, towthickness)
+            
+            theoreticalmandrelshaftoverlapthickness = 2*2*towrad/math.sin(math.radians(currentsplayangle))
+            theoreticalmandrelshaftthickness = theoreticalmandrelshaftoverlapthickness/(math.pi*2*mandrelradius)*towthickness
+            
             minwindstothickness = min((desiredthickness - basethickness)/circlethickness  \
                     for circlethickness, basethickness in zip(circlethicknesses, basethicknesses)  if circlethickness != 0)
-            print(minwindstothickness, max(circlethicknesses))
+            print(currentsplayangle, minwindstothickness, max(circlethicknesses), "prac", circlethicknesses[examplecirclemandrelindex], "theory", theoreticalmandrelshaftthickness)
             if minwindstothickness < minimalwinds:
                 continue
 
