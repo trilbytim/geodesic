@@ -250,8 +250,10 @@ class PostProcessWindingsTaskPanel(QtGui.QWidget):
     def __init__(self):
         x = os.path.join(os.path.split(__file__)[0], "postprocesswindingstask.ui")
         self.form = FreeCADGui.PySideUic.loadUi(x)
-        self.form.setMinimumSize(0, 420)
+        self.form.setMinimumSize(0, 450)
+        QtCore.QObject.connect(self.form.qbuttseesweepmesh, QtCore.SIGNAL("pressed()"), self.seesweepmesh)
         self.update()
+        self.tcpblockslinked = None
 
     def update(self):
         self.doc = App.ActiveDocument
@@ -393,44 +395,13 @@ class PostProcessWindingsTaskPanel(QtGui.QWidget):
             tcpblockslinked.append(tcpblock)
             tcpblockslinkedstarthalt.append(0)
     
+        self.tcpblockslinked = tcpblockslinked
+        self.form.qbuttseesweepmesh.setEnabled(True)
+        print("tcpblockslinked made:", len(tcpblockslinked))
+    
         foutputsrc = self.form.qoutputsrcfile.text()
         headersrc = os.path.join(os.path.split(__file__)[0], "header.src")
         print("outputting src toolpath ", os.path.abspath(foutputsrc))
-
-        sweepmesh = self.form.qoutputsweepmesh.text() if len(self.form.qoutputsweepmesh.text()) != 0 and self.form.qoutputsweepmesh.text()[-1] != "*" else None
-        sweeppath = self.form.qoutputsweeppath.text() if len(self.form.qoutputsweeppath.text()) != 0 and self.form.qoutputsweeppath.text()[-1] != "*" else None
-        if sweepmesh:
-            facets = [ ]
-            for i in range(len(tcpblockslinked)):
-                tcpblock = tcpblockslinked[i]
-                #if not tcpblockslinkedstarthalt[i]:  continue
-                for j in range(len(tcpblock)-1):
-                    tcp0, tcp1 = tcpblock[j].GetTCP(True), tcpblock[j+1].GetTCP(True)
-                    vecr0, vecr1 = tcpblock[j].GetVecR(True), tcpblock[j+1].GetVecR(True)
-                    fp0, fp1 = tcp0 + vecr0, tcp1 + vecr1
-                    facets.append([Vector(*tcp0), Vector(*fp0), Vector(*tcp1)])
-                    facets.append([Vector(*tcp1), Vector(*fp0), Vector(*fp1)])
-            mesh = freecadutils.doc.addObject("Mesh::Feature", sweepmesh)
-            mesh.ViewObject.Lighting = "Two side"
-            mesh.ViewObject.DisplayMode = "Flat Lines"
-            mesh.Mesh = Mesh.Mesh(facets)
-            
-        if sweeppath:
-            pp = Path.Path()
-            for i in range(len(tcpblockslinked)):
-                tcpblock = tcpblockslinked[i]
-                pp.addCommands(Path.Command(["K01", "K00", "K99"][tcpblockslinkedstarthalt[i]+1]))
-                for tcp in tcpblock:
-                    # the ABC settings cause it to be drawn with splines going everywhere they don't belong because 
-                    # the plotting of the orientation is not done properly
-                    #c = Path.Command("G1", {"X":tcp.X, "Y":tcp.Y, "Z":tcp.Z, "E3":tcp.E3*1000/360, "B":tcp.E1, "C":tcp.E1a, "L":tcp.freefibrelength})
-                    c = Path.Command("G1", {"X":tcp.X, "Y":tcp.Y, "Z":tcp.Z, "E3":tcp.E3*1000/360})  
-                    pp.addCommands(c)
-                Part.show(Part.makePolygon([Vector(*tcp.GetTCP(True))  for tcp in tcpblock]), sweeppath)
-            o = freecadutils.doc.addObject("Path::Feature", sweeppath)
-            o.Path = pp
-            o.ViewObject.StartPosition = Vector(tcpblockslinked[0][0].X, tcpblockslinked[0][0].Y, tcpblockslinked[0][0].Z)
-
         print("blocks ", list(map(len, tcpblockslinked)))
 
         def srctcp(tcp):
@@ -456,6 +427,39 @@ class PostProcessWindingsTaskPanel(QtGui.QWidget):
         fout.write("HALT\nEND\n")
         fout.close()
 
+    def seesweepmesh(self):
+        i = self.form.qsweepmeshblockindex.value()
+        sweepmesh = sfindobjectbylabel(self.doc, self.form.qoutputsweepmesh.text())
+        if not sweepmesh:
+            sweepmesh = freecadutils.doc.addObject("Mesh::Feature", self.form.qoutputsweepmesh.text())
+            sweepmesh.ViewObject.Lighting = "Two side"
+            sweepmesh.ViewObject.DisplayMode = "Flat Lines"
+        sweeppath = sfindobjectbylabel(self.doc, self.form.qoutputsweeppath.text())
+        if not sweeppath:
+            sweeppath = freecadutils.doc.addObject("Path::Feature", self.form.qoutputsweeppath.text())
+
+        facets = [ ]
+        tcpblock = self.tcpblockslinked[i]
+        #if not tcpblockslinkedstarthalt[i]:  continue
+        for j in range(len(tcpblock)-1):
+            tcp0, tcp1 = tcpblock[j].GetTCP(True), tcpblock[j+1].GetTCP(True)
+            vecr0, vecr1 = tcpblock[j].GetVecR(True), tcpblock[j+1].GetVecR(True)
+            fp0, fp1 = tcp0 + vecr0, tcp1 + vecr1
+            facets.append([Vector(*tcp0), Vector(*fp0), Vector(*tcp1)])
+            facets.append([Vector(*tcp1), Vector(*fp0), Vector(*fp1)])
+        sweepmesh.Mesh = Mesh.Mesh(facets)
+
+        pp = Path.Path()
+        pp.addCommands(Path.Command("K00"))
+        for tcp in tcpblock:
+            # the ABC settings cause it to be drawn with splines going everywhere they don't belong because 
+            # the plotting of the orientation is not done properly
+            #c = Path.Command("G1", {"X":tcp.X, "Y":tcp.Y, "Z":tcp.Z, "E3":tcp.E3*1000/360, "B":tcp.E1, "C":tcp.E1a, "L":tcp.freefibrelength})
+            c = Path.Command("G1", {"X":tcp.X, "Y":tcp.Y, "Z":tcp.Z, "E3":tcp.E3*1000/360})  
+            pp.addCommands(c)
+        #Part.show(Part.makePolygon([Vector(*tcp.GetTCP(True))  for tcp in tcpblock]), sweeppath)
+        sweeppath.Path = pp
+        sweeppath.ViewObject.StartPosition = Vector(tcpblock[0].X, tcpblock[0].Y, tcpblock[0].Z)
 
 
     def getStandardButtons(self):
