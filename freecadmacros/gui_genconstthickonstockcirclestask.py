@@ -272,7 +272,6 @@ class GenConstThickOnStockCirclesTaskPanel(QtGui.QWidget):
         towrad = float(self.form.qtowwidth.text())/2.0
         towthickness = float(self.form.qtowthickness.text())
         desiredthickness = float(self.form.qdesiredthickness.text())
-        desiredthicknesslower = float(self.form.qdesiredthicknesslower.text())
         minimalwinds = int(self.form.qminimalwinds.text())
         planwindingsgroup = sfindobjectbylabel(self.doc, self.form.qplanwindings.text())
         if not planwindingsgroup:
