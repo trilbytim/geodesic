@@ -185,7 +185,7 @@ class GenConstThickOnStockCirclesTaskPanel(QtGui.QWidget):
     def __init__(self):
         x = os.path.join(os.path.split(__file__)[0], "genconstthickonstockcirclestask.ui")
         self.form = FreeCADGui.PySideUic.loadUi(x)
-        self.form.setMinimumSize(0, 520)
+        self.form.setMinimumSize(0, 540)
         QtCore.QObject.connect(self.form.buttontest, QtCore.SIGNAL("pressed()"), self.testbutton)
         self.update()
 
@@ -287,7 +287,6 @@ class GenConstThickOnStockCirclesTaskPanel(QtGui.QWidget):
         endsplayangle = float(self.form.qendsplayangle.text())
         stepsplayangle = float(self.form.qstepsplayangle.text())
         stepsplayangle = abs(stepsplayangle)*(1 if endsplayangle >= currentsplayangle else -1)
-
         
         circlepaths = MandrelPaths(wirestopatharrays(stockcirclesfolder.OutList), towrad)
         assert len(circlepaths.mandrelptpaths) == len(stockcirclesfolder.OutList)
@@ -302,6 +301,7 @@ class GenConstThickOnStockCirclesTaskPanel(QtGui.QWidget):
             for i in range(len(circlelengths)):
                 basethicknesses[i] += planwinding.circlethicknesses[i]*planwinding.plannedwinds
         
+        windingprefix = self.form.qwindingprefix.text()
         while True:
             currentsplayangle += stepsplayangle
             if (currentsplayangle > endsplayangle) == (stepsplayangle > 0):
@@ -313,7 +313,7 @@ class GenConstThickOnStockCirclesTaskPanel(QtGui.QWidget):
             if gbs[-1] == None:
                 continue
             alongwirelanded, angcrosslanded = self.drivecurve.endalongpositionA(gbs[-1])
-            name = 'w%.1f' % currentsplayangle
+            name = '%s%.1f' % (windingprefix, currentsplayangle)
             splayhooppts = [ gb.pt  for gb in gbs ]
             circlethicknesses = calccirclethicknesses(splayhooppts, circlepaths, circlelengths, towrad, towthickness)
             

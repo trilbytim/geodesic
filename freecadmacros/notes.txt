@@ -9,7 +9,17 @@ Instructions:
 3) Select stockcircles and load up gen_constthickonstockcirclestask, then click 
 Apply several times, preview what the thickness will be using See Onion Layers
 
+3a) You can set the current splay angle back to 18, and increase 
+Desired thickness (*and* DThickness lower) in order to build more layers 
+over the top of the current layer.  
+
+Set the windingprefix to, say, "m" to distinguish it in the next stage
+
 4) Select planwindings and run gui_genpathfromplanwindings
+
+4a) Do the planwindings in batches selected by the windingprefix
+and set the thickness offset to the normal offset, and Output windings 
+to save to a separate folder for the layer 
 
 5) Select outputwindings and run gui_postprocesswindings.  
 
@@ -35,3 +45,5 @@ to the fineness of the mesh
 
 2) Select the sstockshape and the paths in the outputwindings and run 
 gui_stockviewertask to create the mstock mesh of the stock in that area
+
+

@@ -250,7 +250,7 @@ class PostProcessWindingsTaskPanel(QtGui.QWidget):
     def __init__(self):
         x = os.path.join(os.path.split(__file__)[0], "postprocesswindingstask.ui")
         self.form = FreeCADGui.PySideUic.loadUi(x)
-        self.form.setMinimumSize(0, 450)
+        self.form.setMinimumSize(0, 490)
         QtCore.QObject.connect(self.form.qbuttseesweepmesh, QtCore.SIGNAL("pressed()"), self.seesweepmesh)
         self.update()
         self.tcpblockslinked = None
@@ -416,6 +416,7 @@ class PostProcessWindingsTaskPanel(QtGui.QWidget):
         fout.write(";;;;;;;;; postprocessing parameters (date %s)\n" % datetime.datetime.now().isoformat())
         for qels in ["qxconst", "qxconstarcys", "qE3offset", "qyoffset", "qswitchsplit", "qthinningtol"]:
             fout.write("; %s: %s\n" % (qels, getattr(self.form, qels).text()))
+        fout.write(";;;;;;;;;\n\n")
         fout.write(";;;;;;;;;\n\n")
             
         tcpconstXval = float(self.form.qxconst.text())

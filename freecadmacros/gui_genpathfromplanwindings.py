@@ -160,28 +160,50 @@ class GenPathFromPlanWindingsTaskPanel(QtGui.QWidget):
         alongwire = float(self.form.qalongwire.text())
         thinningtol = float(self.form.qthinningtol.text())
         planwindingsgroup = sfindobjectbylabel(self.doc, self.form.qplanwindings.text())
+        windingprefix = self.form.qwindingprefix.text()
+        thicknessoffset = float(self.form.qthicknessoffset.text())
+        planwindings = [ planwinding  for planwinding in planwindingsgroup.OutList  if planwinding.Label.find(windingprefix) == 0 ]
+        if not planwindings:
+            print("No windings matching prefix '%s'" % windingprefix)
+            return
+
         optiontestminimal = self.form.qoptiontestminimal.isChecked()
         if planwindingsgroup == None:
             print("No planwindings selected")
             return
         outputwindingsgroup = freecadutils.getemptyfolder(self.doc, self.form.qoutputwindings.text())
-        setpropertyval(planwindingsgroup, "App::PropertyString", "planwindings", planwindingsgroup.Label)
-        setpropertyval(planwindingsgroup, "App::PropertyBool", "outputwindingsgrouptype", True)
-        setpropertyval(planwindingsgroup, "App::PropertyFloat", "thinningtol", thinningtol)
+        setpropertyval(outputwindingsgroup, "App::PropertyString", "planwindings", planwindingsgroup.Label)
+        setpropertyval(outputwindingsgroup, "App::PropertyBool", "outputwindingsgrouptype", True)
+        setpropertyval(outputwindingsgroup, "App::PropertyFloat", "thinningtol", thinningtol)
+        setpropertyval(outputwindingsgroup, "App::PropertyFloat", "thicknessoffset", thicknessoffset)
 
         initialangadvance = 0.0
-        for planwinding in planwindingsgroup.OutList:
+        for planwinding in planwindings:
             adjustedalongwirelanded, adjustedwindings = adjustlandingrepeatstobecoprime(planwinding.alongwire, planwinding.alongwirelanded, planwinding.plannedwinds)
             Dadustedalongwireadvance = adjustedalongwirelanded - alongwire
             if Dadustedalongwireadvance <= 0.0:
                 Dadustedalongwireadvance += 1.0
             print("turns", round(Dadustedalongwireadvance*adjustedwindings), "for windings", adjustedwindings)
             gbs, fLRdirection, dseg, Dalongwirelanded = directedgeodesic(combofoldbackmode, self.drivecurve, self.utbm, planwinding.alongwire, adjustedalongwirelanded, float(planwinding.splayangle), Maxsideslipturningfactor, mandrelradius, 0.0, maxlength, None)
-       
+            print(gbs[:10], gbs[-10:])
+
+            if thicknessoffset != 0.0:
+                wrpts = [ ]
+                for i in range(len(gbs)):
+                    if hasattr(gbs[i], "tnorm"):  # GBarT type
+                        tnorm = gbs[i].tnorm
+                    else:
+                        tnorm = gbs[i].tnorm_incoming  # GBarC type
+                        tnorm_outgoing = (gbs[i+1].tnorm if hasattr(gbs[i+1], "tnorm") else gbs[i+1].tnorm_incoming)
+                        tnorm = P3.ZNorm(tnorm + tnorm_outgoing)
+                    wrpts.append(gbs[i].pt - tnorm*thicknessoffset)
+            else:
+                wrpts = [ gb.pt  for gb in gbs ]
+
             angadvanceperwind = (adjustedalongwirelanded - planwinding.alongwire + 1.0)*360
             if optiontestminimal:
                 adjustedwindings = 1
-            rpts = repeatwindingpath([P3(*gb.pt)  for gb in gbs], adjustedwindings, thinningtol, angadvanceperwind, initialangadvance)
+            rpts = repeatwindingpath(wrpts, adjustedwindings, thinningtol, angadvanceperwind, initialangadvance)
             
             if optiontestminimal:
                 initialangadvance += (adjustedwindings*angadvanceperwind) % 360
