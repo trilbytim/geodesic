@@ -187,7 +187,6 @@ class GenPathFromPlanWindingsTaskPanel(QtGui.QWidget):
                 Dadustedalongwireadvance += 1.0
             print("turns", round(Dadustedalongwireadvance*adjustedwindings), "for windings", adjustedwindings)
             gbs, fLRdirection, dseg, Dalongwirelanded = directedgeodesic(combofoldbackmode, self.drivecurve, self.utbm, planwinding.alongwire, adjustedalongwirelanded, float(planwinding.splayangle), Maxsideslipturningfactor, mandrelradius, 0.0, maxlength, None)
-            print(gbs[:10], gbs[-10:])
 
             wrpts = [ gb.pt  for gb in gbs ]
             if thicknessoffset != 0.0:

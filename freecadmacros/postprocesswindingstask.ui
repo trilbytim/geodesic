@@ -20,7 +20,7 @@
    </sizepolicy>
   </property>
   <property name="windowTitle">
-   <string>Directed Splay</string>
+   <string>Post process</string>
   </property>
   <widget class="QWidget" name="formLayoutWidget">
    <property name="geometry">
