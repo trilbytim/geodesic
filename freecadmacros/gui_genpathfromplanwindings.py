@@ -162,6 +162,7 @@ class GenPathFromPlanWindingsTaskPanel(QtGui.QWidget):
         planwindingsgroup = sfindobjectbylabel(self.doc, self.form.qplanwindings.text())
         windingprefix = self.form.qwindingprefix.text()
         thicknessoffset = float(self.form.qthicknessoffset.text())
+        thicknesssmoothing = float(self.form.qthicknesssmoothing.text())
         planwindings = [ planwinding  for planwinding in planwindingsgroup.OutList  if planwinding.Label.find(windingprefix) == 0 ]
         if not planwindings:
             print("No windings matching prefix '%s'" % windingprefix)
@@ -176,6 +177,7 @@ class GenPathFromPlanWindingsTaskPanel(QtGui.QWidget):
         setpropertyval(outputwindingsgroup, "App::PropertyBool", "outputwindingsgrouptype", True)
         setpropertyval(outputwindingsgroup, "App::PropertyFloat", "thinningtol", thinningtol)
         setpropertyval(outputwindingsgroup, "App::PropertyFloat", "thicknessoffset", thicknessoffset)
+        setpropertyval(outputwindingsgroup, "App::PropertyFloat", "thicknesssmoothing", thicknesssmoothing)
 
         initialangadvance = 0.0
         for planwinding in planwindings:
@@ -187,8 +189,9 @@ class GenPathFromPlanWindingsTaskPanel(QtGui.QWidget):
             gbs, fLRdirection, dseg, Dalongwirelanded = directedgeodesic(combofoldbackmode, self.drivecurve, self.utbm, planwinding.alongwire, adjustedalongwirelanded, float(planwinding.splayangle), Maxsideslipturningfactor, mandrelradius, 0.0, maxlength, None)
             print(gbs[:10], gbs[-10:])
 
+            wrpts = [ gb.pt  for gb in gbs ]
             if thicknessoffset != 0.0:
-                wrpts = [ ]
+                wnorms = [ ]
                 for i in range(len(gbs)):
                     if hasattr(gbs[i], "tnorm"):  # GBarT type
                         tnorm = gbs[i].tnorm
@@ -196,9 +199,25 @@ class GenPathFromPlanWindingsTaskPanel(QtGui.QWidget):
                         tnorm = gbs[i].tnorm_incoming  # GBarC type
                         tnorm_outgoing = (gbs[i+1].tnorm if hasattr(gbs[i+1], "tnorm") else gbs[i+1].tnorm_incoming)
                         tnorm = P3.ZNorm(tnorm + tnorm_outgoing)
-                    wrpts.append(gbs[i].pt - tnorm*thicknessoffset)
-            else:
-                wrpts = [ gb.pt  for gb in gbs ]
+                    wnorms.append(-tnorm)
+                
+                # attempt at smoothing these normals before we add them in
+                smoothreps = int(thicknesssmoothing)
+                sfac = thicknesssmoothing - smoothreps
+                for s in range(smoothreps):
+                    swnorms = [ ]
+                    for i in range(len(wrpts)):
+                        im1 = max(i-1, 0)
+                        ip1 = min(i+1, len(wrpts)-1)
+                        dm = (wrpts[i] - wrpts[im1]).Len()
+                        dp = (wrpts[i] - wrpts[ip1]).Len()
+                        dl = dm / (dp + dm)
+                        nmp = Along(dl, wnorms[im1], wnorms[ip1])
+                        swnorms.append(P3.ZNorm(Along(sfac, wnorms[i], nmp)))
+                    wnorms = swnorms
+                
+                wrpts = [ w + n*thicknessoffset  for w, n in zip(wrpts, wnorms) ]
+                
 
             angadvanceperwind = (adjustedalongwirelanded - planwinding.alongwire + 1.0)*360
             if optiontestminimal:

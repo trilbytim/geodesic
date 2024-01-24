@@ -21,6 +21,11 @@ Set the windingprefix to, say, "m" to distinguish it in the next stage
 and set the thickness offset to the normal offset, and Output windings 
 to save to a separate folder for the layer 
 
+To cope with the wiggles, there is a thickness smoothing applied of 3.6, 
+which is 3 repeats, with an average weighting of 0.6 between the normal 
+and the averaged normal of the forward and back normals
+
+
 5) Select outputwindings and run gui_postprocesswindings.  
 
 6) Toolpath output is in fillwind11.src
