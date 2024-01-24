@@ -10,7 +10,7 @@ from FreeCAD import Vector, Rotation
 from PySide import QtGui, QtCore
 
 
-import os, sys, math, time, numpy
+import os, sys, math, time, numpy, datetime
 sys.path.append(os.path.join(os.path.split(__file__)[0]))
 print(sys.path[-1])
 
@@ -402,7 +402,8 @@ class PostProcessWindingsTaskPanel(QtGui.QWidget):
         foutputsrc = self.form.qoutputsrcfile.text()
         headersrc = os.path.join(os.path.split(__file__)[0], "header.src")
         print("outputting src toolpath ", os.path.abspath(foutputsrc))
-        print("blocks ", list(map(len, tcpblockslinked)))
+        #print("blocks ", list(map(len, tcpblockslinked)))
+        print("nblocks ", len(tcpblockslinked))
 
         def srctcp(tcp):
             return srcpt({"X":tcp.X, "Y":tcp.Y + Ymid, "Z":tcp.Z, "E1":tcp.E1, "E1a":tcp.E1a, "E3":tcp.E3*1000/360, "fleng":tcp.freefibrelength})
@@ -411,6 +412,16 @@ class PostProcessWindingsTaskPanel(QtGui.QWidget):
         print("making toolpath: ", os.path.abspath(foutputsrc))
         fout = open(foutputsrc, "w")
         fout.write(open(headersrc).read())
+        
+        fout.write(";;;;;;;;; postprocessing parameters (date %s)\n" % datetime.datetime.now().isoformat())
+        for qels in ["qxconst", "qxconstarcys", "qE3offset", "qyoffset", "qswitchsplit", "qthinningtol"]:
+            fout.write("; %s: %s\n" % (qels, getattr(self.form, qels).text()))
+        fout.write(";;;;;;;;;\n\n")
+            
+        tcpconstXval = float(self.form.qxconst.text())
+        tcpconstXarcYs = sorted([float(x.strip())  for x in self.form.qxconstarcys.text().split(",")])
+
+        
         fout.write("SLIN %s\n" % srcpt({"X":-200, "Y":Ymid, "Z":0, "A":0, "E1":0, "E3":0, "E4":0}))
         for i in range(len(tcpblockslinked)):
             tcpblock = tcpblockslinked[i]
