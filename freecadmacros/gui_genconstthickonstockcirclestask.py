@@ -316,7 +316,7 @@ class GenConstThickOnStockCirclesTaskPanel(QtGui.QWidget):
             splayhooppts = [ gb.pt  for gb in gbs ]
             circlethicknesses = calccirclethicknesses(splayhooppts, circlepaths, circlelengths, towrad, towthickness)
             
-            theoreticalmandrelshaftoverlapthickness = 2*2*towrad/math.sin(math.radians(currentsplayangle))
+            theoreticalmandrelshaftoverlapthickness = 2*2*towrad/abs(math.sin(math.radians(currentsplayangle)))
             theoreticalmandrelshaftthickness = theoreticalmandrelshaftoverlapthickness/(math.pi*2*mandrelradius)*towthickness
             
             minwindstothickness = min((desiredthickness - basethickness)/circlethickness  \
