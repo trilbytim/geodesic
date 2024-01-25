@@ -258,7 +258,7 @@ class PostProcessWindingsTaskPanel(QtGui.QWidget):
     def update(self):
         self.doc = App.ActiveDocument
         self.sel = App.Gui.Selection.getSelection()
-        outputwindings = sgetlabelofselectedgroupwithproperties(self.sel, ["outputwindingstype"])
+        outputwindings = sgetlabelofselectedgroupwithproperties(self.sel, ["outputwindingsgrouptype"])
         if outputwindings:
             self.form.qoutputwindings.setText(outputwindings)
         outputwindingsgroup = sfindobjectbylabel(self.doc, self.form.qoutputwindings.text())
