@@ -323,6 +323,10 @@ class PostProcessWindingsTaskPanel(QtGui.QWidget):
                 if tgcpmov < 0.05:
                     print("Skipping trivial linear aligned tcp motion", i, tgcpmov)
                     tcps.pop()
+            else:
+                tcp.applyE1Winding(0.0)
+                print("centring E1 on zero", tcp.E1)
+
             if i != 0 and textlen is not None:
                 textlen -= (tapecurve[i] - tapecurve[i-1]).Len()
                 if textlen <= 0:
@@ -416,7 +420,6 @@ class PostProcessWindingsTaskPanel(QtGui.QWidget):
         fout.write(";;;;;;;;; postprocessing parameters (date %s)\n" % datetime.datetime.now().isoformat())
         for qels in ["qxconst", "qxconstarcys", "qE3offset", "qyoffset", "qswitchsplit", "qthinningtol"]:
             fout.write("; %s: %s\n" % (qels, getattr(self.form, qels).text()))
-        fout.write(";;;;;;;;;\n\n")
         fout.write(";;;;;;;;;\n\n")
             
         tcpconstXval = float(self.form.qxconst.text())

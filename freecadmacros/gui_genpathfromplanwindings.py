@@ -163,6 +163,8 @@ class GenPathFromPlanWindingsTaskPanel(QtGui.QWidget):
         windingprefix = self.form.qwindingprefix.text()
         thicknessoffset = float(self.form.qthicknessoffset.text())
         thicknesssmoothing = float(self.form.qthicknesssmoothing.text())
+        initialangadvance = float(self.form.qinitialangleadvance.text())
+
         planwindings = [ planwinding  for planwinding in planwindingsgroup.OutList  if planwinding.Label.find(windingprefix) == 0 ]
         if not planwindings:
             print("No windings matching prefix '%s'" % windingprefix)
@@ -178,8 +180,8 @@ class GenPathFromPlanWindingsTaskPanel(QtGui.QWidget):
         setpropertyval(outputwindingsgroup, "App::PropertyFloat", "thinningtol", thinningtol)
         setpropertyval(outputwindingsgroup, "App::PropertyFloat", "thicknessoffset", thicknessoffset)
         setpropertyval(outputwindingsgroup, "App::PropertyFloat", "thicknesssmoothing", thicknesssmoothing)
+        setpropertyval(outputwindingsgroup, "App::PropertyFloat", "initialangadvance", initialangadvance)
 
-        initialangadvance = 0.0
         for planwinding in planwindings:
             adjustedalongwirelanded, adjustedwindings = adjustlandingrepeatstobecoprime(planwinding.alongwire, planwinding.alongwirelanded, planwinding.plannedwinds)
             Dadustedalongwireadvance = adjustedalongwirelanded - alongwire
@@ -187,7 +189,6 @@ class GenPathFromPlanWindingsTaskPanel(QtGui.QWidget):
                 Dadustedalongwireadvance += 1.0
             print("turns", round(Dadustedalongwireadvance*adjustedwindings), "for windings", adjustedwindings)
             gbs, fLRdirection, dseg, Dalongwirelanded = directedgeodesic(combofoldbackmode, self.drivecurve, self.utbm, planwinding.alongwire, adjustedalongwirelanded, float(planwinding.splayangle), Maxsideslipturningfactor, mandrelradius, 0.0, maxlength, None)
-            print(gbs[:10], gbs[-10:])
 
             wrpts = [ gb.pt  for gb in gbs ]
             if thicknessoffset != 0.0:
