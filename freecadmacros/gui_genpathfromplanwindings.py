@@ -171,6 +171,7 @@ class GenPathFromPlanWindingsTaskPanel(QtGui.QWidget):
             return
 
         optiontestminimal = self.form.qoptiontestminimal.isChecked()
+        negatez = self.form.qnegatez.isChecked()
         if planwindingsgroup == None:
             print("No planwindings selected")
             return
@@ -231,6 +232,8 @@ class GenPathFromPlanWindingsTaskPanel(QtGui.QWidget):
                 TOL_ZERO(((((adjustedwindings*angadvanceperwind)%360) + 180) % 360) - 180, "advanceperwind")
 
             name = 'w%dx%d' % (90-int(planwinding.splayangle), adjustedwindings)
+            if negatez:
+                rpts = [ P3(p.x, p.y, -p.z)  for p in rpts ]
             ply = Part.show(Part.makePolygon([Vector(pt)  for pt in rpts]), name)
             outputwindingsgroup.addObject(ply)
             setpropertyval(ply, "App::PropertyAngle", "splayangle", planwinding.splayangle)
