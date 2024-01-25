@@ -88,6 +88,14 @@ def GBCrossBarRS(gb, ptpushfrom, sideslipturningfactor):
 
     bForeTriSide = (vecoppouttoPerpSide <= vecoppouttoPerpD0)
     barcrossing = barforerightBL if fromGoRight == bForeTriSide else barforerightBL.GetForeRightBL(barforerightBL.nodefore == tnodeopposite)
+
+    if not (barcrossing.GetNodeFore(barcrossing.nodeback == tnodeopposite) == gb.bar.GetNodeFore(bForeTriSide)):
+        print("*** print debugs before assert, prob due to unhandled bounce back")
+        print("sideslipturningfactor", sideslipturningfactor)
+        print("gb.bar", gb.bar, gb.bar.nodeback, gb.bar.nodefore, gb.bGoRight)
+        print("barforerightBL", barforerightBL)
+        print("barcrossing", barcrossing, barcrossing.nodeback, barcrossing.nodefore)
+
     assert barcrossing.GetNodeFore(barcrossing.nodeback == tnodeopposite) == gb.bar.GetNodeFore(bForeTriSide)
 
     vecoppouttoPerpDI = P3.Dot(vecoppouttoPerp, gb.bar.GetNodeFore(bForeTriSide).p)
