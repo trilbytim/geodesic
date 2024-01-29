@@ -3,7 +3,7 @@
 
 import Draft, Part, Mesh, MeshPart
 from FreeCAD import Vector, Rotation 
-from barmesh.basicgeo import I1, Partition1, P3, P2, Along
+
 from PySide import QtGui, QtCore
 
 import os, sys, math, time
@@ -13,6 +13,7 @@ print(sys.path[-1])
 #import utils.trianglemeshutils;  import sys;  sys.modules.pop("trianglemeshutils")
 import utils.freecadutils as freecadutils 
 from utils.trianglemeshutils import UsefulBoxedTriangleMesh
+from barmesh.basicgeo import I1, Partition1, P3, P2, Along
 
 freecadutils.init(App)
 
